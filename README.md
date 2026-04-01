@@ -2,41 +2,60 @@
 
 iOS-native мессенджер с Ephemeral Identity
 
-## Установка
+## Быстрый старт
 
 ```bash
 npm install
-```
-
-## Запуск
-
-```bash
 npm start
 ```
 
+Выбери iOS симулятор или физическое устройство.
+
 ## Фичи
 
-- 🫥 Ephemeral Identity (опционально)
-- 💬 Real-time чаты через WebSocket
-- 🎨 iOS-native UX с системной темой
-- 🔐 End-to-end encryption
-- ⚡️ Haptic feedback
-- 🎭 Уникальный онбординг
+🫥 **Ephemeral Identity** - личность исчезает каждые 24 часа (опционально)
+💬 **Real-time чаты** - WebSocket с typing indicator
+🎨 **iOS-native UX** - системная тема, haptics, анимации
+🔐 **E2E encryption** - ключи генерируются на клиенте
+🎭 **Уникальный онбординг** - "Ты никто. Но ты можешь стать кем угодно."
 
 ## Структура
 
-- `app/(onboarding)` - онбординг экран
-- `app/(tabs)` - главные экраны (чаты, профиль)
-- `app/chat/[id]` - экран чата
-- `store/` - Zustand state management
-- `services/` - API и WebSocket
-- `components/` - переиспользуемые компоненты
+```
+app/
+├── (onboarding)/     # Онбординг с анимацией
+├── (tabs)/           # Главные экраны
+│   ├── index.tsx     # Список чатов
+│   └── profile.tsx   # Профиль + Ephemeral toggle
+└── chat/[id].tsx     # Экран чата
+
+store/
+└── auth.store.ts     # Zustand state
+
+services/
+├── api.ts            # REST API
+└── socket.ts         # WebSocket client
+
+components/
+└── IdentityUpdateModal.tsx  # Модалка "Ты стал другим"
+```
 
 ## Backend
 
-Запусти сервер из папки JEMMY-SERVER:
+Запусти сервер:
 ```bash
 cd ../JEMMY-SERVER
 npm install
 npm run start:dev
 ```
+
+Сервер будет на `http://localhost:3000`
+
+## Технологии
+
+- React Native + Expo Router
+- TypeScript
+- Zustand (state management)
+- Socket.io-client (WebSocket)
+- react-native-reanimated (анимации)
+- expo-haptics (тактильная обратная связь)

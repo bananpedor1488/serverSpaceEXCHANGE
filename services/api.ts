@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000';
+const API_URL = 'http://178.104.40.37:25593';
 
 export const api = {
   async register(deviceId: string, publicKey: string) {

@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 
-const WS_URL = 'http://localhost:3000';
+const WS_URL = 'http://178.104.40.37:25593';
 
 class SocketService {
   private socket: Socket | null = null;
