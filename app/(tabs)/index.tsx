@@ -1,98 +1,96 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Pressable, useColorScheme } from 'react-native';
+import { useEffect, useState } from 'react';
+import { router } from 'expo-router';
+import { useAuthStore } from '../../store/auth.store';
+import { api } from '../../services/api';
+import { socketService } from '../../services/socket';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function ChatsScreen() {
+  const [chats, setChats] = useState([]);
+  const { identity, userId } = useAuthStore();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
-export default function HomeScreen() {
+  useEffect(() => {
+    if (identity && userId) {
+      socketService.connect(userId);
+      loadChats();
+    }
+  }, [identity, userId]);
+
+  const loadChats = async () => {
+    if (!identity) return;
+    const data = await api.getUserChats(identity._id);
+    setChats(data);
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
-
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}>
+      <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>Чаты</Text>
+      
+      <FlatList
+        data={chats}
+        keyExtractor={(item: any) => item._id}
+        renderItem={({ item }) => (
+          <Pressable
+            style={({ pressed }) => [
+              styles.chatItem,
+              { 
+                backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7',
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+            onPress={() => router.push(`/chat/${item._id}`)}
+          >
+            <View style={styles.avatar} />
+            <Text style={[styles.chatName, { color: isDark ? '#fff' : '#000' }]}>
+              {item.group_name || 'Чат'}
+            </Text>
+          </Pressable>
+        )}
+        ListEmptyComponent={
+          <Text style={[styles.empty, { color: isDark ? '#8E8E93' : '#8E8E93' }]}>
+            Нет чатов
+          </Text>
+        }
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    paddingTop: 60,
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: 'bold',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 4,
+    borderRadius: 12,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#007AFF',
+    marginRight: 12,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  chatName: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  empty: {
+    textAlign: 'center',
+    marginTop: 100,
+    fontSize: 17,
   },
 });
