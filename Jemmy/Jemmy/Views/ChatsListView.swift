@@ -8,6 +8,7 @@ struct ChatsListView: View {
     @State private var showSearchByTag = false
     @State private var selectedChat: ChatListItem?
     @Binding var openChat: CreatedChat?
+    @Binding var tabBarHidden: Bool
     
     var filteredChats: [ChatListItem] {
         if searchText.isEmpty {
@@ -111,10 +112,9 @@ struct ChatsListView: View {
                         }
                         .listStyle(.plain)
                         .scrollContentBackground(.hidden)
-                        
                         NavigationLink(
                             destination: selectedChat.map { chat in
-                                ChatView(chatId: chat.id, otherUser: chat.user)
+                                ChatView(chatId: chat.id, otherUser: chat.user, tabBarHidden: $tabBarHidden)
                                     .environmentObject(authViewModel)
                             },
                             isActive: Binding(
@@ -125,12 +125,12 @@ struct ChatsListView: View {
                             EmptyView()
                         }
                         .hidden()
+                    }   }
+                        .hidden()
+                    }   .hidden()
                     }
-                }
-            }
             .navigationTitle("Чаты")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar(.visible, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showSearchByTag = true }) {
@@ -141,9 +141,11 @@ struct ChatsListView: View {
             }
             .onAppear {
                 loadChats()
+                tabBarHidden = false
             }
             .refreshable {
                 loadChats()
+            }   loadChats()
             }
             .onChange(of: openChat) { newValue in
                 if let chat = newValue {
