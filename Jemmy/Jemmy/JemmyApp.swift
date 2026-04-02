@@ -2,9 +2,16 @@ import SwiftUI
 
 @main
 struct JemmyApp: App {
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+    
     var body: some Scene {
         WindowGroup {
-            OnboardingView()
+            if hasSeenOnboarding {
+                HomeView()
+                    .environmentObject(AuthViewModel())
+            } else {
+                OnboardingView()
+            }
         }
     }
 }
