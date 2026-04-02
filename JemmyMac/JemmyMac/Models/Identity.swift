@@ -14,15 +14,6 @@ struct Identity: Codable, Identifiable {
         case bio
         case expiresAt = "expires_at"
     }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        username = try container.decode(String.self, forKey: .username)
-        avatar = try container.decodeIfPresent(String.self, forKey: .avatar) ?? ""
-        bio = try container.decodeIfPresent(String.self, forKey: .bio) ?? ""
-        expiresAt = try container.decodeIfPresent(Date.self, forKey: .expiresAt)
-    }
 }
 
 struct AuthResponse: Codable {

@@ -6,8 +6,11 @@ class APIService {
     
     private init() {}
     
+    // MARK: - Auth
+    
     func register(deviceId: String, publicKey: String) async throws -> AuthResponse {
         print("📡 Request: POST /auth/register")
+        print("📦 Body: device_id=\(deviceId)")
         
         let url = URL(string: "\(baseURL)/auth/register")!
         var request = URLRequest(url: url)
@@ -17,23 +20,27 @@ class APIService {
         let body = ["device_id": deviceId, "public_key": publicKey]
         request.httpBody = try JSONEncoder().encode(body)
         
-        let (data, _) = try await URLSession.shared.data(for: request)
-        
-        // Debug: print response
-        if let jsonString = String(data: data, encoding: .utf8) {
-            print("📥 Response: \(jsonString)")
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
+            print("✅ Registration successful: \(authResponse.identity.username)")
+            return authResponse
+        } catch {
+            print("❌ Registration error: \(error.localizedDescription)")
+            throw error
         }
-        
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        
-        let authResponse = try decoder.decode(AuthResponse.self, from: data)
-        print("✅ Registration successful: \(authResponse.identity.username)")
-        return authResponse
     }
+    
+    // MARK: - Invite Links
     
     func generateInviteLink(identityId: String) async throws -> String {
         print("📡 Request: POST /identity/generate-link")
+        print("📦 Body: identity_id=\(identityId)")
         
         let url = URL(string: "\(baseURL)/identity/generate-link")!
         var request = URLRequest(url: url)
@@ -43,44 +50,83 @@ class APIService {
         let body: [String: Any] = ["identity_id": identityId]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
-        let (data, _) = try await URLSession.shared.data(for: request)
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        
-        if let urlString = json?["url"] as? String {
-            print("✅ Link generated: \(urlString)")
-            return urlString
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            
+            if let urlString = json?["url"] as? String {
+                print("✅ Link generated: \(urlString)")
+                return urlString
+            } else {
+                print("❌ No url in response")
+                throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No url in response"])
+            }
+        } catch {
+            print("❌ Generate link error: \(error.localizedDescription)")
+            throw error
         }
-        
-        throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No url in response"])
     }
     
     func useInviteLink(token: String) async throws -> Identity {
         print("📡 Request: GET /invite/\(token)")
         
         let url = URL(string: "\(baseURL)/invite/\(token)")!
-        let (data, _) = try await URLSession.shared.data(from: url)
         
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        
-        if let identityData = json?["identity"] as? [String: Any],
-           let jsonData = try? JSONSerialization.data(withJSONObject: identityData) {
-            let identity = try JSONDecoder().decode(Identity.self, from: jsonData)
-            print("✅ Invite link used, identity: \(identity.username)")
-            return identity
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode != 200 {
+                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    print("❌ Server error: \(errorText)")
+                    throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorText])
+                }
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            
+            if let identityData = json?["identity"] as? [String: Any],
+               let jsonData = try? JSONSerialization.data(withJSONObject: identityData) {
+                let identity = try JSONDecoder().decode(Identity.self, from: jsonData)
+                print("✅ Invite link used, identity: \(identity.username)")
+                return identity
+            }
+            
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+        } catch {
+            print("❌ Use invite link error: \(error.localizedDescription)")
+            throw error
         }
-        
-        throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
     }
+    
+    // MARK: - Chats
     
     func getUserChats(identityId: String) async throws -> [Chat] {
         print("📡 Request: GET /chat/user/\(identityId)")
         
         let url = URL(string: "\(baseURL)/chat/user/\(identityId)")!
-        let (data, _) = try await URLSession.shared.data(from: url)
         
-        let chats = try JSONDecoder().decode([Chat].self, from: data)
-        print("✅ Chats loaded: \(chats.count) chats")
-        return chats
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let chats = try JSONDecoder().decode([Chat].self, from: data)
+            print("✅ Chats loaded: \(chats.count) chats")
+            return chats
+        } catch {
+            print("❌ Get chats error: \(error.localizedDescription)")
+            throw error
+        }
     }
     
     func createChat(identityIds: [String]) async throws -> Chat {
