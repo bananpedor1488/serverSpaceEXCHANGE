@@ -1,59 +1,99 @@
-//
-//  ContentView.swift
-//  JemmyMac
-//
-//  Created by banan on 02.04.2026.
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @State private var showLinkGenerator = false
+    
     var body: some View {
         NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+            // Sidebar
+            VStack(spacing: 0) {
+                // Profile section
+                if let identity = authViewModel.identity {
+                    VStack(spacing: 12) {
+                        Circle()
+                            .fill(Color.accentColor.opacity(0.2))
+                            .frame(width: 60, height: 60)
+                            .overlay(
+                                Text(String(identity.username.prefix(2)).uppercased())
+                                    .font(.system(size: 24, weight: .semibold))
+                            )
+                        
+                        Text(identity.username)
+                            .font(.system(size: 15, weight: .semibold))
+                        
+                        Button(action: { showLinkGenerator = true }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "link")
+                                Text("Создать ссылку")
+                                    .font(.system(size: 13))
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.accentColor.opacity(0.2))
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding()
+                }
+                
+                Divider()
+                
+                // Chats list
+                List {
+                    ForEach(authViewModel.chats) { chat in
+                        ChatRowView(chat: chat)
                     }
                 }
-                .onDelete(perform: deleteItems)
+                .listStyle(.sidebar)
             }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-            .toolbar {
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
+            .frame(minWidth: 250)
         } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+            // Detail view
+            VStack {
+                Image(systemName: "bubble.left.and.bubble.right")
+                    .font(.system(size: 60))
+                    .foregroundColor(.secondary.opacity(0.5))
+                
+                Text("Выбери чат")
+                    .font(.system(size: 17))
+                    .foregroundColor(.secondary)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .sheet(isPresented: $showLinkGenerator) {
+            LinkGeneratorView()
+                .environmentObject(authViewModel)
+                .frame(width: 500, height: 600)
         }
     }
 }
 
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+struct ChatRowView: View {
+    let chat: Chat
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(Color.accentColor.opacity(0.2))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Text(String((chat.groupName ?? "?").prefix(1)))
+                        .font(.system(size: 18, weight: .medium))
+                )
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(chat.groupName ?? "Чат")
+                    .font(.system(size: 14, weight: .semibold))
+                
+                Text("Последнее сообщение...")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 8)
+    }
 }
