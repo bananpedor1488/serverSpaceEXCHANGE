@@ -3,29 +3,29 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var selectedTab = 0
-    @State private var tabBarHidden = false
     @Binding var openChat: CreatedChat?
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            ChatsListView(openChat: $openChat, tabBarHidden: $tabBarHidden)
-                .environmentObject(authViewModel)
-                .tabItem {
-                    Image(systemName: selectedTab == 0 ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
-                    Text("Чаты")
-                }
-                .tag(0)
-            
-            ProfileView()
-                .environmentObject(authViewModel)
-                .tabItem {
-                    Image(systemName: selectedTab == 1 ? "person.crop.square.fill" : "person.crop.square")
-                    Text("Профиль")
-                }
-                .tag(1)
+        ZStack {
+            TabView(selection: $selectedTab) {
+                ChatsListView(openChat: $openChat)
+                    .environmentObject(authViewModel)
+                    .tabItem {
+                        Image(systemName: selectedTab == 0 ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
+                        Text("Чаты")
+                    }
+                    .tag(0)
+                
+                ProfileView()
+                    .environmentObject(authViewModel)
+                    .tabItem {
+                        Image(systemName: selectedTab == 1 ? "person.crop.square.fill" : "person.crop.square")
+                        Text("Профиль")
+                    }
+                    .tag(1)
+            }
+            .accentColor(.white)
         }
-        .accentColor(.white)
-        .toolbar(tabBarHidden ? .hidden : .visible, for: .tabBar)
     }
 }
 
