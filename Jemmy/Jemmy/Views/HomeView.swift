@@ -888,8 +888,3 @@ struct TerminateAllSheet: View {
         )
     }
 }
-        }
-        .navigationTitle("Устройства")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
