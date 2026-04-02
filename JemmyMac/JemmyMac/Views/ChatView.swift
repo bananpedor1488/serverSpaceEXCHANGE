@@ -9,7 +9,7 @@ struct ChatView: View {
     @State private var messageText = ""
     @State private var isLoading = false
     @State private var isSending = false
-    @Environment(\.dismiss) var dismiss
+    @State private var pollingTimer: Timer?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -70,6 +70,38 @@ struct ChatView: View {
         .navigationTitle(otherUser.username)
         .onAppear {
             loadMessages()
+            startPolling()
+        }
+        .onDisappear {
+            stopPolling()
+        }
+    }
+    
+    private func startPolling() {
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            Task {
+                await refreshMessages()
+            }
+        }
+    }
+    
+    private func stopPolling() {
+        pollingTimer?.invalidate()
+        pollingTimer = nil
+    }
+    
+    private func refreshMessages() async {
+        do {
+            let loadedMessages = try await APIService.shared.getMessages(chatId: chatId)
+            
+            await MainActor.run {
+                // Only update if there are new messages
+                if loadedMessages.count > messages.count {
+                    messages = loadedMessages
+                }
+            }
+        } catch {
+            // Silently fail for polling
         }
     }
     

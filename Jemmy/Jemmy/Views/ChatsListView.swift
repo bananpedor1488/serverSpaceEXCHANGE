@@ -74,6 +74,28 @@ struct ChatsListView: View {
                                         ChatListRow(chat: chat)
                                     }
                                     .buttonStyle(.plain)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            deleteChat(chat)
+                                        } label: {
+                                            Label("Удалить", systemImage: "trash")
+                                        }
+                                    }
+                                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                        Button {
+                                            togglePin(chat)
+                                        } label: {
+                                            Label("Закрепить", systemImage: "pin.fill")
+                                        }
+                                        .tint(.blue)
+                                        
+                                        Button {
+                                            toggleMute(chat)
+                                        } label: {
+                                            Label("Без звука", systemImage: "bell.slash.fill")
+                                        }
+                                        .tint(.purple)
+                                    }
                                     
                                     Divider()
                                         .background(Color.white.opacity(0.1))
@@ -137,6 +159,22 @@ struct ChatsListView: View {
                 }
             }
         }
+    }
+    
+    private func deleteChat(_ chat: ChatListItem) {
+        print("🗑️ Delete chat:", chat.id)
+        // TODO: Implement delete on backend
+        chats.removeAll { $0.id == chat.id }
+    }
+    
+    private func togglePin(_ chat: ChatListItem) {
+        print("📌 Pin chat:", chat.id)
+        // TODO: Implement pin functionality
+    }
+    
+    private func toggleMute(_ chat: ChatListItem) {
+        print("🔕 Mute chat:", chat.id)
+        // TODO: Implement mute functionality
     }
 }
 
