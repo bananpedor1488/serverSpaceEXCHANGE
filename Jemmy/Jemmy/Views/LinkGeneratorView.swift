@@ -3,6 +3,7 @@ import SwiftUI
 struct LinkGeneratorView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var generatedLink: String?
+    @State private var linkExpiresAt: Date?
     @State private var isGenerating = false
     @State private var showCopied = false
     @Environment(\.dismiss) var dismiss
@@ -64,8 +65,20 @@ struct LinkGeneratorView: View {
                                 .multilineTextAlignment(.center)
                         }
                         
-                        if let link = generatedLink {
+                        if let link = generatedLink, let expiresAt = linkExpiresAt {
                             VStack(spacing: 16) {
+                                // Expiry timer
+                                HStack(spacing: 6) {
+                                    Image(systemName: "clock")
+                                    Text(timeRemaining(until: expiresAt))
+                                }
+                                .font(.system(size: 14))
+                                .foregroundColor(.orange)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.orange.opacity(0.15))
+                                .cornerRadius(8)
+                                
                                 Text(link)
                                     .font(.system(size: 13, design: .monospaced))
                                     .foregroundColor(.white.opacity(0.8))
@@ -103,6 +116,17 @@ struct LinkGeneratorView: View {
                                     }
                                 }
                                 .padding(.horizontal, 20)
+                                
+                                // Create new link button
+                                Button(action: {
+                                    clearLink()
+                                }) {
+                                    Text("Создать новую ссылку")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(.white.opacity(0.5))
+                                        .underline()
+                                }
+                                .padding(.top, 8)
                             }
                             .transition(.scale.combined(with: .opacity))
                         } else {
@@ -134,7 +158,76 @@ struct LinkGeneratorView: View {
         }
         .onAppear {
             print("🔗 LinkGeneratorView appeared")
+            loadSavedLink()
         }
+    }
+    
+    private func timeRemaining(until date: Date) -> String {
+        let hours = Int(date.timeIntervalSinceNow / 3600)
+        let minutes = Int((date.timeIntervalSinceNow.truncatingRemainder(dividingBy: 3600)) / 60)
+        
+        if hours > 0 {
+            return "Осталось \(hours)ч \(minutes)м"
+        } else if minutes > 0 {
+            return "Осталось \(minutes)м"
+        } else {
+            return "Истекла"
+        }
+    }
+    
+    private func loadSavedLink() {
+        guard let identityId = authViewModel.identity?.id else { return }
+        
+        let linkKey = "invite_link_\(identityId)"
+        let expiryKey = "invite_link_expiry_\(identityId)"
+        
+        if let savedLink = UserDefaults.standard.string(forKey: linkKey),
+           let expiryTimestamp = UserDefaults.standard.object(forKey: expiryKey) as? Double {
+            
+            let expiryDate = Date(timeIntervalSince1970: expiryTimestamp)
+            
+            // Check if link is still valid
+            if expiryDate > Date() {
+                print("✅ Loaded saved link (expires in \(Int(expiryDate.timeIntervalSinceNow / 3600))h)")
+                generatedLink = savedLink
+                linkExpiresAt = expiryDate
+            } else {
+                print("⏰ Saved link expired, clearing...")
+                clearLink()
+            }
+        }
+    }
+    
+    private func saveLink(_ link: String) {
+        guard let identityId = authViewModel.identity?.id else { return }
+        
+        let linkKey = "invite_link_\(identityId)"
+        let expiryKey = "invite_link_expiry_\(identityId)"
+        
+        // Save link and expiry (24 hours from now)
+        let expiryDate = Date().addingTimeInterval(24 * 60 * 60)
+        
+        UserDefaults.standard.set(link, forKey: linkKey)
+        UserDefaults.standard.set(expiryDate.timeIntervalSince1970, forKey: expiryKey)
+        
+        print("💾 Link saved (expires at \(expiryDate))")
+    }
+    
+    private func clearLink() {
+        guard let identityId = authViewModel.identity?.id else { return }
+        
+        let linkKey = "invite_link_\(identityId)"
+        let expiryKey = "invite_link_expiry_\(identityId)"
+        
+        UserDefaults.standard.removeObject(forKey: linkKey)
+        UserDefaults.standard.removeObject(forKey: expiryKey)
+        
+        withAnimation(.easeInOut(duration: 0.3)) {
+            generatedLink = nil
+            linkExpiresAt = nil
+        }
+        
+        print("🗑️ Link cleared")
     }
     
     private func generateLink() {
@@ -151,9 +244,14 @@ struct LinkGeneratorView: View {
                 let link = try await APIService.shared.generateInviteLink(identityId: identityId)
                 
                 await MainActor.run {
+                    let expiryDate = Date().addingTimeInterval(24 * 60 * 60)
+                    
                     withAnimation(.easeInOut(duration: 0.3)) {
                         generatedLink = link
+                        linkExpiresAt = expiryDate
                     }
+                    
+                    saveLink(link)
                     print("✅ Link displayed in UI")
                 }
             } catch {
