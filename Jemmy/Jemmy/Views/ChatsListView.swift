@@ -7,6 +7,7 @@ struct ChatsListView: View {
     @State private var searchText = ""
     @State private var showSearchByTag = false
     @State private var selectedChat: ChatListItem?
+    @State private var isNavigatingToChat = false
     @Binding var openChat: CreatedChat?
     
     var filteredChats: [ChatListItem] {
@@ -116,7 +117,12 @@ struct ChatsListView: View {
                             destination: selectedChat.map { chat in
                                 ChatView(chatId: chat.id, otherUser: chat.user)
                                     .environmentObject(authViewModel)
-                                    .toolbar(.hidden, for: .tabBar)
+                                    .onAppear {
+                                        isNavigatingToChat = true
+                                    }
+                                    .onDisappear {
+                                        isNavigatingToChat = false
+                                    }
                             },
                             isActive: Binding(
                                 get: { selectedChat != nil },
@@ -131,7 +137,7 @@ struct ChatsListView: View {
             }
             .navigationTitle("Чаты")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar(.visible, for: .tabBar)
+            .toolbar(isNavigatingToChat ? .hidden : .visible, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showSearchByTag = true }) {
