@@ -18,7 +18,16 @@ class APIService {
         request.httpBody = try JSONEncoder().encode(body)
         
         let (data, _) = try await URLSession.shared.data(for: request)
-        let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
+        
+        // Debug: print response
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("📥 Response: \(jsonString)")
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        
+        let authResponse = try decoder.decode(AuthResponse.self, from: data)
         print("✅ Registration successful: \(authResponse.identity.username)")
         return authResponse
     }
