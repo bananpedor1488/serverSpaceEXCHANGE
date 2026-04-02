@@ -90,6 +90,14 @@ struct ChatView: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
                         }
+                        .onAppear {
+                            // Скроллим вниз при открытии
+                            if let lastMessage = messages.last {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                                }
+                            }
+                        }
                         .onChange(of: messages.count) { _ in
                             if let lastMessage = messages.last {
                                 withAnimation {
@@ -282,28 +290,29 @@ struct MessageBubble: View {
     let isFromMe: Bool
     
     var body: some View {
-        HStack {
+        HStack(alignment: .bottom, spacing: 0) {
             if isFromMe {
-                Spacer()
+                Spacer(minLength: 60)
             }
             
-            VStack(alignment: isFromMe ? .trailing : .leading, spacing: 4) {
+            HStack(alignment: .bottom, spacing: 4) {
                 Text(message.encryptedContent)
                     .font(.system(size: 16))
                     .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(isFromMe ? Color.green.opacity(0.8) : Color.white.opacity(0.1))
-                    .cornerRadius(16)
+                    .fixedSize(horizontal: false, vertical: true)
                 
                 Text(formatTime(message.createdDate))
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.5))
-                    .padding(.horizontal, 4)
+                    .font(.system(size: 11))
+                    .foregroundColor(isFromMe ? .white.opacity(0.7) : .white.opacity(0.5))
+                    .padding(.bottom, 1)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(isFromMe ? Color.green.opacity(0.8) : Color.white.opacity(0.1))
+            .cornerRadius(16)
             
             if !isFromMe {
-                Spacer()
+                Spacer(minLength: 60)
             }
         }
     }
