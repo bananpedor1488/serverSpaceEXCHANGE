@@ -356,8 +356,7 @@ class APIService {
             throw error
         }
     }
-}
-
+    
     func deleteChat(chatId: String) async throws {
         print("📡 Request: DELETE /chat/\(chatId)")
         
@@ -377,3 +376,4 @@ class APIService {
             throw error
         }
     }
+}

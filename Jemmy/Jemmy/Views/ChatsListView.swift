@@ -6,6 +6,7 @@ struct ChatsListView: View {
     @State private var isLoading = false
     @State private var searchText = ""
     @State private var showSearchByTag = false
+    @State private var selectedChat: ChatListItem?
     @Binding var openChat: CreatedChat?
     
     var filteredChats: [ChatListItem] {
@@ -68,19 +69,12 @@ struct ChatsListView: View {
                     } else {
                         List {
                             ForEach(filteredChats) { chat in
-                                ZStack {
-                                    NavigationLink(destination: ChatView(chatId: chat.id, otherUser: chat.user)
-                                        .environmentObject(authViewModel)) {
-                                        EmptyView()
-                                    }
-                                    .opacity(0)
-                                    
+                                Button(action: {
+                                    selectedChat = chat
+                                }) {
                                     ChatListRow(chat: chat)
-                                        .contentShape(Rectangle())
-                                        .onTapGesture {
-                                            // Navigation handled by hidden NavigationLink
-                                        }
                                 }
+                                .buttonStyle(.plain)
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets())
@@ -117,6 +111,20 @@ struct ChatsListView: View {
                         }
                         .listStyle(.plain)
                         .scrollContentBackground(.hidden)
+                        
+                        NavigationLink(
+                            destination: selectedChat.map { chat in
+                                ChatView(chatId: chat.id, otherUser: chat.user)
+                                    .environmentObject(authViewModel)
+                            },
+                            isActive: Binding(
+                                get: { selectedChat != nil },
+                                set: { if !$0 { selectedChat = nil } }
+                            )
+                        ) {
+                            EmptyView()
+                        }
+                        .hidden()
                     }
                 }
             }
