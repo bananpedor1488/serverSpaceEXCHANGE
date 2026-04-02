@@ -112,6 +112,7 @@ struct ChatsListView: View {
                         }
                         .listStyle(.plain)
                         .scrollContentBackground(.hidden)
+                        
                         NavigationLink(
                             destination: selectedChat.map { chat in
                                 ChatView(chatId: chat.id, otherUser: chat.user, tabBarHidden: $tabBarHidden)
@@ -125,10 +126,9 @@ struct ChatsListView: View {
                             EmptyView()
                         }
                         .hidden()
-                    }   }
-                        .hidden()
-                    }   .hidden()
                     }
+                }
+            }
             .navigationTitle("Чаты")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
