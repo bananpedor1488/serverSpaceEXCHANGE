@@ -7,40 +7,82 @@ struct ChatsListView: View {
     @State private var selectedChatId: String?
     @State private var selectedOtherUser: Identity?
     @State private var showChat = false
+    @State private var searchText = ""
+    @State private var showSearchByTag = false
     @Binding var openChat: CreatedChat?
+    
+    var filteredChats: [ChatListItem] {
+        if searchText.isEmpty {
+            return chats
+        }
+        return chats.filter { chat in
+            chat.user.username.localizedCaseInsensitiveContains(searchText)
+        }
+    }
     
     var body: some View {
         NavigationView {
             ZStack {
                 Color.black.ignoresSafeArea()
                 
-                if isLoading {
-                    ProgressView()
-                        .tint(.white)
-                } else if chats.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "bubble.left.and.bubble.right")
-                            .font(.system(size: 64))
-                            .foregroundColor(.white.opacity(0.3))
-                        
-                        Text("Нет чатов")
-                            .font(.system(size: 20, weight: .semibold))
+                VStack(spacing: 0) {
+                    // Search bar
+                    HStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
                             .foregroundColor(.white.opacity(0.5))
+                            .font(.system(size: 16))
+                        
+                        TextField("Поиск", text: $searchText)
+                            .foregroundColor(.white)
+                            .font(.system(size: 17))
+                        
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                        }
                     }
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(chats) { chat in
-                                ChatListRow(chat: chat)
-                                    .onTapGesture {
-                                        selectedChatId = chat.id
-                                        selectedOtherUser = chat.user
-                                        showChat = true
-                                    }
-                                
-                                Divider()
-                                    .background(Color.white.opacity(0.1))
-                                    .padding(.leading, 88)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(12)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    
+                    if isLoading {
+                        Spacer()
+                        ProgressView()
+                            .tint(.white)
+                        Spacer()
+                    } else if filteredChats.isEmpty {
+                        VStack(spacing: 16) {
+                            Spacer()
+                            Image(systemName: "bubble.left.and.bubble.right")
+                                .font(.system(size: 64))
+                                .foregroundColor(.white.opacity(0.3))
+                            
+                            Text(searchText.isEmpty ? "Нет чатов" : "Ничего не найдено")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(.white.opacity(0.5))
+                            Spacer()
+                        }
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(filteredChats) { chat in
+                                    ChatListRow(chat: chat)
+                                        .onTapGesture {
+                                            selectedChatId = chat.id
+                                            selectedOtherUser = chat.user
+                                            showChat = true
+                                        }
+                                    
+                                    Divider()
+                                        .background(Color.white.opacity(0.1))
+                                        .padding(.leading, 88)
+                                }
                             }
                         }
                     }
@@ -48,6 +90,14 @@ struct ChatsListView: View {
             }
             .navigationTitle("Чаты")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showSearchByTag = true }) {
+                        Image(systemName: "person.badge.plus")
+                            .foregroundColor(.white)
+                    }
+                }
+            }
             .onAppear {
                 loadChats()
             }
@@ -69,6 +119,10 @@ struct ChatsListView: View {
                     ChatView(chatId: chatId, otherUser: otherUser)
                         .environmentObject(authViewModel)
                 }
+            }
+            .sheet(isPresented: $showSearchByTag) {
+                SearchView()
+                    .environmentObject(authViewModel)
             }
         }
     }
