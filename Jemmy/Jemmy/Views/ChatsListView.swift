@@ -251,8 +251,7 @@ struct ChatsListView: View {
     
     private func setupWebSocket() {
         // Обработка обновлений непрочитанных
-        WebSocketManager.shared.onUnreadUpdate = { [weak self] chatId, unreadCount in
-            guard let self = self else { return }
+        WebSocketManager.shared.onUnreadUpdate = { chatId, unreadCount in
             if let index = self.chats.firstIndex(where: { $0.id == chatId }) {
                 self.chats[index].unreadCount = unreadCount
                 self.updateBadgeCount()
@@ -260,16 +259,14 @@ struct ChatsListView: View {
         }
         
         // Обработка обновлений закрепления
-        WebSocketManager.shared.onPinUpdate = { [weak self] chatId, isPinned in
-            guard let self = self else { return }
+        WebSocketManager.shared.onPinUpdate = { chatId, isPinned in
             if let index = self.chats.firstIndex(where: { $0.id == chatId }) {
                 self.chats[index].isPinned = isPinned
             }
         }
         
         // Обработка обновлений мута
-        WebSocketManager.shared.onMuteUpdate = { [weak self] chatId, isMuted in
-            guard let self = self else { return }
+        WebSocketManager.shared.onMuteUpdate = { chatId, isMuted in
             if let index = self.chats.firstIndex(where: { $0.id == chatId }) {
                 self.chats[index].isMuted = isMuted
                 self.updateBadgeCount()
