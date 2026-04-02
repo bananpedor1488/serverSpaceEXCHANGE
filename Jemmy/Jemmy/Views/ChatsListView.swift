@@ -66,43 +66,48 @@ struct ChatsListView: View {
                             Spacer()
                         }
                     } else {
-                        ScrollView {
-                            LazyVStack(spacing: 0) {
-                                ForEach(filteredChats) { chat in
-                                    NavigationLink(destination: ChatView(chatId: chat.id, otherUser: chat.user)
-                                        .environmentObject(authViewModel)) {
-                                        ChatListRow(chat: chat)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        Button(role: .destructive) {
-                                            deleteChat(chat)
-                                        } label: {
-                                            Label("Удалить", systemImage: "trash")
-                                        }
-                                    }
-                                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                                        Button {
-                                            togglePin(chat)
-                                        } label: {
-                                            Label("Закрепить", systemImage: "pin.fill")
-                                        }
-                                        .tint(.blue)
-                                        
-                                        Button {
-                                            toggleMute(chat)
-                                        } label: {
-                                            Label("Без звука", systemImage: "bell.slash.fill")
-                                        }
-                                        .tint(.purple)
-                                    }
-                                    
-                                    Divider()
-                                        .background(Color.white.opacity(0.1))
-                                        .padding(.leading, 88)
+                        List {
+                            ForEach(filteredChats) { chat in
+                                NavigationLink(destination: ChatView(chatId: chat.id, otherUser: chat.user)
+                                    .environmentObject(authViewModel)) {
+                                    ChatListRow(chat: chat)
                                 }
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets())
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        deleteChat(chat)
+                                    } label: {
+                                        Label("Удалить", systemImage: "trash")
+                                    }
+                                }
+                                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                    Button {
+                                        togglePin(chat)
+                                    } label: {
+                                        Label("Закрепить", systemImage: "pin.fill")
+                                    }
+                                    .tint(.blue)
+                                    
+                                    Button {
+                                        toggleMute(chat)
+                                    } label: {
+                                        Label("Без звука", systemImage: "bell.slash.fill")
+                                    }
+                                    .tint(.purple)
+                                }
+                                
+                                Divider()
+                                    .background(Color.white.opacity(0.1))
+                                    .padding(.leading, 88)
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                             }
                         }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
                     }
                 }
             }

@@ -6,6 +6,8 @@ struct Identity: Codable, Identifiable {
     let avatar: String
     let bio: String
     let expiresAt: Date?
+    let isOnline: Bool?
+    let lastSeen: String?
     
     enum CodingKeys: String, CodingKey {
         case id = "_id"
@@ -13,6 +15,14 @@ struct Identity: Codable, Identifiable {
         case avatar
         case bio
         case expiresAt = "expires_at"
+        case isOnline = "is_online"
+        case lastSeen = "last_seen"
+    }
+    
+    var lastSeenDate: Date? {
+        guard let lastSeen = lastSeen else { return nil }
+        let formatter = ISO8601DateFormatter()
+        return formatter.date(from: lastSeen)
     }
 }
 

@@ -14,6 +14,20 @@ struct ChatView: View {
     @State private var showSearch = false
     @State private var searchText = ""
     @State private var isOnline = false
+    @State private var lastSeen: Date?
+    
+    var statusText: String {
+        if isOnline {
+            return "в сети"
+        } else if let lastSeen = lastSeen {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .full
+            formatter.locale = Locale(identifier: "ru_RU")
+            return formatter.localizedString(for: lastSeen, relativeTo: Date())
+        } else {
+            return "был(а) недавно"
+        }
+    }
     
     var filteredMessages: [ChatMessage] {
         if searchText.isEmpty {
@@ -34,7 +48,7 @@ struct ChatView: View {
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.white)
                         
-                        Text(isOnline ? "в сети" : "был(а) недавно")
+                        Text(statusText)
                             .font(.system(size: 12))
                             .foregroundColor(.white.opacity(0.6))
                     }
@@ -161,10 +175,16 @@ struct ChatView: View {
         .onAppear {
             loadMessages()
             startPolling()
+            updateUserStatus()
         }
         .onDisappear {
             stopPolling()
         }
+    }
+    
+    private func updateUserStatus() {
+        isOnline = otherUser.isOnline ?? false
+        lastSeen = otherUser.lastSeenDate
     }
     
     private func startPolling() {

@@ -14,7 +14,21 @@ struct ChatView: View {
     @State private var showSearch = false
     @State private var searchText = ""
     @State private var isOnline = false
+    @State private var lastSeen: Date?
     @Environment(\.dismiss) var dismiss
+    
+    var statusText: String {
+        if isOnline {
+            return "в сети"
+        } else if let lastSeen = lastSeen {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .full
+            formatter.locale = Locale(identifier: "ru_RU")
+            return formatter.localizedString(for: lastSeen, relativeTo: Date())
+        } else {
+            return "был(а) недавно"
+        }
+    }
     
     var filteredMessages: [ChatMessage] {
         if searchText.isEmpty {
@@ -28,12 +42,58 @@ struct ChatView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Custom Header
-                ChatHeaderView(
-                    username: otherUser.username,
-                    status: isOnline ? "в сети" : "был(а) недавно",
-                    avatar: otherUser.avatar,
-                    onTap: { showProfile = true }
+                // Custom Header - одна строка
+                Button(action: { showProfile = true }) {
+                    HStack(spacing: 12) {
+                        // Аватар слева
+                        ZStack(alignment: .bottomTrailing) {
+                            Circle()
+                                .fill(Color.white.opacity(0.1))
+                                .frame(width: 40, height: 40)
+                                .overlay(
+                                    Text(String(otherUser.username.prefix(2)).uppercased())
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white)
+                                )
+                            
+                            // Индикатор онлайн
+                            if isOnline {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 12, height: 12)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.black, lineWidth: 2)
+                                    )
+                            }
+                        }
+                        
+                        // Имя и статус
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(otherUser.username)
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(.white)
+                            
+                            Text(statusText)
+                                .font(.system(size: 13))
+                                .foregroundColor(.white.opacity(0.6))
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.black)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .onEnded { _ in
+                            withAnimation {
+                                showSearch = true
+                            }
+                        }
                 )
                 
                 // Search Bar (if active)
@@ -45,11 +105,14 @@ struct ChatView: View {
                         TextField("Поиск в чате", text: $searchText)
                             .foregroundColor(.white)
                         
-                        if !searchText.isEmpty {
-                            Button(action: { searchText = "" }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.white.opacity(0.5))
+                        Button(action: { 
+                            withAnimation {
+                                showSearch = false
+                                searchText = ""
                             }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.white.opacity(0.5))
                         }
                     }
                     .padding(.horizontal, 16)
@@ -114,22 +177,7 @@ struct ChatView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { 
-                    withAnimation {
-                        showSearch.toggle()
-                        if !showSearch {
-                            searchText = ""
-                        }
-                    }
-                }) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.white)
-                }
-            }
-        }
+        .navigationBarBackButtonHidden(false)
         .sheet(isPresented: $showProfile) {
             UserProfileView(user: otherUser)
                 .environmentObject(authViewModel)
@@ -137,10 +185,16 @@ struct ChatView: View {
         .onAppear {
             loadMessages()
             startPolling()
+            updateUserStatus()
         }
         .onDisappear {
             stopPolling()
         }
+    }
+    
+    private func updateUserStatus() {
+        isOnline = otherUser.isOnline ?? false
+        lastSeen = otherUser.lastSeenDate
     }
     
     private func startPolling() {
@@ -220,46 +274,6 @@ struct ChatView: View {
                 }
             }
         }
-    }
-}
-
-struct ChatHeaderView: View {
-    let username: String
-    let status: String
-    let avatar: String
-    let onTap: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                Spacer()
-                
-                VStack(spacing: 2) {
-                    Text(username)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.white)
-                    
-                    Text(status)
-                        .font(.system(size: 13))
-                        .foregroundColor(.white.opacity(0.6))
-                }
-                
-                Spacer()
-                
-                Circle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(width: 36, height: 36)
-                    .overlay(
-                        Text(String(username.prefix(2)).uppercased())
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
-                    )
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color.black)
-        }
-        .buttonStyle(.plain)
     }
 }
 
