@@ -14,7 +14,10 @@ struct LinkGeneratorView: View {
             VStack(spacing: 0) {
                 // Header
                 HStack {
-                    Button(action: { dismiss() }) {
+                    Button(action: {
+                        print("❌ Link generator closed")
+                        dismiss()
+                    }) {
                         Image(systemName: "xmark")
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(.white)
@@ -129,35 +132,34 @@ struct LinkGeneratorView: View {
                 }
             }
         }
+        .onAppear {
+            print("🔗 LinkGeneratorView appeared")
+        }
     }
     
     private func generateLink() {
-        guard let identityId = authViewModel.identity?.id else { return }
+        guard let identityId = authViewModel.identity?.id else {
+            print("❌ Cannot generate link: no identity ID")
+            return
+        }
         
+        print("🔗 Generating invite link...")
         isGenerating = true
+        
         Task {
             do {
-                let url = URL(string: "https://weeky-six.vercel.app/api/identity/generate-link")!
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                let link = try await APIService.shared.generateInviteLink(identityId: identityId)
                 
-                let body: [String: Any] = ["identity_id": identityId]
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                
-                let (data, _) = try await URLSession.shared.data(for: request)
-                let response = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                
-                if let link = response?["link"] as? String {
-                    await MainActor.run {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            generatedLink = link
-                        }
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        generatedLink = link
                     }
+                    print("✅ Link displayed in UI")
                 }
             } catch {
-                print("Generate link error: \(error)")
+                print("❌ Link generation failed in UI")
             }
+            
             await MainActor.run {
                 isGenerating = false
             }
@@ -167,9 +169,12 @@ struct LinkGeneratorView: View {
     private func copyLink() {
         if let link = generatedLink {
             UIPasteboard.general.string = link
+            print("📋 Link copied to clipboard: \(link)")
+            
             withAnimation(.easeInOut(duration: 0.2)) {
                 showCopied = true
             }
+            
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showCopied = false
@@ -180,6 +185,9 @@ struct LinkGeneratorView: View {
     
     private func shareLink() {
         guard let link = generatedLink else { return }
+        
+        print("📤 Sharing link: \(link)")
+        
         let activityVC = UIActivityViewController(activityItems: [link], applicationActivities: nil)
         
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,

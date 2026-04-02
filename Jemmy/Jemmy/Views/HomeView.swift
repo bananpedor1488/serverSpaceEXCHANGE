@@ -187,6 +187,7 @@ struct ProfileView: View {
     @State private var showEditProfile = false
     @State private var showLinkGenerator = false
     @State private var showDeleteAlert = false
+    @State private var isDeleting = false
     
     var body: some View {
         NavigationView {
@@ -249,7 +250,10 @@ struct ProfileView: View {
                         
                         // Action buttons
                         VStack(spacing: 12) {
-                            Button(action: { showLinkGenerator = true }) {
+                            Button(action: {
+                                print("🔗 Opening link generator")
+                                showLinkGenerator = true
+                            }) {
                                 HStack {
                                     Image(systemName: "link")
                                         .font(.system(size: 18))
@@ -266,7 +270,10 @@ struct ProfileView: View {
                                 .cornerRadius(12)
                             }
                             
-                            Button(action: { showEditProfile = true }) {
+                            Button(action: {
+                                print("✏️ Opening profile editor")
+                                showEditProfile = true
+                            }) {
                                 HStack {
                                     Image(systemName: "pencil")
                                         .font(.system(size: 18))
@@ -289,7 +296,8 @@ struct ProfileView: View {
                         VStack(spacing: 12) {
                             Toggle(isOn: Binding(
                                 get: { authViewModel.ephemeralEnabled },
-                                set: { _ in
+                                set: { newValue in
+                                    print("🔄 Ephemeral toggle changed to: \(newValue)")
                                     Task {
                                         await authViewModel.toggleEphemeral()
                                     }
@@ -316,12 +324,20 @@ struct ProfileView: View {
                             .cornerRadius(12)
                             
                             // Delete account button
-                            Button(action: { showDeleteAlert = true }) {
+                            Button(action: {
+                                print("⚠️ Delete account button tapped")
+                                showDeleteAlert = true
+                            }) {
                                 HStack {
-                                    Image(systemName: "trash")
-                                        .font(.system(size: 18))
-                                    Text("Удалить аккаунт")
-                                        .font(.system(size: 17, weight: .semibold))
+                                    if isDeleting {
+                                        ProgressView()
+                                            .tint(.red)
+                                    } else {
+                                        Image(systemName: "trash")
+                                            .font(.system(size: 18))
+                                        Text("Удалить аккаунт")
+                                            .font(.system(size: 17, weight: .semibold))
+                                    }
                                     Spacer()
                                 }
                                 .foregroundColor(.red)
@@ -329,6 +345,7 @@ struct ProfileView: View {
                                 .background(Color.red.opacity(0.1))
                                 .cornerRadius(12)
                             }
+                            .disabled(isDeleting)
                         }
                         .padding(.horizontal)
                         
@@ -351,12 +368,21 @@ struct ProfileView: View {
                     .environmentObject(authViewModel)
             }
             .alert("Удалить аккаунт?", isPresented: $showDeleteAlert) {
-                Button("Отмена", role: .cancel) {}
+                Button("Отмена", role: .cancel) {
+                    print("❌ Account deletion cancelled")
+                }
                 Button("Удалить", role: .destructive) {
                     deleteAccount()
                 }
             } message: {
                 Text("Все ваши данные будут удалены безвозвратно")
+            }
+        }
+        .onAppear {
+            print("👤 ProfileView appeared")
+            if let identity = authViewModel.identity {
+                print("   Username: \(identity.username)")
+                print("   Tag: \(identity.tag)")
             }
         }
     }
@@ -367,12 +393,20 @@ struct ProfileView: View {
     }
     
     private func deleteAccount() {
-        // Clear local data
-        UserDefaults.standard.removeObject(forKey: "device_id")
-        UserDefaults.standard.removeObject(forKey: "hasSeenOnboarding")
+        print("🗑️ Starting account deletion...")
+        isDeleting = true
         
-        // Reset auth state
-        authViewModel.identity = nil
-        authViewModel.isAuthenticated = false
+        Task {
+            do {
+                try await authViewModel.deleteAccount()
+                print("✅ Account deleted, UI will reset")
+            } catch {
+                print("❌ Account deletion failed in UI")
+            }
+            
+            await MainActor.run {
+                isDeleting = false
+            }
+        }
     }
 }

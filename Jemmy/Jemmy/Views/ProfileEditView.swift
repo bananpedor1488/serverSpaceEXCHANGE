@@ -9,11 +9,15 @@ struct ProfileEditView: View {
     @State private var isSaving = false
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var showSuccess = false
     
     init(identity: Identity) {
         _username = State(initialValue: identity.username)
         _tag = State(initialValue: identity.tag)
         _bio = State(initialValue: identity.bio)
+        print("✏️ ProfileEditView initialized")
+        print("   Username: \(identity.username)")
+        print("   Tag: \(identity.tag)")
     }
     
     var body: some View {
@@ -23,7 +27,10 @@ struct ProfileEditView: View {
             VStack(spacing: 0) {
                 // Header
                 HStack {
-                    Button(action: { dismiss() }) {
+                    Button(action: {
+                        print("❌ Edit cancelled")
+                        dismiss()
+                    }) {
                         Text("Отмена")
                             .font(.system(size: 17))
                             .foregroundColor(.white.opacity(0.7))
@@ -44,7 +51,7 @@ struct ProfileEditView: View {
                         } else {
                             Text("Готово")
                                 .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundColor(isValid ? .white : .white.opacity(0.3))
                         }
                     }
                     .disabled(isSaving || !isValid)
@@ -82,6 +89,9 @@ struct ProfileEditView: View {
                                 .background(Color.white.opacity(0.1))
                                 .cornerRadius(12)
                                 .padding(.horizontal, 20)
+                                .onChange(of: username) { _, newValue in
+                                    print("📝 Username changed: \(newValue)")
+                                }
                         }
                         
                         // Tag field
@@ -101,11 +111,11 @@ struct ProfileEditView: View {
                                     .foregroundColor(.white)
                                     .textInputAutocapitalization(.characters)
                                     .onChange(of: tag) { _, newValue in
-                                        // Only allow alphanumeric characters
                                         let filtered = newValue.uppercased().filter { $0.isLetter || $0.isNumber }
                                         if filtered != newValue {
                                             tag = filtered
                                         }
+                                        print("📝 Tag changed: \(tag)")
                                     }
                             }
                             .padding()
@@ -137,6 +147,9 @@ struct ProfileEditView: View {
                                 .cornerRadius(12)
                                 .padding(.horizontal, 20)
                                 .scrollContentBackground(.hidden)
+                                .onChange(of: bio) { _, newValue in
+                                    print("📝 Bio changed: \(newValue)")
+                                }
                         }
                         
                         Spacer()
@@ -149,52 +162,56 @@ struct ProfileEditView: View {
         } message: {
             Text(errorMessage)
         }
+        .alert("Успешно", isPresented: $showSuccess) {
+            Button("OK", role: .cancel) {
+                dismiss()
+            }
+        } message: {
+            Text("Профиль обновлен")
+        }
     }
     
     private var isValid: Bool {
-        !username.isEmpty && tag.count == 6
+        let valid = !username.isEmpty && tag.count == 6
+        if !valid {
+            print("⚠️ Form invalid: username=\(username.isEmpty ? "empty" : "ok"), tag=\(tag.count)/6")
+        }
+        return valid
     }
     
     private func saveProfile() {
-        guard let identityId = authViewModel.identity?.id else { return }
-        guard isValid else { return }
+        guard isValid else {
+            print("❌ Cannot save: form is invalid")
+            return
+        }
+        
+        print("💾 Saving profile...")
+        print("   Username: \(username)")
+        print("   Tag: \(tag)")
+        print("   Bio: \(bio)")
         
         isSaving = true
+        
         Task {
             do {
-                let url = URL(string: "https://weeky-six.vercel.app/api/identity/update")!
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                try await authViewModel.updateProfile(
+                    username: username,
+                    tag: tag,
+                    bio: bio
+                )
                 
-                let body: [String: Any] = [
-                    "identity_id": identityId,
-                    "username": username,
-                    "tag": tag,
-                    "bio": bio
-                ]
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                
-                let (data, response) = try await URLSession.shared.data(for: request)
-                
-                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                    let updatedIdentity = try JSONDecoder().decode(Identity.self, from: data)
-                    
-                    await MainActor.run {
-                        authViewModel.identity = updatedIdentity
-                        dismiss()
-                    }
-                } else {
-                    throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Не удалось сохранить изменения"])
+                await MainActor.run {
+                    print("✅ Profile saved successfully")
+                    isSaving = false
+                    showSuccess = true
                 }
             } catch {
                 await MainActor.run {
+                    print("❌ Save failed: \(error.localizedDescription)")
                     errorMessage = "Не удалось сохранить. Возможно, тег уже занят."
                     showError = true
+                    isSaving = false
                 }
-            }
-            await MainActor.run {
-                isSaving = false
             }
         }
     }
