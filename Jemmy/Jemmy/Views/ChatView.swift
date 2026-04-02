@@ -128,6 +128,18 @@ struct ChatView: View {
             ToolbarItem(placement: .principal) {
                 Button(action: { showProfile = true }) {
                     HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(otherUser.username)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                            
+                            Text(statusText)
+                                .font(.system(size: 12))
+                                .foregroundColor(.white.opacity(0.6))
+                        }
+                        
+                        Spacer()
+                        
                         ZStack(alignment: .bottomTrailing) {
                             Circle()
                                 .fill(Color.white.opacity(0.1))
@@ -148,17 +160,8 @@ struct ChatView: View {
                                     )
                             }
                         }
-                        
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(otherUser.username)
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                            
-                            Text(statusText)
-                                .font(.system(size: 12))
-                                .foregroundColor(.white.opacity(0.6))
-                        }
                     }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
                 .simultaneousGesture(
