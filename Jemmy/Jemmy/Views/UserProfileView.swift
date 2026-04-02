@@ -142,8 +142,6 @@ struct UserProfileView: View {
                     Spacer(minLength: 40)
                 }
             }
-            .toolbar(showDevices ? .hidden : .visible, for: .tabBar)
-            
             // Devices Sheet
             if showDevices {
                 DevicesSheet(isPresented: $showDevices)
