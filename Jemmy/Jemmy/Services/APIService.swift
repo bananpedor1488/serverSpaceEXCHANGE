@@ -2,7 +2,7 @@ import Foundation
 
 class APIService {
     static let shared = APIService()
-    private let baseURL = "https://weeky-six.vercel.app/api"
+    let baseURL = "https://weeky-six.vercel.app/api"
     
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -543,5 +543,52 @@ class APIService {
             print("❌ Delete chat error: \(error.localizedDescription)")
             throw error
         }
+    }
+    
+    func toggleChatPin(chatId: String, identityId: String) async throws -> Bool {
+        print("📡 Request: PATCH /chat/\(chatId)/pin")
+        
+        let url = URL(string: "\(baseURL)/chat/\(chatId)/pin")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body = ["identity_id": identityId]
+        request.httpBody = try JSONEncoder().encode(body)
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
+        let response = try JSONDecoder().decode([String: Bool].self, from: data)
+        return response["is_pinned"] ?? false
+    }
+    
+    func toggleChatMute(chatId: String, identityId: String) async throws -> Bool {
+        print("📡 Request: PATCH /chat/\(chatId)/mute")
+        
+        let url = URL(string: "\(baseURL)/chat/\(chatId)/mute")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body = ["identity_id": identityId]
+        request.httpBody = try JSONEncoder().encode(body)
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
+        let response = try JSONDecoder().decode([String: Bool].self, from: data)
+        return response["is_muted"] ?? false
+    }
+    
+    func markChatAsRead(chatId: String, identityId: String) async throws {
+        print("📡 Request: PATCH /chat/\(chatId)/read")
+        
+        let url = URL(string: "\(baseURL)/chat/\(chatId)/read")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body = ["identity_id": identityId]
+        request.httpBody = try JSONEncoder().encode(body)
+        
+        let (_, _) = try await URLSession.shared.data(for: request)
+        print("✅ Chat marked as read")
     }
 }

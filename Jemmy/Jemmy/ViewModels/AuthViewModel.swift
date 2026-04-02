@@ -38,8 +38,8 @@ class AuthViewModel: ObservableObject {
             print("   User ID: \(response.userId)")
             print("   Username: \(response.identity.username)")
             
-            if let userId = userId {
-                SocketService.shared.connect(userId: userId)
+            if let userId = userId, let identityId = identity?.id {
+                WebSocketManager.shared.connect(userId: userId, identityId: identityId)
             }
         } catch {
             print("❌ Registration failed: \(error.localizedDescription)")

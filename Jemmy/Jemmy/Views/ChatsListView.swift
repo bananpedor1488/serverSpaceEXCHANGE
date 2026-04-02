@@ -158,6 +158,12 @@ struct ChatsListView: View {
                 loadChats()
                 NotificationManager.shared.requestPermission()
                 updateBadgeCount()
+                setupWebSocket()
+            }
+            .onDisappear {
+                WebSocketManager.shared.onUnreadUpdate = nil
+                WebSocketManager.shared.onPinUpdate = nil
+                WebSocketManager.shared.onMuteUpdate = nil
             }
             .refreshable {
                 loadChats()
@@ -227,14 +233,47 @@ struct ChatsListView: View {
     }
     
     private func markChatAsRead(_ chat: ChatListItem) {
+        guard let identityId = authViewModel.identity?.id else { return }
+        
         if let index = chats.firstIndex(where: { $0.id == chat.id }) {
             chats[index].unreadCount = 0
             updateBadgeCount()
             
-            // TODO: Отправить на сервер
-            // Task {
-            //     try await APIService.shared.markChatAsRead(chatId: chat.id)
-            // }
+            Task {
+                do {
+                    try await APIService.shared.markChatAsRead(chatId: chat.id, identityId: identityId)
+                } catch {
+                    print("❌ Mark as read error:", error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    private func setupWebSocket() {
+        // Обработка обновлений непрочитанных
+        WebSocketManager.shared.onUnreadUpdate = { [weak self] chatId, unreadCount in
+            guard let self = self else { return }
+            if let index = self.chats.firstIndex(where: { $0.id == chatId }) {
+                self.chats[index].unreadCount = unreadCount
+                self.updateBadgeCount()
+            }
+        }
+        
+        // Обработка обновлений закрепления
+        WebSocketManager.shared.onPinUpdate = { [weak self] chatId, isPinned in
+            guard let self = self else { return }
+            if let index = self.chats.firstIndex(where: { $0.id == chatId }) {
+                self.chats[index].isPinned = isPinned
+            }
+        }
+        
+        // Обработка обновлений мута
+        WebSocketManager.shared.onMuteUpdate = { [weak self] chatId, isMuted in
+            guard let self = self else { return }
+            if let index = self.chats.firstIndex(where: { $0.id == chatId }) {
+                self.chats[index].isMuted = isMuted
+                self.updateBadgeCount()
+            }
         }
     }
     
@@ -257,26 +296,61 @@ struct ChatsListView: View {
     private func togglePin(_ chat: ChatListItem) {
         print("📌 Pin chat:", chat.id)
         
+        guard let identityId = authViewModel.identity?.id else { return }
+        
         if let index = chats.firstIndex(where: { $0.id == chat.id }) {
             chats[index].isPinned.toggle()
             
-            // TODO: Отправить на сервер
-            // Task {
-            //     try await APIService.shared.updateChatPin(chatId: chat.id, isPinned: chats[index].isPinned)
-            // }
+            Task {
+                do {
+                    let isPinned = try await APIService.shared.toggleChatPin(chatId: chat.id, identityId: identityId)
+                    await MainActor.run {
+                        if let idx = chats.firstIndex(where: { $0.id == chat.id }) {
+                            chats[idx].isPinned = isPinned
+                        }
+                    }
+                } catch {
+                    print("❌ Pin error:", error.localizedDescription)
+                    // Откатываем изменение при ошибке
+                    await MainActor.run {
+                        if let idx = chats.firstIndex(where: { $0.id == chat.id }) {
+                            chats[idx].isPinned.toggle()
+                        }
+                    }
+                }
+            }
         }
     }
     
     private func toggleMute(_ chat: ChatListItem) {
         print("🔕 Mute chat:", chat.id)
         
+        guard let identityId = authViewModel.identity?.id else { return }
+        
         if let index = chats.firstIndex(where: { $0.id == chat.id }) {
             chats[index].isMuted.toggle()
+            updateBadgeCount()
             
-            // TODO: Отправить на сервер
-            // Task {
-            //     try await APIService.shared.updateChatMute(chatId: chat.id, isMuted: chats[index].isMuted)
-            // }
+            Task {
+                do {
+                    let isMuted = try await APIService.shared.toggleChatMute(chatId: chat.id, identityId: identityId)
+                    await MainActor.run {
+                        if let idx = chats.firstIndex(where: { $0.id == chat.id }) {
+                            chats[idx].isMuted = isMuted
+                            updateBadgeCount()
+                        }
+                    }
+                } catch {
+                    print("❌ Mute error:", error.localizedDescription)
+                    // Откатываем изменение при ошибке
+                    await MainActor.run {
+                        if let idx = chats.firstIndex(where: { $0.id == chat.id }) {
+                            chats[idx].isMuted.toggle()
+                            updateBadgeCount()
+                        }
+                    }
+                }
+            }
         }
     }
 }
