@@ -1,19 +1,32 @@
+//
+//  JemmyMacApp.swift
+//  JemmyMac
+//
+//  Created by banan on 02.04.2026.
+//
+
 import SwiftUI
+import SwiftData
 
 @main
 struct JemmyMacApp: App {
-    @StateObject private var authViewModel = AuthViewModel()
-    
+    var sharedModelContainer: ModelContainer = {
+        let schema = Schema([
+            Item.self,
+        ])
+        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+
+        do {
+            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+        } catch {
+            fatalError("Could not create ModelContainer: \(error)")
+        }
+    }()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(authViewModel)
-                .frame(minWidth: 900, minHeight: 600)
         }
-        .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
-        .commands {
-            CommandGroup(replacing: .newItem) {}
-        }
+        .modelContainer(sharedModelContainer)
     }
 }
