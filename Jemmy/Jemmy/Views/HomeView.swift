@@ -98,19 +98,6 @@ struct ChatsView: View {
                                 .font(.system(size: 17))
                                 .foregroundColor(.white.opacity(0.5))
                             
-                            if searchText.isEmpty {
-                                Button(action: { showSearchByTag = true }) {
-                                    Text("Найти по тегу")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 24)
-                                        .padding(.vertical, 12)
-                                        .background(Color.white.opacity(0.15))
-                                        .cornerRadius(10)
-                                }
-                                .padding(.top, 8)
-                            }
-                            
                             Spacer()
                         }
                     } else {

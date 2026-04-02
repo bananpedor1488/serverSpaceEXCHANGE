@@ -37,7 +37,6 @@ class AuthViewModel: ObservableObject {
             print("✅ Registration complete")
             print("   User ID: \(response.userId)")
             print("   Username: \(response.identity.username)")
-            print("   Tag: \(response.identity.tag)")
             
             if let userId = userId {
                 SocketService.shared.connect(userId: userId)
