@@ -66,7 +66,7 @@ class AuthViewModel: ObservableObject {
         }
     }
     
-    func updateProfile(username: String?, tag: String?, bio: String?) async throws {
+    func updateProfile(username: String?, bio: String?) async throws {
         guard let identityId = identity?.id else {
             print("⚠️ Cannot update profile: no identity ID")
             throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No identity ID"])
@@ -78,9 +78,7 @@ class AuthViewModel: ObservableObject {
             let updatedIdentity = try await APIService.shared.updateProfile(
                 identityId: identityId,
                 username: username,
-                tag: tag,
-                bio: bio,
-                avatarSeed: nil
+                bio: bio
             )
             
             self.identity = updatedIdentity

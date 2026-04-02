@@ -217,10 +217,6 @@ struct ProfileView: View {
                                         .font(.system(size: 28, weight: .semibold))
                                         .foregroundColor(.white)
                                     
-                                    Text("#\(identity.tag)")
-                                        .font(.system(size: 15, design: .monospaced))
-                                        .foregroundColor(.white.opacity(0.5))
-                                    
                                     if !identity.bio.isEmpty {
                                         Text(identity.bio)
                                             .font(.system(size: 15))

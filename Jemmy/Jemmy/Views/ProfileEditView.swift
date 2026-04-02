@@ -4,20 +4,19 @@ struct ProfileEditView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var username: String
-    @State private var tag: String
     @State private var bio: String
     @State private var isSaving = false
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var showSuccess = false
+    @State private var isCheckingUsername = false
+    @State private var usernameAvailable: Bool? = nil
     
     init(identity: Identity) {
         _username = State(initialValue: identity.username)
-        _tag = State(initialValue: identity.tag)
         _bio = State(initialValue: identity.bio)
         print("✏️ ProfileEditView initialized")
         print("   Username: \(identity.username)")
-        print("   Tag: \(identity.tag)")
     }
     
     var body: some View {
@@ -77,54 +76,44 @@ struct ProfileEditView: View {
                         
                         // Username field
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Имя")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.white.opacity(0.5))
-                                .padding(.horizontal, 20)
-                            
-                            TextField("Имя пользователя", text: $username)
-                                .font(.system(size: 17))
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.white.opacity(0.1))
-                                .cornerRadius(12)
-                                .padding(.horizontal, 20)
-                                .onChange(of: username) { _, newValue in
-                                    print("📝 Username changed: \(newValue)")
-                                }
-                        }
-                        
-                        // Tag field
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Тег")
+                            Text("Username")
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.white.opacity(0.5))
                                 .padding(.horizontal, 20)
                             
                             HStack {
-                                Text("#")
-                                    .font(.system(size: 17, design: .monospaced))
-                                    .foregroundColor(.white.opacity(0.5))
-                                
-                                TextField("ABC123", text: $tag)
-                                    .font(.system(size: 17, design: .monospaced))
+                                TextField("username", text: $username)
+                                    .font(.system(size: 17))
                                     .foregroundColor(.white)
-                                    .textInputAutocapitalization(.characters)
-                                    .onChange(of: tag) { _, newValue in
-                                        let filtered = newValue.uppercased().filter { $0.isLetter || $0.isNumber }
-                                        if filtered != newValue {
-                                            tag = filtered
-                                        }
-                                        print("📝 Tag changed: \(tag)")
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .onChange(of: username) { _, newValue in
+                                        print("📝 Username changed: \(newValue)")
+                                        usernameAvailable = nil
+                                        checkUsernameDebounced()
                                     }
+                                
+                                if isCheckingUsername {
+                                    ProgressView()
+                                        .tint(.white)
+                                        .scaleEffect(0.8)
+                                } else if let available = usernameAvailable {
+                                    Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .foregroundColor(available ? .green : .red)
+                                }
                             }
                             .padding()
                             .background(Color.white.opacity(0.1))
                             .cornerRadius(12)
                             .padding(.horizontal, 20)
                             
-                            if !tag.isEmpty && tag.count < 6 {
-                                Text("Тег должен содержать 6 символов")
+                            if !APIService.shared.isValidUsername(username) && !username.isEmpty {
+                                Text("4-16 символов: a-z, 0-9, _")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.red.opacity(0.8))
+                                    .padding(.horizontal, 20)
+                            } else if let available = usernameAvailable, !available {
+                                Text("Username уже занят")
                                     .font(.system(size: 13))
                                     .foregroundColor(.red.opacity(0.8))
                                     .padding(.horizontal, 20)
@@ -172,11 +161,52 @@ struct ProfileEditView: View {
     }
     
     private var isValid: Bool {
-        let valid = !username.isEmpty && tag.count == 6
+        let valid = APIService.shared.isValidUsername(username) && (usernameAvailable ?? false || username == authViewModel.identity?.username)
         if !valid {
-            print("⚠️ Form invalid: username=\(username.isEmpty ? "empty" : "ok"), tag=\(tag.count)/6")
+            print("⚠️ Form invalid: username=\(username), valid format=\(APIService.shared.isValidUsername(username)), available=\(usernameAvailable ?? false)")
         }
         return valid
+    }
+    
+    private var checkUsernameTask: Task<Void, Never>?
+    
+    private func checkUsernameDebounced() {
+        checkUsernameTask?.cancel()
+        
+        guard username != authViewModel.identity?.username else {
+            usernameAvailable = true
+            return
+        }
+        
+        guard APIService.shared.isValidUsername(username) else {
+            usernameAvailable = false
+            return
+        }
+        
+        checkUsernameTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second debounce
+            
+            guard !Task.isCancelled else { return }
+            
+            await checkUsername()
+        }
+    }
+    
+    private func checkUsername() async {
+        isCheckingUsername = true
+        
+        do {
+            let available = try await APIService.shared.checkUsername(username: username)
+            await MainActor.run {
+                usernameAvailable = available
+                isCheckingUsername = false
+            }
+        } catch {
+            await MainActor.run {
+                usernameAvailable = false
+                isCheckingUsername = false
+            }
+        }
     }
     
     private func saveProfile() {
@@ -187,7 +217,6 @@ struct ProfileEditView: View {
         
         print("💾 Saving profile...")
         print("   Username: \(username)")
-        print("   Tag: \(tag)")
         print("   Bio: \(bio)")
         
         isSaving = true
@@ -196,7 +225,6 @@ struct ProfileEditView: View {
             do {
                 try await authViewModel.updateProfile(
                     username: username,
-                    tag: tag,
                     bio: bio
                 )
                 
@@ -208,7 +236,7 @@ struct ProfileEditView: View {
             } catch {
                 await MainActor.run {
                     print("❌ Save failed: \(error.localizedDescription)")
-                    errorMessage = "Не удалось сохранить. Возможно, тег уже занят."
+                    errorMessage = "Не удалось сохранить. Возможно, username уже занят."
                     showError = true
                     isSaving = false
                 }

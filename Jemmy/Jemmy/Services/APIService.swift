@@ -61,7 +61,39 @@ class APIService {
         }
     }
     
-    // MARK: - Profile
+    // MARK: - Username
+    
+    func checkUsername(username: String) async throws -> Bool {
+        print("📡 Request: GET /identity/check-username/\(username)")
+        
+        let url = URL(string: "\(baseURL)/identity/check-username/\(username)")!
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            
+            if let available = json?["available"] as? Bool {
+                print(available ? "✅ Username available" : "❌ Username taken")
+                return available
+            }
+            
+            return false
+        } catch {
+            print("❌ Check username error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    func isValidUsername(_ username: String) -> Bool {
+        let regex = "^[a-zA-Z0-9_]{4,16}$"
+        let predicate = NSPredicate(format: "SELF MATCHES %@", regex)
+        return predicate.evaluate(with: username)
+    }
     
     func getProfile(identityId: String) async throws -> Identity {
         print("📡 Request: GET /identity/\(identityId)")
@@ -84,11 +116,10 @@ class APIService {
         }
     }
     
-    func updateProfile(identityId: String, username: String?, tag: String?, bio: String?, avatarSeed: String?) async throws -> Identity {
+    func updateProfile(identityId: String, username: String?, bio: String?) async throws -> Identity {
         print("📡 Request: POST /identity/update")
         print("📦 Body: identity_id=\(identityId)")
         if let username = username { print("   username=\(username)") }
-        if let tag = tag { print("   tag=\(tag)") }
         if let bio = bio { print("   bio=\(bio)") }
         
         let url = URL(string: "\(baseURL)/identity/update")!
@@ -98,9 +129,7 @@ class APIService {
         
         var body: [String: Any] = ["identity_id": identityId]
         if let username = username { body["username"] = username }
-        if let tag = tag { body["tag"] = tag }
         if let bio = bio { body["bio"] = bio }
-        if let avatarSeed = avatarSeed { body["avatar_seed"] = avatarSeed }
         
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
@@ -122,6 +151,45 @@ class APIService {
             return identity
         } catch {
             print("❌ Update profile error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    func uploadAvatar(identityId: String, base64: String) async throws -> Identity {
+        print("📡 Request: POST /identity/upload-avatar")
+        print("📦 Identity ID: \(identityId)")
+        print("📦 Avatar size: \(base64.count) chars")
+        
+        let url = URL(string: "\(baseURL)/identity/upload-avatar")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "identity_id": identityId,
+            "avatar": base64
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            
+            if let identityData = json?["identity"] as? [String: Any],
+               let jsonData = try? JSONSerialization.data(withJSONObject: identityData) {
+                let identity = try JSONDecoder().decode(Identity.self, from: jsonData)
+                print("✅ Avatar uploaded")
+                return identity
+            }
+            
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+        } catch {
+            print("❌ Upload avatar error: \(error.localizedDescription)")
             throw error
         }
     }
@@ -174,12 +242,12 @@ class APIService {
             
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             
-            if let link = json?["link"] as? String {
-                print("✅ Link generated: \(link)")
-                return link
+            if let urlString = json?["url"] as? String {
+                print("✅ Link generated: \(urlString)")
+                return urlString
             } else {
-                print("❌ No link in response")
-                throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No link in response"])
+                print("❌ No url in response")
+                throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No url in response"])
             }
         } catch {
             print("❌ Generate link error: \(error.localizedDescription)")
