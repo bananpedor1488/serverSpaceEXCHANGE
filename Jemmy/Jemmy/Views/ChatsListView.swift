@@ -164,7 +164,11 @@ struct ChatsListView: View {
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(.white)
                         
-                        if isLoading && networkMonitor.isConnected {
+                        if !networkMonitor.isConnected {
+                            Image(systemName: "wifi.slash")
+                                .font(.system(size: 14))
+                                .foregroundColor(.orange)
+                        } else if isLoading {
                             ProgressView()
                                 .tint(.white)
                                 .scaleEffect(0.7)
