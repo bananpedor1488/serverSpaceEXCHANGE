@@ -4,18 +4,19 @@ import SwiftUI
 struct JemmyMacApp: App {
     @StateObject private var authViewModel = AuthViewModel()
     @State private var showInviteProfile: (identity: Identity, token: String)? = nil
+    @State private var createdChat: CreatedChat? = nil
     
     var body: some Scene {
         WindowGroup {
             Group {
                 if authViewModel.identity != nil {
-                    ContentView()
+                    ChatsListView(createdChat: $createdChat)
                         .environmentObject(authViewModel)
                         .sheet(item: Binding(
                             get: { showInviteProfile.map { IdentifiableInvite(identity: $0.identity, token: $0.token) } },
                             set: { showInviteProfile = $0.map { ($0.identity, $0.token) } }
                         )) { invite in
-                            InviteProfileView(identity: invite.identity, token: invite.token)
+                            InviteProfileView(identity: invite.identity, token: invite.token, createdChat: $createdChat)
                                 .environmentObject(authViewModel)
                                 .frame(width: 500, height: 600)
                         }
@@ -74,4 +75,10 @@ struct IdentifiableInvite: Identifiable {
     let id = UUID()
     let identity: Identity
     let token: String
+}
+
+struct CreatedChat: Identifiable {
+    let id = UUID()
+    let chatId: String
+    let otherUser: Identity
 }

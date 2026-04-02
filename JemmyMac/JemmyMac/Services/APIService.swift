@@ -291,4 +291,27 @@ class APIService {
             throw error
         }
     }
+    
+    // MARK: - Search
+    
+    func searchByTag(tag: String) async throws -> [Identity] {
+        print("📡 Request: GET /identity/search?tag=\(tag)")
+        
+        let url = URL(string: "\(baseURL)/identity/search?tag=\(tag)")!
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let identities = try JSONDecoder().decode([Identity].self, from: data)
+            print("✅ Search results:", identities.count)
+            return identities
+        } catch {
+            print("❌ Search error:", error.localizedDescription)
+            throw error
+        }
+    }
 }

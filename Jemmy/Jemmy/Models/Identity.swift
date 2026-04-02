@@ -72,10 +72,12 @@ struct Chat: Codable, Identifiable {
     let id: String
     let participants: [String]
     let isGroup: Bool
+    let groupName: String?
     
     enum CodingKeys: String, CodingKey {
         case id = "_id"
         case participants
         case isGroup = "is_group"
+        case groupName = "group_name"
     }
 }

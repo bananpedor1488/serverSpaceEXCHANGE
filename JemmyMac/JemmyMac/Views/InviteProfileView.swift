@@ -1,112 +1,99 @@
 import SwiftUI
 
 struct InviteProfileView: View {
-    @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var authViewModel: AuthViewModel
     let identity: Identity
     let token: String
-    @State private var isCreatingChat = false
+    @Binding var createdChat: CreatedChat?
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.dismiss) var dismiss
+    @State private var isLoading = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            VStack(spacing: 30) {
+                // Avatar
+                if let url = URL(string: identity.avatar) {
+                    AsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    } placeholder: {
+                        Circle()
+                            .fill(Color.gray.opacity(0.3))
+                    }
+                    .frame(width: 120, height: 120)
+                    .clipShape(Circle())
+                }
+                
+                // Username
+                Text("@\(identity.username)")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.white)
+                
+                // Bio
+                if !identity.bio.isEmpty {
+                    Text(identity.bio)
+                        .font(.system(size: 16))
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+                
                 Spacer()
                 
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding()
-            
-            ScrollView {
-                VStack(spacing: 32) {
-                    // Profile info
-                    VStack(spacing: 20) {
-                        Circle()
-                            .fill(Color.accentColor.opacity(0.2))
-                            .frame(width: 120, height: 120)
-                            .overlay(
-                                Text(String(identity.username.prefix(2)).uppercased())
-                                    .font(.system(size: 48, weight: .semibold))
-                            )
-                        
-                        VStack(spacing: 8) {
-                            Text(identity.username)
-                                .font(.system(size: 32, weight: .semibold))
-                            
-                            if !identity.bio.isEmpty {
-                                Text(identity.bio)
-                                    .font(.system(size: 17))
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 32)
-                                    .padding(.top, 4)
-                            }
+                // Start Chat Button
+                Button(action: startChat) {
+                    HStack {
+                        if isLoading {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "message.fill")
+                            Text("Начать чат")
+                                .font(.system(size: 17, weight: .semibold))
                         }
                     }
-                    .padding(.top, 40)
-                    
-                    // Start chat button
-                    Button(action: startChat) {
-                        HStack(spacing: 12) {
-                            if isCreatingChat {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "bubble.left.and.bubble.right.fill")
-                                    .font(.system(size: 18))
-                                Text("Начать чат")
-                                    .font(.system(size: 17, weight: .semibold))
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.green.opacity(0.8))
-                        .cornerRadius(12)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isCreatingChat)
-                    .padding(.horizontal, 32)
-                    .padding(.top, 20)
-                    
-                    Spacer()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
                 }
+                .disabled(isLoading)
+                .padding(.horizontal, 40)
+                .padding(.bottom, 30)
             }
+            .padding(.top, 50)
         }
     }
     
     private func startChat() {
         guard let myIdentityId = authViewModel.identity?.id else {
-            print("⚠️ Cannot start chat: no identity")
+            print("❌ No identity")
             return
         }
         
-        print("💬 Starting chat with \(identity.username)...")
-        isCreatingChat = true
+        isLoading = true
+        print("📡 start chat:", token)
         
         Task {
             do {
-                // First, consume the invite link to mark it as used
-                print("🔗 Consuming invite link...")
-                _ = try await APIService.shared.consumeInviteLink(token: token)
-                
-                let chat = try await APIService.shared.createChat(identityIds: [myIdentityId, identity.id])
-                print("✅ Chat created successfully")
+                let response = try await APIService.shared.startChat(token: token, myIdentityId: myIdentityId)
                 
                 await MainActor.run {
-                    authViewModel.chats.append(chat)
+                    print("✅ чат создан:", response.chatId)
+                    createdChat = CreatedChat(chatId: response.chatId, otherUser: response.otherUser)
+                    isLoading = false
                     dismiss()
                 }
             } catch {
-                print("❌ Failed to create chat: \(error.localizedDescription)")
-            }
-            
-            await MainActor.run {
-                isCreatingChat = false
+                await MainActor.run {
+                    print("❌ error:", error.localizedDescription)
+                    isLoading = false
+                }
             }
         }
     }
