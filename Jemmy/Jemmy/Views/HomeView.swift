@@ -3,7 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var selectedTab = 0
-    @Binding var openChat: (chatId: String, otherUser: Identity)?
+    @Binding var openChat: CreatedChat?
     
     var body: some View {
         TabView(selection: $selectedTab) {

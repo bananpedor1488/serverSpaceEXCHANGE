@@ -5,7 +5,7 @@ struct JemmyApp: App {
     @StateObject private var authViewModel = AuthViewModel()
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var showInviteProfile: (identity: Identity, token: String)? = nil
-    @State private var createdChat: (chatId: String, otherUser: Identity)? = nil
+    @State private var createdChat: CreatedChat? = nil
     
     var body: some Scene {
         WindowGroup {
@@ -101,4 +101,13 @@ struct IdentifiableInvite: Identifiable {
     let id = UUID()
     let identity: Identity
     let token: String
+}
+
+struct CreatedChat: Equatable {
+    let chatId: String
+    let otherUser: Identity
+    
+    static func == (lhs: CreatedChat, rhs: CreatedChat) -> Bool {
+        lhs.chatId == rhs.chatId
+    }
 }

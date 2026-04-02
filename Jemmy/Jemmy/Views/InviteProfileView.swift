@@ -6,7 +6,7 @@ struct InviteProfileView: View {
     let identity: Identity
     let token: String
     @State private var isCreatingChat = false
-    @Binding var createdChat: (chatId: String, otherUser: Identity)?
+    @Binding var createdChat: CreatedChat?
     
     var body: some View {
         ZStack {
@@ -106,7 +106,7 @@ struct InviteProfileView: View {
                 print("✅ чат создан:", chatResponse.chatId)
                 
                 await MainActor.run {
-                    createdChat = (chatResponse.chatId, chatResponse.otherUser)
+                    createdChat = CreatedChat(chatId: chatResponse.chatId, otherUser: chatResponse.otherUser)
                     isCreatingChat = false
                     dismiss()
                 }

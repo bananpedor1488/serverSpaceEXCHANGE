@@ -7,7 +7,7 @@ struct ChatsListView: View {
     @State private var selectedChatId: String?
     @State private var selectedOtherUser: Identity?
     @State private var showChat = false
-    @Binding var openChat: (chatId: String, otherUser: Identity)?
+    @Binding var openChat: CreatedChat?
     
     var body: some View {
         NavigationView {
