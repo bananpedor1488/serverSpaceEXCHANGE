@@ -11,6 +11,7 @@ struct ProfileEditView: View {
     @State private var showSuccess = false
     @State private var isCheckingUsername = false
     @State private var usernameAvailable: Bool? = nil
+    @State private var checkUsernameTask: Task<Void, Never>?
     
     init(identity: Identity) {
         _username = State(initialValue: identity.username)
