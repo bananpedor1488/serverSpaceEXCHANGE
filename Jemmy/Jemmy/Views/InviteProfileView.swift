@@ -4,6 +4,7 @@ struct InviteProfileView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
     let identity: Identity
+    let token: String
     @State private var isCreatingChat = false
     
     var body: some View {
@@ -98,6 +99,10 @@ struct InviteProfileView: View {
         
         Task {
             do {
+                // First, consume the invite link to mark it as used
+                print("🔗 Consuming invite link...")
+                _ = try await APIService.shared.consumeInviteLink(token: token)
+                
                 // Create chat with both identities
                 let url = URL(string: "https://weeky-six.vercel.app/api/chat/create")!
                 var request = URLRequest(url: url)

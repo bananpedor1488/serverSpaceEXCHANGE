@@ -256,7 +256,41 @@ class APIService {
     }
     
     func useInviteLink(token: String) async throws -> Identity {
-        print("📡 Request: GET /invite/\(token)")
+        print("📡 Request: GET /invite/preview/\(token)")
+        
+        let url = URL(string: "\(baseURL)/invite/preview/\(token)")!
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode != 200 {
+                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    print("❌ Server error: \(errorText)")
+                    throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorText])
+                }
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            
+            if let identityData = json?["identity"] as? [String: Any],
+               let jsonData = try? JSONSerialization.data(withJSONObject: identityData) {
+                let identity = try JSONDecoder().decode(Identity.self, from: jsonData)
+                print("✅ Invite link preview loaded, identity: \(identity.username)")
+                return identity
+            }
+            
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+        } catch {
+            print("❌ Use invite link error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    func consumeInviteLink(token: String) async throws -> Identity {
+        print("📡 Request: GET /invite/\(token) (CONSUME)")
         
         let url = URL(string: "\(baseURL)/invite/\(token)")!
         
@@ -278,13 +312,13 @@ class APIService {
             if let identityData = json?["identity"] as? [String: Any],
                let jsonData = try? JSONSerialization.data(withJSONObject: identityData) {
                 let identity = try JSONDecoder().decode(Identity.self, from: jsonData)
-                print("✅ Invite link used, identity: \(identity.username)")
+                print("✅ Invite link consumed, identity: \(identity.username)")
                 return identity
             }
             
             throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
         } catch {
-            print("❌ Use invite link error: \(error.localizedDescription)")
+            print("❌ Consume invite link error: \(error.localizedDescription)")
             throw error
         }
     }

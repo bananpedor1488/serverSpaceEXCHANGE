@@ -4,7 +4,7 @@ import SwiftUI
 struct JemmyApp: App {
     @StateObject private var authViewModel = AuthViewModel()
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
-    @State private var showInviteProfile: Identity? = nil
+    @State private var showInviteProfile: (identity: Identity, token: String)? = nil
     
     var body: some Scene {
         WindowGroup {
@@ -15,8 +15,11 @@ struct JemmyApp: App {
                 } else if authViewModel.identity != nil {
                     HomeView()
                         .environmentObject(authViewModel)
-                        .sheet(item: $showInviteProfile) { identity in
-                            InviteProfileView(identity: identity)
+                        .sheet(item: Binding(
+                            get: { showInviteProfile.map { IdentifiableInvite(identity: $0.identity, token: $0.token) } },
+                            set: { showInviteProfile = $0.map { ($0.identity, $0.token) } }
+                        )) { invite in
+                            InviteProfileView(identity: invite.identity, token: invite.token)
                                 .environmentObject(authViewModel)
                         }
                 } else {
@@ -60,7 +63,7 @@ struct JemmyApp: App {
                     
                     await MainActor.run {
                         print("✅ Showing invite profile: \(identity.username)")
-                        showInviteProfile = identity
+                        showInviteProfile = (identity, token)
                     }
                 } catch {
                     print("❌ Failed to use invite link: \(error.localizedDescription)")
@@ -78,7 +81,7 @@ struct JemmyApp: App {
                     
                     await MainActor.run {
                         print("✅ Showing invite profile: \(identity.username)")
-                        showInviteProfile = identity
+                        showInviteProfile = (identity, token)
                     }
                 } catch {
                     print("❌ Failed to use invite link: \(error.localizedDescription)")
@@ -86,4 +89,11 @@ struct JemmyApp: App {
             }
         }
     }
+}
+
+// Helper struct to make tuple Identifiable
+struct IdentifiableInvite: Identifiable {
+    let id = UUID()
+    let identity: Identity
+    let token: String
 }
