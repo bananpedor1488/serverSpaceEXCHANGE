@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChatsListView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @StateObject private var networkMonitor = NetworkMonitor.shared
     @State private var chats: [ChatListItem] = []
     @State private var isLoading = false
     @State private var searchText = ""
@@ -54,6 +55,21 @@ struct ChatsListView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
                     .padding(.bottom, 12)
+                    
+                    // Connection status
+                    if !networkMonitor.isConnected {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .tint(.white)
+                                .scaleEffect(0.8)
+                            Text("Соединение...")
+                                .font(.system(size: 14))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.orange.opacity(0.2))
+                    }
                     
                     if isLoading {
                         Spacer()
@@ -143,10 +159,16 @@ struct ChatsListView: View {
                     }
                 }
             }
-            .navigationTitle("Чаты")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar(isNavigatingToChat ? .hidden : .visible, for: .tabBar)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Чаты")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showSearchByTag = true }) {
                         Image(systemName: "person.badge.plus")
@@ -155,6 +177,7 @@ struct ChatsListView: View {
                 }
             }
             .onAppear {
+                loadChatsFromCache()
                 loadChats()
                 NotificationManager.shared.requestPermission()
                 updateBadgeCount()
@@ -164,6 +187,11 @@ struct ChatsListView: View {
                 WebSocketManager.shared.onUnreadUpdate = nil
                 WebSocketManager.shared.onPinUpdate = nil
                 WebSocketManager.shared.onMuteUpdate = nil
+            }
+            .onChange(of: networkMonitor.isConnected) { isConnected in
+                if isConnected {
+                    loadChats()
+                }
             }
             .refreshable {
                 loadChats()
@@ -182,9 +210,20 @@ struct ChatsListView: View {
         }
     }
     
+    private func loadChatsFromCache() {
+        if let cachedChats = CacheManager.shared.loadChats() {
+            chats = cachedChats
+        }
+    }
+    
     private func loadChats() {
         guard let identityId = authViewModel.identity?.id else {
             print("⚠️ Cannot load chats: no identity")
+            return
+        }
+        
+        guard networkMonitor.isConnected else {
+            print("⚠️ No network connection, using cache")
             return
         }
         
@@ -198,6 +237,9 @@ struct ChatsListView: View {
                     let oldChats = chats
                     chats = loadedChats
                     isLoading = false
+                    
+                    // Сохраняем в кэш
+                    CacheManager.shared.saveChats(loadedChats)
                     
                     // Проверяем новые сообщения
                     checkForNewMessages(oldChats: oldChats, newChats: loadedChats)

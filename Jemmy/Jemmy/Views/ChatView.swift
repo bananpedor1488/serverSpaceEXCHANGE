@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChatView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @StateObject private var networkMonitor = NetworkMonitor.shared
     let chatId: String
     let otherUser: Identity
     
@@ -191,12 +192,21 @@ struct ChatView: View {
                 .environmentObject(authViewModel)
         }
         .onAppear {
+            loadMessagesFromCache()
             loadMessages()
             startPolling()
             updateUserStatus()
         }
         .onDisappear {
             stopPolling()
+        }
+        .onChange(of: networkMonitor.isConnected) { isConnected in
+            if isConnected {
+                loadMessages()
+                startPolling()
+            } else {
+                stopPolling()
+            }
         }
     }
     
@@ -232,7 +242,19 @@ struct ChatView: View {
         }
     }
     
+    private func loadMessagesFromCache() {
+        if let cachedMessages = CacheManager.shared.loadMessages(chatId: chatId) {
+            messages = cachedMessages
+        }
+    }
+    
     private func loadMessages() {
+        guard networkMonitor.isConnected else {
+            print("⚠️ No network connection, using cache")
+            isLoading = false
+            return
+        }
+        
         isLoading = true
         
         Task {
@@ -242,6 +264,9 @@ struct ChatView: View {
                 await MainActor.run {
                     messages = loadedMessages
                     isLoading = false
+                    
+                    // Сохраняем в кэш
+                    CacheManager.shared.saveMessages(loadedMessages, chatId: chatId)
                 }
             } catch {
                 print("❌ error:", error.localizedDescription)
@@ -255,6 +280,11 @@ struct ChatView: View {
     private func sendMessage() {
         guard let myIdentityId = authViewModel.identity?.id else {
             print("⚠️ Cannot send message: no identity")
+            return
+        }
+        
+        guard networkMonitor.isConnected else {
+            print("⚠️ Cannot send message: no network")
             return
         }
         
@@ -273,6 +303,9 @@ struct ChatView: View {
                 await MainActor.run {
                     messages.append(message)
                     isSending = false
+                    
+                    // Обновляем кэш
+                    CacheManager.shared.saveMessages(messages, chatId: chatId)
                 }
             } catch {
                 print("❌ error:", error.localizedDescription)
