@@ -380,102 +380,71 @@ struct SettingsRow: View {
 // MARK: - Privacy Settings
 
 struct PrivacySettingsView: View {
-    @Environment(\.dismiss) var dismiss
-    
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color.black.ignoresSafeArea()
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        SettingsSection(title: "Приватность") {
-                            SettingsRow(icon: "eye.slash", title: "Кто может писать", subtitle: "Все", action: {
-                                print("🔒 Who can message")
-                            })
-                            
-                            SettingsRow(icon: "eye", title: "Кто видит профиль", subtitle: "Все", action: {
-                                print("👁️ Who can see profile")
-                            })
-                            
-                            SettingsRow(icon: "person.crop.circle.badge.xmark", title: "Заблокированные", action: {
-                                print("🚫 Blocked users")
-                            })
-                        }
-                    }
-                    .padding(16)
-                }
-            }
-            .navigationTitle("Приватность")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 17, weight: .semibold))
-                            Text("Назад")
-                        }
-                        .foregroundColor(.blue)
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 24) {
+                    SettingsSection(title: "Приватность") {
+                        SettingsRow(icon: "eye.slash", title: "Кто может писать", subtitle: "Все", action: {
+                            print("🔒 Who can message")
+                        })
+                        
+                        SettingsRow(icon: "eye", title: "Кто видит профиль", subtitle: "Все", action: {
+                            print("👁️ Who can see profile")
+                        })
+                        
+                        SettingsRow(icon: "person.crop.circle.badge.xmark", title: "Заблокированные", action: {
+                            print("🚫 Blocked users")
+                        })
                     }
                 }
+                .padding(16)
             }
         }
+        .navigationTitle("Приватность")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 // MARK: - Data Settings
 
 struct DataSettingsView: View {
-    @Environment(\.dismiss) var dismiss
     @State private var showClearCacheAlert = false
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color.black.ignoresSafeArea()
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        SettingsSection(title: "Данные и память") {
-                            SettingsRow(icon: "trash", title: "Очистить кэш", action: {
-                                showClearCacheAlert = true
-                            })
-                            
-                            SettingsRow(icon: "arrow.down.circle", title: "Автозагрузка медиа", subtitle: "Wi-Fi", action: {
-                                print("📥 Auto download")
-                            })
-                            
-                            SettingsRow(icon: "chart.bar", title: "Использование памяти", action: {
-                                print("📊 Storage usage")
-                            })
-                        }
-                    }
-                    .padding(16)
-                }
-            }
-            .navigationTitle("Данные и память")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 17, weight: .semibold))
-                            Text("Назад")
-                        }
-                        .foregroundColor(.blue)
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 24) {
+                    SettingsSection(title: "Данные и память") {
+                        SettingsRow(icon: "trash", title: "Очистить кэш", action: {
+                            showClearCacheAlert = true
+                        })
+                        
+                        SettingsRow(icon: "arrow.down.circle", title: "Автозагрузка медиа", subtitle: "Wi-Fi", action: {
+                            print("📥 Auto download")
+                        })
+                        
+                        SettingsRow(icon: "chart.bar", title: "Использование памяти", action: {
+                            print("📊 Storage usage")
+                        })
                     }
                 }
+                .padding(16)
             }
-            .alert("Очистить кэш?", isPresented: $showClearCacheAlert) {
-                Button("Отмена", role: .cancel) {}
-                Button("Очистить", role: .destructive) {
-                    clearCache()
-                }
-            } message: {
-                Text("Локальные данные чатов и сообщений будут удалены")
+        }
+        .navigationTitle("Данные и память")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("Очистить кэш?", isPresented: $showClearCacheAlert) {
+            Button("Отмена", role: .cancel) {}
+            Button("Очистить", role: .destructive) {
+                clearCache()
             }
+        } message: {
+            Text("Локальные данные чатов и сообщений будут удалены")
         }
     }
     
@@ -488,61 +457,45 @@ struct DataSettingsView: View {
 // MARK: - Devices Settings
 
 struct DevicesSettingsView: View {
-    @Environment(\.dismiss) var dismiss
-    
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color.black.ignoresSafeArea()
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        SettingsSection(title: "Устройства") {
-                            VStack(spacing: 12) {
-                                HStack {
-                                    Image(systemName: "iphone")
-                                        .font(.system(size: 24))
-                                        .foregroundColor(.green)
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Это устройство")
-                                            .font(.system(size: 17, weight: .semibold))
-                                            .foregroundColor(.white)
-                                        Text("Активно сейчас")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.white.opacity(0.6))
-                                    }
-                                    
-                                    Spacer()
-                                }
-                                .padding()
-                                .background(Color.white.opacity(0.05))
-                                .cornerRadius(12)
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 24) {
+                    SettingsSection(title: "Устройства") {
+                        VStack(spacing: 12) {
+                            HStack {
+                                Image(systemName: "iphone")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.green)
                                 
-                                Text("Менеджер устройств позволит управлять всеми устройствами, подключенными к вашему аккаунту")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.white.opacity(0.6))
-                                    .padding()
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Это устройство")
+                                        .font(.system(size: 17, weight: .semibold))
+                                        .foregroundColor(.white)
+                                    Text("Активно сейчас")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.6))
+                                }
+                                
+                                Spacer()
                             }
+                            .padding()
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(12)
+                            
+                            Text("Менеджер устройств позволит управлять всеми устройствами, подключенными к вашему аккаунту")
+                                .font(.system(size: 14))
+                                .foregroundColor(.white.opacity(0.6))
+                                .padding()
                         }
                     }
-                    .padding(16)
                 }
-            }
-            .navigationTitle("Устройства")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 17, weight: .semibold))
-                            Text("Назад")
-                        }
-                        .foregroundColor(.blue)
-                    }
-                }
+                .padding(16)
             }
         }
+        .navigationTitle("Устройства")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
