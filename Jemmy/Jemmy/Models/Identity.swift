@@ -51,12 +51,29 @@ struct ChatListItem: Codable, Identifiable {
     let lastMessage: String
     let lastMessageTime: String
     let user: Identity
+    var isPinned: Bool
+    var unreadCount: Int
+    var isMuted: Bool
     
     enum CodingKeys: String, CodingKey {
         case id
         case lastMessage
         case lastMessageTime
         case user
+        case isPinned = "is_pinned"
+        case unreadCount = "unread_count"
+        case isMuted = "is_muted"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        lastMessage = try container.decode(String.self, forKey: .lastMessage)
+        lastMessageTime = try container.decode(String.self, forKey: .lastMessageTime)
+        user = try container.decode(Identity.self, forKey: .user)
+        isPinned = (try? container.decode(Bool.self, forKey: .isPinned)) ?? false
+        unreadCount = (try? container.decode(Int.self, forKey: .unreadCount)) ?? 0
+        isMuted = (try? container.decode(Bool.self, forKey: .isMuted)) ?? false
     }
     
     var lastMessageDate: Date {

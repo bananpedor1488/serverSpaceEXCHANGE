@@ -11,11 +11,16 @@ struct ChatsListView: View {
     @Binding var openChat: CreatedChat?
     
     var filteredChats: [ChatListItem] {
-        if searchText.isEmpty {
-            return chats
-        }
-        return chats.filter { chat in
+        let filtered = searchText.isEmpty ? chats : chats.filter { chat in
             chat.user.username.localizedCaseInsensitiveContains(searchText)
+        }
+        
+        // Сортируем: сначала закрепленные, потом по времени
+        return filtered.sorted { chat1, chat2 in
+            if chat1.isPinned != chat2.isPinned {
+                return chat1.isPinned
+            }
+            return chat1.lastMessageDate > chat2.lastMessageDate
         }
     }
     
@@ -72,6 +77,7 @@ struct ChatsListView: View {
                             ForEach(filteredChats) { chat in
                                 Button(action: {
                                     selectedChat = chat
+                                    markChatAsRead(chat)
                                 }) {
                                     ChatListRow(chat: chat)
                                 }
@@ -90,14 +96,16 @@ struct ChatsListView: View {
                                     Button {
                                         togglePin(chat)
                                     } label: {
-                                        Label("Закрепить", systemImage: "pin.fill")
+                                        Label(chat.isPinned ? "Открепить" : "Закрепить", 
+                                              systemImage: chat.isPinned ? "pin.slash.fill" : "pin.fill")
                                     }
                                     .tint(.blue)
                                     
                                     Button {
                                         toggleMute(chat)
                                     } label: {
-                                        Label("Без звука", systemImage: "bell.slash.fill")
+                                        Label(chat.isMuted ? "Включить звук" : "Без звука", 
+                                              systemImage: chat.isMuted ? "bell.fill" : "bell.slash.fill")
                                     }
                                     .tint(.purple)
                                 }
@@ -148,6 +156,8 @@ struct ChatsListView: View {
             }
             .onAppear {
                 loadChats()
+                NotificationManager.shared.requestPermission()
+                updateBadgeCount()
             }
             .refreshable {
                 loadChats()
@@ -179,8 +189,13 @@ struct ChatsListView: View {
                 let loadedChats = try await APIService.shared.getChats(identityId: identityId)
                 
                 await MainActor.run {
+                    let oldChats = chats
                     chats = loadedChats
                     isLoading = false
+                    
+                    // Проверяем новые сообщения
+                    checkForNewMessages(oldChats: oldChats, newChats: loadedChats)
+                    updateBadgeCount()
                 }
             } catch {
                 print("❌ error:", error.localizedDescription)
@@ -188,6 +203,38 @@ struct ChatsListView: View {
                     isLoading = false
                 }
             }
+        }
+    }
+    
+    private func checkForNewMessages(oldChats: [ChatListItem], newChats: [ChatListItem]) {
+        for newChat in newChats {
+            if let oldChat = oldChats.first(where: { $0.id == newChat.id }) {
+                // Если количество непрочитанных увеличилось и чат не в муте
+                if newChat.unreadCount > oldChat.unreadCount && !newChat.isMuted {
+                    NotificationManager.shared.sendLocalNotification(
+                        title: newChat.user.username,
+                        body: newChat.lastMessage,
+                        chatId: newChat.id
+                    )
+                }
+            }
+        }
+    }
+    
+    private func updateBadgeCount() {
+        let totalUnread = chats.reduce(0) { $0 + ($1.isMuted ? 0 : $1.unreadCount) }
+        NotificationManager.shared.setBadgeCount(totalUnread)
+    }
+    
+    private func markChatAsRead(_ chat: ChatListItem) {
+        if let index = chats.firstIndex(where: { $0.id == chat.id }) {
+            chats[index].unreadCount = 0
+            updateBadgeCount()
+            
+            // TODO: Отправить на сервер
+            // Task {
+            //     try await APIService.shared.markChatAsRead(chatId: chat.id)
+            // }
         }
     }
     
@@ -209,12 +256,28 @@ struct ChatsListView: View {
     
     private func togglePin(_ chat: ChatListItem) {
         print("📌 Pin chat:", chat.id)
-        // TODO: Implement pin functionality
+        
+        if let index = chats.firstIndex(where: { $0.id == chat.id }) {
+            chats[index].isPinned.toggle()
+            
+            // TODO: Отправить на сервер
+            // Task {
+            //     try await APIService.shared.updateChatPin(chatId: chat.id, isPinned: chats[index].isPinned)
+            // }
+        }
     }
     
     private func toggleMute(_ chat: ChatListItem) {
         print("🔕 Mute chat:", chat.id)
-        // TODO: Implement mute functionality
+        
+        if let index = chats.firstIndex(where: { $0.id == chat.id }) {
+            chats[index].isMuted.toggle()
+            
+            // TODO: Отправить на сервер
+            // Task {
+            //     try await APIService.shared.updateChatMute(chatId: chat.id, isMuted: chats[index].isMuted)
+            // }
+        }
     }
 }
 
@@ -224,37 +287,73 @@ struct ChatListRow: View {
     var body: some View {
         HStack(spacing: 12) {
             // Avatar
-            Circle()
-                .fill(Color.white.opacity(0.1))
-                .frame(width: 56, height: 56)
-                .overlay(
-                    Text(String(chat.user.username.prefix(2)).uppercased())
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
-                )
+            ZStack(alignment: .bottomTrailing) {
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 56, height: 56)
+                    .overlay(
+                        Text(String(chat.user.username.prefix(2)).uppercased())
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white)
+                    )
+                
+                // Unread badge
+                if chat.unreadCount > 0 && !chat.isMuted {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 20, height: 20)
+                        .overlay(
+                            Text("\(min(chat.unreadCount, 99))")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                        )
+                        .offset(x: 4, y: 4)
+                }
+            }
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
+                    // Pin icon
+                    if chat.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.blue)
+                    }
+                    
                     Text(chat.user.username)
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(.white)
                     
                     Spacer()
                     
-                    Text(formatTime(chat.lastMessageDate))
-                        .font(.system(size: 15))
-                        .foregroundColor(.white.opacity(0.5))
+                    HStack(spacing: 4) {
+                        // Mute icon
+                        if chat.isMuted {
+                            Image(systemName: "bell.slash.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(.white.opacity(0.4))
+                        }
+                        
+                        Text(formatTime(chat.lastMessageDate))
+                            .font(.system(size: 15))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
                 }
                 
-                Text(chat.lastMessage.isEmpty ? "Начните переписку" : chat.lastMessage)
-                    .font(.system(size: 15))
-                    .foregroundColor(.white.opacity(0.6))
-                    .lineLimit(1)
+                HStack {
+                    Text(chat.lastMessage.isEmpty ? "Начните переписку" : chat.lastMessage)
+                        .font(.system(size: 15))
+                        .foregroundColor(chat.unreadCount > 0 ? .white.opacity(0.9) : .white.opacity(0.6))
+                        .fontWeight(chat.unreadCount > 0 ? .medium : .regular)
+                        .lineLimit(1)
+                    
+                    Spacer()
+                }
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color.clear)
+        .background(chat.isPinned ? Color.blue.opacity(0.05) : Color.clear)
     }
     
     private func formatTime(_ date: Date) -> String {
