@@ -116,12 +116,11 @@ struct ProfileView: View {
                             // Аккаунт
                             SettingsSection(title: "Аккаунт") {
                                 SettingsRow(icon: "link", title: "Создать invite-ссылку", action: {
-                                    print("🔗 Create invite link")
+                                    print("📡 create invite")
                                     showLinkGenerator = true
                                 })
                                 
                                 SettingsRow(icon: "doc.on.doc", title: "Скопировать свою ссылку", action: {
-                                    print("📋 Copy my link")
                                     copyMyLink()
                                 })
                             }
@@ -140,7 +139,6 @@ struct ProfileView: View {
                             // Чаты
                             SettingsSection(title: "Чаты") {
                                 SettingsRow(icon: "trash", title: "Очистить кэш", action: {
-                                    print("🗑️ Clear cache")
                                     showClearCacheAlert = true
                                 })
                                 
@@ -169,7 +167,6 @@ struct ProfileView: View {
                             // Danger zone
                             SettingsSection(title: "Опасная зона") {
                                 Button(action: {
-                                    print("⚠️ Delete account")
                                     showDeleteAlert = true
                                 }) {
                                     HStack {
@@ -234,12 +231,12 @@ struct ProfileView: View {
         guard let identity = authViewModel.identity else { return }
         let link = "https://jemmy.app/u/\(identity.username)"
         UIPasteboard.general.string = link
-        print("📋 Copied link: \(link)")
+        print("📋 Copied: \(link)")
     }
     
     private func clearCache() {
+        print("📡 clear cache")
         CacheManager.shared.clearAll()
-        print("🗑️ Cache cleared")
     }
     
     private func timeRemaining(until date: Date) -> String {
@@ -269,66 +266,6 @@ struct ProfileView: View {
 // MARK: - Settings Components
 
 struct SettingsSection<Content: View>: View {
-    let title: String
-    let content: Content
-    
-    init(title: String, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.white.opacity(0.5))
-                .textCase(.uppercase)
-                .padding(.horizontal, 4)
-            
-            VStack(spacing: 0) {
-                content
-            }
-        }
-    }
-}
-
-struct SettingsRow: View {
-    let icon: String
-    let title: String
-    var subtitle: String?
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 18))
-                    .foregroundColor(.white)
-                    .frame(width: 24)
-                
-                Text(title)
-                    .font(.system(size: 17))
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                if let subtitle = subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 15))
-                        .foregroundColor(.white.opacity(0.5))
-                }
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.3))
-            }
-            .padding()
-            .background(Color.white.opacity(0.05))
-            .cornerRadius(12)
-        }
-    }
-}
-
     let title: String
     let content: Content
     
