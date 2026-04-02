@@ -4,6 +4,12 @@ class APIService {
     static let shared = APIService()
     private let baseURL = "https://weeky-six.vercel.app/api"
     
+    private let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }()
+    
     private init() {}
     
     // MARK: - Auth

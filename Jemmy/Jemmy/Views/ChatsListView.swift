@@ -176,7 +176,7 @@ struct ChatListRow: View {
                     
                     Spacer()
                     
-                    Text(formatTime(chat.lastMessageTime))
+                    Text(formatTime(chat.lastMessageDate))
                         .font(.system(size: 15))
                         .foregroundColor(.white.opacity(0.5))
                 }

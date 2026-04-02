@@ -7,6 +7,7 @@ struct ChatsListView: View {
     @State private var selectedChatId: String?
     @State private var searchText = ""
     @State private var showSearchByTag = false
+    @Binding var createdChat: CreatedChat?
     
     var filteredChats: [ChatListItem] {
         if searchText.isEmpty {
@@ -100,9 +101,17 @@ struct ChatsListView: View {
             }
         }
         .sheet(isPresented: $showSearchByTag) {
-            SearchView()
+            SearchView(createdChat: $createdChat)
                 .environmentObject(authViewModel)
                 .frame(width: 500, height: 600)
+        }
+        .onChange(of: createdChat) { newValue in
+            if let chat = newValue {
+                print("🔔 Opening chat from search:", chat.chatId)
+                selectedChatId = chat.chatId
+                createdChat = nil
+                loadChats()
+            }
         }
     }
     
@@ -155,7 +164,7 @@ struct ChatListRow: View {
                     
                     Spacer()
                     
-                    Text(formatTime(chat.lastMessageTime))
+                    Text(formatTime(chat.lastMessageDate))
                         .font(.system(size: 13))
                         .foregroundColor(.white.opacity(0.5))
                 }

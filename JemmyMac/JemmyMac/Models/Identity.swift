@@ -39,7 +39,7 @@ struct ChatStartResponse: Codable {
 struct ChatListItem: Codable, Identifiable {
     let id: String
     let lastMessage: String
-    let lastMessageTime: Date
+    let lastMessageTime: String
     let user: Identity
     
     enum CodingKeys: String, CodingKey {
@@ -47,6 +47,11 @@ struct ChatListItem: Codable, Identifiable {
         case lastMessage
         case lastMessageTime
         case user
+    }
+    
+    var lastMessageDate: Date {
+        let formatter = ISO8601DateFormatter()
+        return formatter.date(from: lastMessageTime) ?? Date()
     }
 }
 
@@ -56,7 +61,7 @@ struct ChatMessage: Codable, Identifiable {
     let senderIdentityId: String
     let encryptedContent: String
     let type: String
-    let createdAt: Date
+    let createdAt: String
     
     enum CodingKeys: String, CodingKey {
         case id = "_id"
@@ -65,6 +70,11 @@ struct ChatMessage: Codable, Identifiable {
         case encryptedContent = "encrypted_content"
         case type
         case createdAt
+    }
+    
+    var createdDate: Date {
+        let formatter = ISO8601DateFormatter()
+        return formatter.date(from: createdAt) ?? Date()
     }
 }
 
