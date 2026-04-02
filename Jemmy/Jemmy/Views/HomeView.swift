@@ -36,7 +36,13 @@ struct ProfileView: View {
     @State private var showDeleteAlert = false
     @State private var showImagePicker = false
     @State private var isDeleting = false
-    @State private var isNavigatingToSettings = false
+    @State private var showPrivacySettings = false
+    @State private var showDataSettings = false
+    @State private var showDevicesSettings = false
+    
+    var isNavigatingToSettings: Bool {
+        showPrivacySettings || showDataSettings || showDevicesSettings
+    }
     
     var body: some View {
         NavigationView {
@@ -123,10 +129,7 @@ struct ProfileView: View {
                             
                             // Приватность
                             SettingsSection(title: "Настройки") {
-                                NavigationLink(destination: PrivacySettingsView()
-                                    .onAppear { isNavigatingToSettings = true }
-                                    .onDisappear { isNavigatingToSettings = false }
-                                ) {
+                                Button(action: { showPrivacySettings = true }) {
                                     HStack(spacing: 12) {
                                         Image(systemName: "lock.shield")
                                             .font(.system(size: 18))
@@ -149,10 +152,7 @@ struct ProfileView: View {
                                 }
                                 .buttonStyle(.plain)
                                 
-                                NavigationLink(destination: DataSettingsView()
-                                    .onAppear { isNavigatingToSettings = true }
-                                    .onDisappear { isNavigatingToSettings = false }
-                                ) {
+                                Button(action: { showDataSettings = true }) {
                                     HStack(spacing: 12) {
                                         Image(systemName: "internaldrive")
                                             .font(.system(size: 18))
@@ -175,10 +175,7 @@ struct ProfileView: View {
                                 }
                                 .buttonStyle(.plain)
                                 
-                                NavigationLink(destination: DevicesSettingsView()
-                                    .onAppear { isNavigatingToSettings = true }
-                                    .onDisappear { isNavigatingToSettings = false }
-                                ) {
+                                Button(action: { showDevicesSettings = true }) {
                                     HStack(spacing: 12) {
                                         Image(systemName: "laptopcomputer.and.iphone")
                                             .font(.system(size: 18))
@@ -273,6 +270,25 @@ struct ProfileView: View {
             } message: {
                 Text("Все ваши данные будут удалены безвозвратно")
             }
+            
+            // Hidden NavigationLinks
+            NavigationLink(
+                destination: PrivacySettingsView(),
+                isActive: $showPrivacySettings
+            ) { EmptyView() }
+            .hidden()
+            
+            NavigationLink(
+                destination: DataSettingsView(),
+                isActive: $showDataSettings
+            ) { EmptyView() }
+            .hidden()
+            
+            NavigationLink(
+                destination: DevicesSettingsView(),
+                isActive: $showDevicesSettings
+            ) { EmptyView() }
+            .hidden()
         }
         .onAppear {
             print("📡 load profile")
