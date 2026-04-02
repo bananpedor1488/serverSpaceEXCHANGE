@@ -123,16 +123,73 @@ struct ProfileView: View {
                             // Приватность
                             SettingsSection(title: "Настройки") {
                                 NavigationLink(destination: PrivacySettingsView().toolbar(.hidden, for: .tabBar)) {
-                                    SettingsRowContent(icon: "lock.shield", title: "Приватность")
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "lock.shield")
+                                            .font(.system(size: 18))
+                                            .foregroundColor(.white)
+                                            .frame(width: 24)
+                                        
+                                        Text("Приватность")
+                                            .font(.system(size: 17))
+                                            .foregroundColor(.white)
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.white.opacity(0.3))
+                                    }
+                                    .padding()
+                                    .background(Color.white.opacity(0.05))
+                                    .cornerRadius(12)
                                 }
+                                .buttonStyle(.plain)
                                 
                                 NavigationLink(destination: DataSettingsView().toolbar(.hidden, for: .tabBar)) {
-                                    SettingsRowContent(icon: "internaldrive", title: "Данные и память")
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "internaldrive")
+                                            .font(.system(size: 18))
+                                            .foregroundColor(.white)
+                                            .frame(width: 24)
+                                        
+                                        Text("Данные и память")
+                                            .font(.system(size: 17))
+                                            .foregroundColor(.white)
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.white.opacity(0.3))
+                                    }
+                                    .padding()
+                                    .background(Color.white.opacity(0.05))
+                                    .cornerRadius(12)
                                 }
+                                .buttonStyle(.plain)
                                 
                                 NavigationLink(destination: DevicesSettingsView().toolbar(.hidden, for: .tabBar)) {
-                                    SettingsRowContent(icon: "iphone.and.ipad", title: "Устройства")
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "laptopcomputer.and.iphone")
+                                            .font(.system(size: 18))
+                                            .foregroundColor(.white)
+                                            .frame(width: 24)
+                                        
+                                        Text("Устройства")
+                                            .font(.system(size: 17))
+                                            .foregroundColor(.white)
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.white.opacity(0.3))
+                                    }
+                                    .padding()
+                                    .background(Color.white.opacity(0.05))
+                                    .cornerRadius(12)
                                 }
+                                .buttonStyle(.plain)
                                 
                                 SettingsRow(icon: "bell.badge", title: "Уведомления", subtitle: "Включены", action: {
                                     print("🔔 Notifications")
