@@ -4,6 +4,7 @@ struct ChatView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     let chatId: String
     let otherUser: Identity
+    @Binding var tabBarHidden: Bool
     
     @State private var messages: [ChatMessage] = []
     @State private var messageText = ""
@@ -122,7 +123,6 @@ struct ChatView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 HStack(spacing: 0) {
@@ -187,9 +187,11 @@ struct ChatView: View {
             loadMessages()
             startPolling()
             updateUserStatus()
+            tabBarHidden = true
         }
         .onDisappear {
             stopPolling()
+            tabBarHidden = false
         }
     }
     

@@ -3,11 +3,12 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var selectedTab = 0
+    @State private var tabBarHidden = false
     @Binding var openChat: CreatedChat?
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            ChatsListView(openChat: $openChat)
+            ChatsListView(openChat: $openChat, tabBarHidden: $tabBarHidden)
                 .environmentObject(authViewModel)
                 .tabItem {
                     Image(systemName: selectedTab == 0 ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
@@ -24,6 +25,7 @@ struct HomeView: View {
                 .tag(1)
         }
         .accentColor(.white)
+        .toolbar(tabBarHidden ? .hidden : .visible, for: .tabBar)
     }
 }
 
