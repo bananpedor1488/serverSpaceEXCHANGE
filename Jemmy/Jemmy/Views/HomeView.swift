@@ -9,7 +9,7 @@ struct HomeView: View {
             ChatsView()
                 .environmentObject(authViewModel)
                 .tabItem {
-                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                    Image(systemName: selectedTab == 0 ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
                     Text("Чаты")
                 }
                 .tag(0)
@@ -17,12 +17,12 @@ struct HomeView: View {
             ProfileView()
                 .environmentObject(authViewModel)
                 .tabItem {
-                    Image(systemName: "person.fill")
+                    Image(systemName: selectedTab == 1 ? "person.crop.square.fill" : "person.crop.square")
                     Text("Профиль")
                 }
                 .tag(1)
         }
-        .accentColor(.blue)
+        .accentColor(.white)
     }
 }
 
@@ -31,6 +31,7 @@ struct ChatsView: View {
     @State private var chats: [Chat] = []
     @State private var searchText = ""
     @State private var isSearchExpanded = false
+    @State private var showSearchByTag = false
     @FocusState private var isSearchFocused: Bool
     
     var filteredChats: [Chat] {
@@ -96,6 +97,20 @@ struct ChatsView: View {
                             Text(searchText.isEmpty ? "Нет чатов" : "Ничего не найдено")
                                 .font(.system(size: 17))
                                 .foregroundColor(.white.opacity(0.5))
+                            
+                            if searchText.isEmpty {
+                                Button(action: { showSearchByTag = true }) {
+                                    Text("Найти по тегу")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 24)
+                                        .padding(.vertical, 12)
+                                        .background(Color.white.opacity(0.15))
+                                        .cornerRadius(10)
+                                }
+                                .padding(.top, 8)
+                            }
+                            
                             Spacer()
                         }
                     } else {
@@ -113,6 +128,18 @@ struct ChatsView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbarBackground(.black, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showSearchByTag = true }) {
+                        Image(systemName: "person.badge.plus")
+                            .foregroundColor(.white)
+                    }
+                }
+            }
+            .sheet(isPresented: $showSearchByTag) {
+                SearchView()
+                    .environmentObject(authViewModel)
+            }
         }
     }
 }
@@ -159,7 +186,7 @@ struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var showEditProfile = false
     @State private var showLinkGenerator = false
-    @State private var showSearch = false
+    @State private var showDeleteAlert = false
     
     var body: some View {
         NavigationView {
@@ -176,7 +203,7 @@ struct ProfileView: View {
                                 .overlay(
                                     Group {
                                         if let identity = authViewModel.identity {
-                                            Text(String(identity.username.prefix(2)))
+                                            Text(String(identity.username.prefix(2)).uppercased())
                                                 .font(.system(size: 40, weight: .semibold))
                                                 .foregroundColor(.white)
                                         }
@@ -239,23 +266,6 @@ struct ProfileView: View {
                                 .cornerRadius(12)
                             }
                             
-                            Button(action: { showSearch = true }) {
-                                HStack {
-                                    Image(systemName: "magnifyingglass")
-                                        .font(.system(size: 18))
-                                    Text("Найти по тегу")
-                                        .font(.system(size: 17, weight: .semibold))
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.white.opacity(0.3))
-                                }
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.white.opacity(0.1))
-                                .cornerRadius(12)
-                            }
-                            
                             Button(action: { showEditProfile = true }) {
                                 HStack {
                                     Image(systemName: "pencil")
@@ -276,7 +286,7 @@ struct ProfileView: View {
                         .padding(.horizontal)
                         
                         // Settings
-                        VStack(spacing: 0) {
+                        VStack(spacing: 12) {
                             Toggle(isOn: Binding(
                                 get: { authViewModel.ephemeralEnabled },
                                 set: { _ in
@@ -304,6 +314,21 @@ struct ProfileView: View {
                             .padding()
                             .background(Color.white.opacity(0.1))
                             .cornerRadius(12)
+                            
+                            // Delete account button
+                            Button(action: { showDeleteAlert = true }) {
+                                HStack {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 18))
+                                    Text("Удалить аккаунт")
+                                        .font(.system(size: 17, weight: .semibold))
+                                    Spacer()
+                                }
+                                .foregroundColor(.red)
+                                .padding()
+                                .background(Color.red.opacity(0.1))
+                                .cornerRadius(12)
+                            }
                         }
                         .padding(.horizontal)
                         
@@ -325,9 +350,13 @@ struct ProfileView: View {
                 LinkGeneratorView()
                     .environmentObject(authViewModel)
             }
-            .sheet(isPresented: $showSearch) {
-                SearchView()
-                    .environmentObject(authViewModel)
+            .alert("Удалить аккаунт?", isPresented: $showDeleteAlert) {
+                Button("Отмена", role: .cancel) {}
+                Button("Удалить", role: .destructive) {
+                    deleteAccount()
+                }
+            } message: {
+                Text("Все ваши данные будут удалены безвозвратно")
             }
         }
     }
@@ -335,5 +364,15 @@ struct ProfileView: View {
     private func timeRemaining(until date: Date) -> String {
         let hours = Int(date.timeIntervalSinceNow / 3600)
         return hours > 0 ? "Осталось \(hours)ч" : "Скоро обновится"
+    }
+    
+    private func deleteAccount() {
+        // Clear local data
+        UserDefaults.standard.removeObject(forKey: "device_id")
+        UserDefaults.standard.removeObject(forKey: "hasSeenOnboarding")
+        
+        // Reset auth state
+        authViewModel.identity = nil
+        authViewModel.isAuthenticated = false
     }
 }

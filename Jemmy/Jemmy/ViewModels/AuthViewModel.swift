@@ -8,6 +8,7 @@ class AuthViewModel: ObservableObject {
     @Published var deviceId: String
     @Published var ephemeralEnabled = false
     @Published var isLoading = false
+    @Published var isAuthenticated = false
     
     init() {
         if let savedDeviceId = UserDefaults.standard.string(forKey: "deviceId") {
@@ -25,6 +26,7 @@ class AuthViewModel: ObservableObject {
             let response = try await APIService.shared.register(deviceId: deviceId, publicKey: publicKey)
             self.userId = response.userId
             self.identity = response.identity
+            self.isAuthenticated = true
             
             if let userId = userId {
                 SocketService.shared.connect(userId: userId)
