@@ -234,7 +234,7 @@ struct DataSettingsView: View {
                         
                         VStack(spacing: 0) {
                             Button(action: { showWiFiOnlySheet = true }) {
-                                SettingsRow(
+                                DataSettingsRow(
                                     icon: "wifi",
                                     title: "Только Wi-Fi",
                                     subtitle: wifiOnlyText,
@@ -247,7 +247,7 @@ struct DataSettingsView: View {
                                 .padding(.leading, 80)
                             
                             Button(action: { showDownloadQualitySheet = true }) {
-                                SettingsRow(
+                                DataSettingsRow(
                                     icon: "arrow.down.circle",
                                     title: "Качество загрузки",
                                     subtitle: downloadQualityText,
@@ -913,7 +913,7 @@ struct CacheLimitSheet: View {
     }
 }
 
-struct SettingsRow: View {
+struct DataSettingsRow: View {
     let icon: String
     let title: String
     let subtitle: String
