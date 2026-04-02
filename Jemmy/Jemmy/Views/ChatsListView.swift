@@ -131,6 +131,7 @@ struct ChatsListView: View {
             }
             .navigationTitle("Чаты")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar(.visible, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showSearchByTag = true }) {
