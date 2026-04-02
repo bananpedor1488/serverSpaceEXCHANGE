@@ -419,6 +419,12 @@ struct DataSettingsView: View {
     @State private var autoDownloadFiles = false
     @State private var showStorageBreakdown = false
     
+    let maxCacheSize: Int64 = 500_000_000 // 500 MB лимит
+    
+    var cachePercentage: Double {
+        min(Double(cacheSize) / Double(maxCacheSize), 1.0)
+    }
+    
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()

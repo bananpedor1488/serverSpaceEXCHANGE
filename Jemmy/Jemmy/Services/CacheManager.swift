@@ -65,7 +65,64 @@ class CacheManager {
     }
     
     func clearAll() {
+        // Удаляем чаты
         UserDefaults.standard.removeObject(forKey: chatsKey)
+        
+        // Удаляем все сообщения
+        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys
+        for key in allKeys {
+            if key.hasPrefix(messagesPrefix) {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+        
         print("🗑️ Cache cleared")
+    }
+    
+    // MARK: - Cache Size
+    
+    func getCacheSize() -> Int64 {
+        var totalSize: Int64 = 0
+        
+        // Размер чатов
+        if let data = UserDefaults.standard.data(forKey: chatsKey) {
+            totalSize += Int64(data.count)
+        }
+        
+        // Размер всех сообщений
+        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys
+        for key in allKeys {
+            if key.hasPrefix(messagesPrefix) {
+                if let data = UserDefaults.standard.data(forKey: key) {
+                    totalSize += Int64(data.count)
+                }
+            }
+        }
+        
+        print("📊 Total cache size: \(totalSize) bytes")
+        return totalSize
+    }
+    
+    func getCacheSizeByCategory() -> (photos: Int64, videos: Int64, files: Int64, messages: Int64) {
+        var messagesSize: Int64 = 0
+        
+        // Размер чатов
+        if let data = UserDefaults.standard.data(forKey: chatsKey) {
+            messagesSize += Int64(data.count)
+        }
+        
+        // Размер всех сообщений
+        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys
+        for key in allKeys {
+            if key.hasPrefix(messagesPrefix) {
+                if let data = UserDefaults.standard.data(forKey: key) {
+                    messagesSize += Int64(data.count)
+                }
+            }
+        }
+        
+        // Пока у нас только сообщения в кэше, остальное будет 0
+        // В будущем можно добавить кэширование медиа
+        return (photos: 0, videos: 0, files: 0, messages: messagesSize)
     }
 }
