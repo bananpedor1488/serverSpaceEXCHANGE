@@ -121,7 +121,7 @@ struct ChatsListView: View {
                 }
             }
             .sheet(isPresented: $showSearchByTag) {
-                SearchView()
+                SearchView(createdChat: $openChat)
                     .environmentObject(authViewModel)
             }
         }

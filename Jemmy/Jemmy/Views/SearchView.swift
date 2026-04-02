@@ -1,10 +1,13 @@
 import SwiftUI
 
 struct SearchView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
     @State private var searchUsername = ""
     @State private var foundIdentity: Identity?
     @State private var isSearching = false
+    @State private var isCreatingChat = false
     @State private var showError = false
+    @Binding var createdChat: CreatedChat?
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
@@ -107,16 +110,24 @@ struct SearchView: View {
                                         .padding(.horizontal, 20)
                                 }
                                 
-                                Button(action: {}) {
-                                    Text("Начать чат")
-                                        .font(.system(size: 17, weight: .semibold))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 16)
-                                        .background(Color.white.opacity(0.15))
-                                        .cornerRadius(12)
+                                Button(action: startDirectChat) {
+                                    HStack(spacing: 8) {
+                                        if isCreatingChat {
+                                            ProgressView()
+                                                .tint(.white)
+                                        } else {
+                                            Text("Начать чат")
+                                                .font(.system(size: 17, weight: .semibold))
+                                        }
+                                    }
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
+                                    .background(Color.blue)
+                                    .cornerRadius(12)
                                 }
                                 .padding(.horizontal, 20)
+                                .disabled(isCreatingChat)
                             }
                             .padding(.vertical, 24)
                             .background(Color.white.opacity(0.05))
@@ -158,6 +169,38 @@ struct SearchView: View {
             }
             await MainActor.run {
                 isSearching = false
+            }
+        }
+    }
+    
+    private func startDirectChat() {
+        guard let myIdentityId = authViewModel.identity?.id,
+              let otherIdentity = foundIdentity else {
+            print("❌ Missing identity")
+            return
+        }
+        
+        isCreatingChat = true
+        print("📡 Creating direct chat with:", otherIdentity.username)
+        
+        Task {
+            do {
+                let response = try await APIService.shared.startDirectChat(
+                    myIdentityId: myIdentityId,
+                    otherIdentityId: otherIdentity.id
+                )
+                
+                await MainActor.run {
+                    print("✅ чат создан:", response.chatId)
+                    createdChat = CreatedChat(chatId: response.chatId, otherUser: response.otherUser)
+                    isCreatingChat = false
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    print("❌ error:", error.localizedDescription)
+                    isCreatingChat = false
+                }
             }
         }
     }

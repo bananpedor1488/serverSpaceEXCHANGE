@@ -389,6 +389,42 @@ class APIService {
         }
     }
     
+    func startDirectChat(myIdentityId: String, otherIdentityId: String) async throws -> ChatStartResponse {
+        print("📡 start direct chat")
+        
+        let url = URL(string: "\(baseURL)/chat/direct")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "my_identity_id": myIdentityId,
+            "other_identity_id": otherIdentityId
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode != 200 {
+                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    print("❌ Server error: \(errorText)")
+                    throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorText])
+                }
+            }
+            
+            let chatResponse = try JSONDecoder().decode(ChatStartResponse.self, from: data)
+            print("✅ чат создан:", chatResponse.chatId)
+            return chatResponse
+        } catch {
+            print("❌ error:", error.localizedDescription)
+            throw error
+        }
+    }
+    
     func getChats(identityId: String) async throws -> [ChatListItem] {
         print("📡 Request: GET /chats?identity_id=\(identityId)")
         
