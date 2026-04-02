@@ -6,6 +6,7 @@ struct UserProfileView: View {
     let user: Identity
     
     @State private var selectedTab = 0
+    @State private var showDevices = false
     
     var body: some View {
         ZStack {
@@ -50,6 +51,38 @@ struct UserProfileView: View {
                     }
                     .padding(.horizontal, 20)
                     
+                    // Settings Section
+                    VStack(spacing: 0) {
+                        SettingsButton(
+                            icon: "laptopcomputer.and.iphone",
+                            title: "Устройства",
+                            action: { showDevices = true }
+                        )
+                        
+                        Divider()
+                            .background(Color.white.opacity(0.1))
+                            .padding(.leading, 50)
+                        
+                        SettingsButton(
+                            icon: "lock.fill",
+                            title: "Конфиденциальность",
+                            action: {}
+                        )
+                        
+                        Divider()
+                            .background(Color.white.opacity(0.1))
+                            .padding(.leading, 50)
+                        
+                        SettingsButton(
+                            icon: "bell.fill",
+                            title: "Уведомления",
+                            action: {}
+                        )
+                    }
+                    .background(Color.white.opacity(0.05))
+                    .cornerRadius(10)
+                    .padding(.horizontal, 16)
+                    
                     // Media Section
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
@@ -71,13 +104,19 @@ struct UserProfileView: View {
                         // Media Tabs
                         HStack(spacing: 0) {
                             MediaTabButton(title: "Фото", isSelected: selectedTab == 0) {
-                                selectedTab = 0
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedTab = 0
+                                }
                             }
                             MediaTabButton(title: "Видео", isSelected: selectedTab == 1) {
-                                selectedTab = 1
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedTab = 1
+                                }
                             }
                             MediaTabButton(title: "Файлы", isSelected: selectedTab == 2) {
-                                selectedTab = 2
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedTab = 2
+                                }
                             }
                         }
                         .padding(.horizontal, 20)
@@ -104,6 +143,13 @@ struct UserProfileView: View {
                     Spacer(minLength: 30)
                 }
             }
+            
+            // Devices Sheet
+            if showDevices {
+                DevicesSheetMac(isPresented: $showDevices)
+                    .transition(.move(edge: .bottom))
+                    .zIndex(1)
+            }
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -118,6 +164,7 @@ struct UserProfileView: View {
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: showDevices)
     }
 }
 
@@ -163,5 +210,220 @@ struct MediaTabButton: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
+    }
+}
+
+struct SettingsButton: View {
+    let icon: String
+    let title: String
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 16))
+                    .foregroundColor(.blue)
+                    .frame(width: 24)
+                
+                Text(title)
+                    .font(.system(size: 14))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.3))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct DevicesSheetMac: View {
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            
+            VStack(spacing: 0) {
+                // Handle
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.white.opacity(0.3))
+                    .frame(width: 30, height: 4)
+                    .padding(.top, 6)
+                    .padding(.bottom, 12)
+                
+                // Header
+                HStack {
+                    Text("Устройства")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Button(action: { 
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isPresented = false
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white.opacity(0.3))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+                
+                ScrollView {
+                    VStack(spacing: 10) {
+                        DeviceRowMac(
+                            icon: "laptopcomputer",
+                            name: "MacBook Pro",
+                            info: "Это устройство",
+                            isActive: true
+                        )
+                        
+                        DeviceRowMac(
+                            icon: "iphone",
+                            name: "iPhone 15 Pro",
+                            info: "Активен 2 часа назад",
+                            isActive: false
+                        )
+                        
+                        DeviceRowMac(
+                            icon: "ipad",
+                            name: "iPad Air",
+                            info: "Активен вчера",
+                            isActive: false
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 400)
+            .background(Color(red: 0.1, green: 0.1, blue: 0.1))
+            .cornerRadius(12, corners: [.topLeft, .topRight])
+        }
+        .background(
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isPresented = false
+                    }
+                }
+        )
+    }
+}
+
+struct DeviceRowMac: View {
+    let icon: String
+    let name: String
+    let info: String
+    let isActive: Bool
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 3) {
+                Text(name)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                
+                HStack(spacing: 5) {
+                    if isActive {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 6, height: 6)
+                    }
+                    
+                    Text(info)
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+            }
+            
+            Spacer()
+            
+            if !isActive {
+                Button(action: {}) {
+                    Text("Завершить")
+                        .font(.system(size: 12))
+                        .foregroundColor(.red)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(10)
+    }
+}
+
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCornerMac(radius: radius, corners: corners))
+    }
+}
+
+struct RoundedCornerMac: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        
+        let topLeft = corners.contains(.topLeft) ? radius : 0
+        let topRight = corners.contains(.topRight) ? radius : 0
+        let bottomLeft = corners.contains(.bottomLeft) ? radius : 0
+        let bottomRight = corners.contains(.bottomRight) ? radius : 0
+        
+        path.move(to: CGPoint(x: rect.minX + topLeft, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - topRight, y: rect.minY))
+        path.addArc(center: CGPoint(x: rect.maxX - topRight, y: rect.minY + topRight),
+                    radius: topRight,
+                    startAngle: Angle(degrees: -90),
+                    endAngle: Angle(degrees: 0),
+                    clockwise: false)
+        
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - bottomRight))
+        path.addArc(center: CGPoint(x: rect.maxX - bottomRight, y: rect.maxY - bottomRight),
+                    radius: bottomRight,
+                    startAngle: Angle(degrees: 0),
+                    endAngle: Angle(degrees: 90),
+                    clockwise: false)
+        
+        path.addLine(to: CGPoint(x: rect.minX + bottomLeft, y: rect.maxY))
+        path.addArc(center: CGPoint(x: rect.minX + bottomLeft, y: rect.maxY - bottomLeft),
+                    radius: bottomLeft,
+                    startAngle: Angle(degrees: 90),
+                    endAngle: Angle(degrees: 180),
+                    clockwise: false)
+        
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + topLeft))
+        path.addArc(center: CGPoint(x: rect.minX + topLeft, y: rect.minY + topLeft),
+                    radius: topLeft,
+                    startAngle: Angle(degrees: 180),
+                    endAngle: Angle(degrees: 270),
+                    clockwise: false)
+        
+        return path
     }
 }
