@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct OnboardingView: View {
-    @StateObject private var viewModel = AuthViewModel()
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var step = 0
-    @State private var navigateToHome = false
     @State private var gradientOffset: CGFloat = 0
     
     var body: some View {
@@ -71,14 +71,15 @@ struct OnboardingView: View {
                 
                 if step >= 2 {
                     Button(action: {
+                        print("🚀 Onboarding: Starting registration...")
                         Task {
-                            await viewModel.register()
-                            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
-                            navigateToHome = true
+                            await authViewModel.register()
+                            print("✅ Onboarding: Registration complete, marking as seen")
+                            hasSeenOnboarding = true
                         }
                     }) {
                         HStack(spacing: 12) {
-                            if viewModel.isLoading {
+                            if authViewModel.isLoading {
                                 ProgressView()
                                     .tint(.white)
                             } else {
@@ -103,11 +104,12 @@ struct OnboardingView: View {
                     .padding(.horizontal, 40)
                     .padding(.bottom, 50)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .disabled(viewModel.isLoading)
+                    .disabled(authViewModel.isLoading)
                 }
             }
         }
         .onAppear {
+            print("👋 OnboardingView appeared")
             withAnimation(.easeInOut(duration: 1.5)) {
                 step = 1
             }
@@ -116,10 +118,6 @@ struct OnboardingView: View {
                     step = 2
                 }
             }
-        }
-        .fullScreenCover(isPresented: $navigateToHome) {
-            HomeView()
-                .environmentObject(viewModel)
         }
     }
 }
