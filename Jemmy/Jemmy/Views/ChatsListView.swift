@@ -5,6 +5,9 @@ struct ChatsListView: View {
     @State private var chats: [ChatListItem] = []
     @State private var isLoading = false
     @State private var selectedChatId: String?
+    @State private var selectedOtherUser: Identity?
+    @State private var showChat = false
+    @Binding var openChat: (chatId: String, otherUser: Identity)?
     
     var body: some View {
         NavigationView {
@@ -31,6 +34,8 @@ struct ChatsListView: View {
                                 ChatListRow(chat: chat)
                                     .onTapGesture {
                                         selectedChatId = chat.id
+                                        selectedOtherUser = chat.user
+                                        showChat = true
                                     }
                                 
                                 Divider()
@@ -48,6 +53,22 @@ struct ChatsListView: View {
             }
             .refreshable {
                 loadChats()
+            }
+            .onChange(of: openChat) { newValue in
+                if let chat = newValue {
+                    print("🔔 Opening chat from invite:", chat.chatId)
+                    selectedChatId = chat.chatId
+                    selectedOtherUser = chat.otherUser
+                    showChat = true
+                    openChat = nil
+                    loadChats()
+                }
+            }
+            .sheet(isPresented: $showChat) {
+                if let chatId = selectedChatId, let otherUser = selectedOtherUser {
+                    ChatView(chatId: chatId, otherUser: otherUser)
+                        .environmentObject(authViewModel)
+                }
             }
         }
     }

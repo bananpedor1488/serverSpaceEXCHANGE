@@ -67,3 +67,15 @@ struct ChatMessage: Codable, Identifiable {
         case createdAt
     }
 }
+
+struct Chat: Codable, Identifiable {
+    let id: String
+    let participants: [String]
+    let isGroup: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case id = "_id"
+        case participants
+        case isGroup = "is_group"
+    }
+}

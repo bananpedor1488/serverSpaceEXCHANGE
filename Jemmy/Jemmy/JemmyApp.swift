@@ -5,6 +5,7 @@ struct JemmyApp: App {
     @StateObject private var authViewModel = AuthViewModel()
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var showInviteProfile: (identity: Identity, token: String)? = nil
+    @State private var createdChat: (chatId: String, otherUser: Identity)? = nil
     
     var body: some Scene {
         WindowGroup {
@@ -13,14 +14,18 @@ struct JemmyApp: App {
                     OnboardingView()
                         .environmentObject(authViewModel)
                 } else if authViewModel.identity != nil {
-                    HomeView()
+                    HomeView(openChat: $createdChat)
                         .environmentObject(authViewModel)
                         .sheet(item: Binding(
                             get: { showInviteProfile.map { IdentifiableInvite(identity: $0.identity, token: $0.token) } },
                             set: { showInviteProfile = $0.map { ($0.identity, $0.token) } }
                         )) { invite in
-                            InviteProfileView(identity: invite.identity, token: invite.token)
-                                .environmentObject(authViewModel)
+                            InviteProfileView(
+                                identity: invite.identity,
+                                token: invite.token,
+                                createdChat: $createdChat
+                            )
+                            .environmentObject(authViewModel)
                         }
                 } else {
                     // Loading state - registering user

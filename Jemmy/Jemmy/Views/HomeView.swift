@@ -3,10 +3,11 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var selectedTab = 0
+    @Binding var openChat: (chatId: String, otherUser: Identity)?
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            ChatsView()
+            ChatsListView(openChat: $openChat)
                 .environmentObject(authViewModel)
                 .tabItem {
                     Image(systemName: selectedTab == 0 ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
