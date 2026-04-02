@@ -36,6 +36,7 @@ struct ProfileView: View {
     @State private var showDeleteAlert = false
     @State private var showImagePicker = false
     @State private var isDeleting = false
+    @State private var isNavigatingToSettings = false
     
     var body: some View {
         NavigationView {
@@ -122,7 +123,10 @@ struct ProfileView: View {
                             
                             // Приватность
                             SettingsSection(title: "Настройки") {
-                                NavigationLink(destination: PrivacySettingsView().toolbar(.hidden, for: .tabBar)) {
+                                NavigationLink(destination: PrivacySettingsView()
+                                    .onAppear { isNavigatingToSettings = true }
+                                    .onDisappear { isNavigatingToSettings = false }
+                                ) {
                                     HStack(spacing: 12) {
                                         Image(systemName: "lock.shield")
                                             .font(.system(size: 18))
@@ -145,7 +149,10 @@ struct ProfileView: View {
                                 }
                                 .buttonStyle(.plain)
                                 
-                                NavigationLink(destination: DataSettingsView().toolbar(.hidden, for: .tabBar)) {
+                                NavigationLink(destination: DataSettingsView()
+                                    .onAppear { isNavigatingToSettings = true }
+                                    .onDisappear { isNavigatingToSettings = false }
+                                ) {
                                     HStack(spacing: 12) {
                                         Image(systemName: "internaldrive")
                                             .font(.system(size: 18))
@@ -168,7 +175,10 @@ struct ProfileView: View {
                                 }
                                 .buttonStyle(.plain)
                                 
-                                NavigationLink(destination: DevicesSettingsView().toolbar(.hidden, for: .tabBar)) {
+                                NavigationLink(destination: DevicesSettingsView()
+                                    .onAppear { isNavigatingToSettings = true }
+                                    .onDisappear { isNavigatingToSettings = false }
+                                ) {
                                     HStack(spacing: 12) {
                                         Image(systemName: "laptopcomputer.and.iphone")
                                             .font(.system(size: 18))
@@ -244,6 +254,7 @@ struct ProfileView: View {
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar(isNavigatingToSettings ? .hidden : .visible, for: .tabBar)
             .sheet(isPresented: $showEditProfile) {
                 if let identity = authViewModel.identity {
                     ProfileEditView(identity: identity)
