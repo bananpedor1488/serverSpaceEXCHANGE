@@ -3,7 +3,7 @@ import Combine
 
 class SocketService: ObservableObject {
     static let shared = SocketService()
-    @Published var messages: [Message] = []
+    @Published var messages: [ChatMessage] = []
     @Published var isConnected = false
     
     private var webSocketTask: URLSessionWebSocketTask?
