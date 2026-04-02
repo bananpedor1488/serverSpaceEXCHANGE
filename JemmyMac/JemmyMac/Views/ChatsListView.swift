@@ -1,10 +1,12 @@
 import SwiftUI
+import Combine
 
 struct ChatsListView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var chats: [ChatListItem] = []
     @State private var isLoading = false
     @State private var selectedChatId: String?
+    @State private var selectedOtherUser: Identity?
     @State private var searchText = ""
     @State private var showSearchByTag = false
     @Binding var createdChat: CreatedChat?
@@ -19,96 +21,110 @@ struct ChatsListView: View {
     }
     
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Search bar
-                HStack(spacing: 12) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.white.opacity(0.5))
-                        .font(.system(size: 14))
-                    
-                    TextField("Поиск", text: $searchText)
-                        .textFieldStyle(.plain)
-                        .foregroundColor(.white)
-                        .font(.system(size: 14))
-                    
-                    if !searchText.isEmpty {
-                        Button(action: { searchText = "" }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.white.opacity(0.5))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(8)
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
-                .padding(.bottom, 8)
+        NavigationView {
+            ZStack {
+                Color.black.ignoresSafeArea()
                 
-                if isLoading {
-                    Spacer()
-                    ProgressView()
-                        .controlSize(.large)
-                    Spacer()
-                } else if filteredChats.isEmpty {
-                    VStack(spacing: 16) {
-                        Spacer()
-                        Image(systemName: "bubble.left.and.bubble.right")
-                            .font(.system(size: 64))
-                            .foregroundColor(.white.opacity(0.3))
-                        
-                        Text(searchText.isEmpty ? "Нет чатов" : "Ничего не найдено")
-                            .font(.system(size: 20, weight: .semibold))
+                VStack(spacing: 0) {
+                    // Search bar
+                    HStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
                             .foregroundColor(.white.opacity(0.5))
-                        Spacer()
+                            .font(.system(size: 14))
+                        
+                        TextField("Поиск", text: $searchText)
+                            .textFieldStyle(.plain)
+                            .foregroundColor(.white)
+                            .font(.system(size: 14))
+                        
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                } else {
-                    List {
-                        ForEach(filteredChats) { chat in
-                            ChatListRow(chat: chat)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(8)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                    
+                    if isLoading {
+                        Spacer()
+                        ProgressView()
+                            .controlSize(.large)
+                        Spacer()
+                    } else if filteredChats.isEmpty {
+                        VStack(spacing: 16) {
+                            Spacer()
+                            Image(systemName: "bubble.left.and.bubble.right")
+                                .font(.system(size: 64))
+                                .foregroundColor(.white.opacity(0.3))
+                            
+                            Text(searchText.isEmpty ? "Нет чатов" : "Ничего не найдено")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(.white.opacity(0.5))
+                            Spacer()
+                        }
+                    } else {
+                        List {
+                            ForEach(filteredChats) { chat in
+                                NavigationLink(
+                                    destination: ChatView(chatId: chat.id, otherUser: chat.user)
+                                        .environmentObject(authViewModel),
+                                    tag: chat.id,
+                                    selection: $selectedChatId
+                                ) {
+                                    ChatListRow(chat: chat)
+                                }
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
-                                .onTapGesture {
-                                    selectedChatId = chat.id
-                                }
+                            }
+                        }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                    }
+                }
+            }
+            .navigationTitle("Чаты")
+            .onAppear {
+                loadChats()
+            }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    HStack(spacing: 8) {
+                        Button(action: { showSearchByTag = true }) {
+                            Image(systemName: "person.badge.plus")
+                        }
+                        
+                        Button(action: loadChats) {
+                            Image(systemName: "arrow.clockwise")
                         }
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
                 }
             }
-        }
-        .navigationTitle("Чаты")
-        .onAppear {
-            loadChats()
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 8) {
-                    Button(action: { showSearchByTag = true }) {
-                        Image(systemName: "person.badge.plus")
-                    }
-                    
-                    Button(action: loadChats) {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                }
+            .sheet(isPresented: $showSearchByTag) {
+                SearchView(createdChat: $createdChat)
+                    .environmentObject(authViewModel)
+                    .frame(width: 500, height: 600)
             }
+            
+            // Empty detail view
+            Text("Выберите чат")
+                .font(.system(size: 20))
+                .foregroundColor(.white.opacity(0.5))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black)
         }
-        .sheet(isPresented: $showSearchByTag) {
-            SearchView(createdChat: $createdChat)
-                .environmentObject(authViewModel)
-                .frame(width: 500, height: 600)
-        }
-        .onChange(of: createdChat) { newValue in
+        .onReceive(Just(createdChat)) { newValue in
             if let chat = newValue {
                 print("🔔 Opening chat from search:", chat.chatId)
                 selectedChatId = chat.chatId
+                selectedOtherUser = chat.otherUser
                 createdChat = nil
                 loadChats()
             }

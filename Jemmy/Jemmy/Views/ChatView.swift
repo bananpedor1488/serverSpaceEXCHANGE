@@ -16,36 +16,6 @@ struct ChatView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header
-                HStack(spacing: 12) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-                    
-                    Circle()
-                        .fill(Color.white.opacity(0.1))
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Text(String(otherUser.username.prefix(2)).uppercased())
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.white)
-                        )
-                    
-                    Text(otherUser.username)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.black)
-                
-                Divider()
-                    .background(Color.white.opacity(0.1))
-                
                 // Messages
                 if isLoading {
                     Spacer()
@@ -98,7 +68,8 @@ struct ChatView: View {
                 .background(Color.black)
             }
         }
-        .navigationBarHidden(true)
+        .navigationTitle(otherUser.username)
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             loadMessages()
         }

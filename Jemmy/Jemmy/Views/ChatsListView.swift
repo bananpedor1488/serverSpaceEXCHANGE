@@ -4,9 +4,6 @@ struct ChatsListView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var chats: [ChatListItem] = []
     @State private var isLoading = false
-    @State private var selectedChatId: String?
-    @State private var selectedOtherUser: Identity?
-    @State private var showChat = false
     @State private var searchText = ""
     @State private var showSearchByTag = false
     @Binding var openChat: CreatedChat?
@@ -72,12 +69,11 @@ struct ChatsListView: View {
                         ScrollView {
                             LazyVStack(spacing: 0) {
                                 ForEach(filteredChats) { chat in
-                                    ChatListRow(chat: chat)
-                                        .onTapGesture {
-                                            selectedChatId = chat.id
-                                            selectedOtherUser = chat.user
-                                            showChat = true
-                                        }
+                                    NavigationLink(destination: ChatView(chatId: chat.id, otherUser: chat.user)
+                                        .environmentObject(authViewModel)) {
+                                        ChatListRow(chat: chat)
+                                    }
+                                    .buttonStyle(.plain)
                                     
                                     Divider()
                                         .background(Color.white.opacity(0.1))
@@ -106,18 +102,9 @@ struct ChatsListView: View {
             }
             .onChange(of: openChat) { newValue in
                 if let chat = newValue {
-                    print("🔔 Opening chat from invite:", chat.chatId)
-                    selectedChatId = chat.chatId
-                    selectedOtherUser = chat.otherUser
-                    showChat = true
+                    print("🔔 Chat created from invite:", chat.chatId)
                     openChat = nil
                     loadChats()
-                }
-            }
-            .sheet(isPresented: $showChat) {
-                if let chatId = selectedChatId, let otherUser = selectedOtherUser {
-                    ChatView(chatId: chatId, otherUser: otherUser)
-                        .environmentObject(authViewModel)
                 }
             }
             .sheet(isPresented: $showSearchByTag) {
