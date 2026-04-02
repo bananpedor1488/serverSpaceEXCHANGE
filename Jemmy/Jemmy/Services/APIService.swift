@@ -256,9 +256,9 @@ class APIService {
     }
     
     func useInviteLink(token: String) async throws -> Identity {
-        print("📡 Request: GET /u/\(token)")
+        print("📡 Request: GET /invite/\(token)")
         
-        let url = URL(string: "\(baseURL)/u/\(token)")!
+        let url = URL(string: "\(baseURL)/invite/\(token)")!
         
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
