@@ -10,6 +10,9 @@ class AuthViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isAuthenticated = false
     
+    private let identityKey = "cached_identity"
+    private let userIdKey = "cached_user_id"
+    
     init() {
         print("🔧 AuthViewModel initialized")
         if let savedDeviceId = UserDefaults.standard.string(forKey: "deviceId") {
@@ -20,9 +23,40 @@ class AuthViewModel: ObservableObject {
             UserDefaults.standard.set(self.deviceId, forKey: "deviceId")
             print("📱 New Device ID created: \(self.deviceId)")
         }
+        
+        // Загружаем сохраненные данные
+        loadCachedAuth()
+    }
+    
+    private func loadCachedAuth() {
+        if let savedUserId = UserDefaults.standard.string(forKey: userIdKey),
+           let identityData = UserDefaults.standard.data(forKey: identityKey),
+           let savedIdentity = try? JSONDecoder().decode(Identity.self, from: identityData) {
+            self.userId = savedUserId
+            self.identity = savedIdentity
+            self.isAuthenticated = true
+            print("📦 Loaded cached auth: \(savedIdentity.username)")
+        }
+    }
+    
+    private func saveAuth() {
+        if let userId = userId {
+            UserDefaults.standard.set(userId, forKey: userIdKey)
+        }
+        if let identity = identity,
+           let identityData = try? JSONEncoder().encode(identity) {
+            UserDefaults.standard.set(identityData, forKey: identityKey)
+        }
+        print("💾 Auth cached")
     }
     
     func register() async {
+        // Если уже есть сохраненные данные и нет интернета, используем их
+        if isAuthenticated && !NetworkMonitor.shared.isConnected {
+            print("📦 Using cached auth (offline mode)")
+            return
+        }
+        
         print("🚀 Starting registration...")
         isLoading = true
         
@@ -34,6 +68,9 @@ class AuthViewModel: ObservableObject {
             self.identity = response.identity
             self.isAuthenticated = true
             
+            // Сохраняем данные
+            saveAuth()
+            
             print("✅ Registration complete")
             print("   User ID: \(response.userId)")
             print("   Username: \(response.identity.username)")
@@ -43,6 +80,11 @@ class AuthViewModel: ObservableObject {
             }
         } catch {
             print("❌ Registration failed: \(error.localizedDescription)")
+            
+            // Если есть кэш, используем его
+            if isAuthenticated {
+                print("📦 Using cached auth after error")
+            }
         }
         
         isLoading = false
@@ -59,6 +101,7 @@ class AuthViewModel: ObservableObject {
         do {
             let updatedIdentity = try await APIService.shared.getProfile(identityId: identityId)
             self.identity = updatedIdentity
+            saveAuth()
             print("✅ Profile loaded successfully")
         } catch {
             print("❌ Failed to load profile: \(error.localizedDescription)")
@@ -81,6 +124,7 @@ class AuthViewModel: ObservableObject {
             )
             
             self.identity = updatedIdentity
+            saveAuth()
             print("✅ Profile updated in ViewModel")
         } catch {
             print("❌ Failed to update profile: \(error.localizedDescription)")
