@@ -30,7 +30,8 @@ struct ChatsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var chats: [Chat] = []
     @State private var searchText = ""
-    @Environment(\.colorScheme) var colorScheme
+    @State private var isSearchExpanded = false
+    @FocusState private var isSearchFocused: Bool
     
     var filteredChats: [Chat] {
         if searchText.isEmpty {
@@ -44,57 +45,74 @@ struct ChatsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                AnimatedBackground()
+                Color.black.ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Search bar
-                    HStack {
+                    // Search bar with expand animation
+                    HStack(spacing: 12) {
                         Image(systemName: "magnifyingglass")
-                            .foregroundColor(.white.opacity(0.6))
+                            .foregroundColor(.white.opacity(0.5))
+                            .font(.system(size: 16))
                         
                         TextField("Поиск", text: $searchText)
                             .foregroundColor(.white)
                             .font(.system(size: 17))
+                            .focused($isSearchFocused)
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    isSearchExpanded = true
+                                }
+                            }
                         
                         if !searchText.isEmpty {
-                            Button(action: { searchText = "" }) {
+                            Button(action: {
+                                searchText = ""
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    isSearchExpanded = false
+                                    isSearchFocused = false
+                                }
+                            }) {
                                 Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.white.opacity(0.6))
+                                    .foregroundColor(.white.opacity(0.5))
                             }
                         }
                     }
-                    .padding()
-                    .background(.ultraThinMaterial)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.1))
                     .cornerRadius(12)
-                    .padding()
+                    .padding(.horizontal, isSearchExpanded ? 8 : 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
                     
                     // Chats list
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(filteredChats) { chat in
-                                ChatRow(chat: chat)
-                            }
-                        }
-                        .padding()
-                    }
-                    
                     if filteredChats.isEmpty {
                         VStack(spacing: 16) {
+                            Spacer()
                             Image(systemName: "bubble.left.and.bubble.right")
                                 .font(.system(size: 60))
-                                .foregroundColor(.white.opacity(0.3))
+                                .foregroundColor(.white.opacity(0.2))
                             
                             Text(searchText.isEmpty ? "Нет чатов" : "Ничего не найдено")
                                 .font(.system(size: 17))
-                                .foregroundColor(.white.opacity(0.6))
+                                .foregroundColor(.white.opacity(0.5))
+                            Spacer()
                         }
-                        .frame(maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 1) {
+                                ForEach(filteredChats) { chat in
+                                    ChatRow(chat: chat)
+                                }
+                            }
+                        }
                     }
                 }
             }
             .navigationTitle("Чаты")
             .navigationBarTitleDisplayMode(.large)
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(.black, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
 }
@@ -105,39 +123,35 @@ struct ChatRow: View {
     var body: some View {
         HStack(spacing: 16) {
             Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [.blue, .purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(Color.white.opacity(0.1))
                 .frame(width: 56, height: 56)
                 .overlay(
                     Text(String((chat.groupName ?? "?").prefix(1)))
-                        .font(.system(size: 24, weight: .semibold))
+                        .font(.system(size: 24, weight: .medium))
                         .foregroundColor(.white)
                 )
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(chat.groupName ?? "Чат")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.white)
                 
                 Text("Последнее сообщение...")
                     .font(.system(size: 15))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(.white.opacity(0.5))
             }
             
             Spacer()
             
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.white.opacity(0.3))
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("12:34")
+                    .font(.system(size: 13))
+                    .foregroundColor(.white.opacity(0.4))
+            }
         }
-        .padding()
-        .background(.ultraThinMaterial)
-        .cornerRadius(16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.black)
     }
 }
 
@@ -146,70 +160,59 @@ struct ProfileView: View {
     @State private var showEditProfile = false
     @State private var showLinkGenerator = false
     @State private var showSearch = false
-    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         NavigationView {
             ZStack {
-                AnimatedBackground()
+                Color.black.ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 32) {
                         // Profile header
                         VStack(spacing: 20) {
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [.blue, .purple],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 120, height: 120)
-                                    .shadow(color: .blue.opacity(0.5), radius: 30, y: 15)
-                                
-                                if let identity = authViewModel.identity {
-                                    Text(String(identity.username.prefix(2)))
-                                        .font(.system(size: 48, weight: .bold))
-                                        .foregroundColor(.white)
-                                }
-                            }
+                            Circle()
+                                .fill(Color.white.opacity(0.1))
+                                .frame(width: 100, height: 100)
+                                .overlay(
+                                    Group {
+                                        if let identity = authViewModel.identity {
+                                            Text(String(identity.username.prefix(2)))
+                                                .font(.system(size: 40, weight: .semibold))
+                                                .foregroundColor(.white)
+                                        }
+                                    }
+                                )
                             
                             if let identity = authViewModel.identity {
-                                VStack(spacing: 10) {
+                                VStack(spacing: 8) {
                                     Text(identity.username)
-                                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                                        .font(.system(size: 28, weight: .semibold))
                                         .foregroundColor(.white)
                                     
                                     Text("#\(identity.tag)")
-                                        .font(.system(size: 16, design: .monospaced))
-                                        .foregroundColor(.white.opacity(0.7))
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                        .background(.ultraThinMaterial)
-                                        .cornerRadius(10)
+                                        .font(.system(size: 15, design: .monospaced))
+                                        .foregroundColor(.white.opacity(0.5))
                                     
                                     if !identity.bio.isEmpty {
                                         Text(identity.bio)
                                             .font(.system(size: 15))
-                                            .foregroundColor(.white.opacity(0.8))
+                                            .foregroundColor(.white.opacity(0.7))
                                             .multilineTextAlignment(.center)
                                             .padding(.horizontal, 32)
-                                            .padding(.top, 8)
+                                            .padding(.top, 4)
                                     }
                                     
                                     if authViewModel.ephemeralEnabled, let expiresAt = identity.expiresAt {
-                                        HStack(spacing: 8) {
-                                            Image(systemName: "clock.fill")
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "clock")
                                             Text(timeRemaining(until: expiresAt))
                                         }
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(.system(size: 14))
                                         .foregroundColor(.orange)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                        .background(Color.orange.opacity(0.2))
-                                        .cornerRadius(10)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(Color.orange.opacity(0.15))
+                                        .cornerRadius(8)
                                         .padding(.top, 8)
                                     }
                                 }
@@ -221,54 +224,53 @@ struct ProfileView: View {
                         VStack(spacing: 12) {
                             Button(action: { showLinkGenerator = true }) {
                                 HStack {
-                                    Image(systemName: "link.circle.fill")
-                                        .font(.system(size: 20))
+                                    Image(systemName: "link")
+                                        .font(.system(size: 18))
                                     Text("Создать ссылку")
                                         .font(.system(size: 17, weight: .semibold))
                                     Spacer()
-                                    Image(systemName: "arrow.right")
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.3))
                                 }
                                 .foregroundColor(.white)
                                 .padding()
-                                .background(
-                                    LinearGradient(
-                                        colors: [.blue, .purple],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .cornerRadius(16)
-                                .shadow(color: .blue.opacity(0.4), radius: 20, y: 10)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(12)
                             }
                             
                             Button(action: { showSearch = true }) {
                                 HStack {
                                     Image(systemName: "magnifyingglass")
-                                        .font(.system(size: 20))
+                                        .font(.system(size: 18))
                                     Text("Найти по тегу")
                                         .font(.system(size: 17, weight: .semibold))
                                     Spacer()
-                                    Image(systemName: "arrow.right")
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.3))
                                 }
                                 .foregroundColor(.white)
                                 .padding()
-                                .background(.ultraThinMaterial)
-                                .cornerRadius(16)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(12)
                             }
                             
                             Button(action: { showEditProfile = true }) {
                                 HStack {
                                     Image(systemName: "pencil")
-                                        .font(.system(size: 20))
+                                        .font(.system(size: 18))
                                     Text("Редактировать профиль")
                                         .font(.system(size: 17, weight: .semibold))
                                     Spacer()
-                                    Image(systemName: "arrow.right")
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.3))
                                 }
                                 .foregroundColor(.white)
                                 .padding()
-                                .background(.ultraThinMaterial)
-                                .cornerRadius(16)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(12)
                             }
                         }
                         .padding(.horizontal)
@@ -285,8 +287,8 @@ struct ProfileView: View {
                             )) {
                                 HStack(spacing: 12) {
                                     Image(systemName: "clock.arrow.circlepath")
-                                        .font(.system(size: 22))
-                                        .foregroundColor(.blue)
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.white)
                                     
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text("Ephemeral Identity")
@@ -294,13 +296,14 @@ struct ProfileView: View {
                                             .foregroundColor(.white)
                                         Text("Личность меняется каждые 24 часа")
                                             .font(.system(size: 13))
-                                            .foregroundColor(.white.opacity(0.6))
+                                            .foregroundColor(.white.opacity(0.5))
                                     }
                                 }
                             }
+                            .tint(.white)
                             .padding()
-                            .background(.ultraThinMaterial)
-                            .cornerRadius(16)
+                            .background(Color.white.opacity(0.1))
+                            .cornerRadius(12)
                         }
                         .padding(.horizontal)
                         
@@ -310,7 +313,8 @@ struct ProfileView: View {
             }
             .navigationTitle("Профиль")
             .navigationBarTitleDisplayMode(.large)
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(.black, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(isPresented: $showEditProfile) {
                 if let identity = authViewModel.identity {
                     ProfileEditView(identity: identity)

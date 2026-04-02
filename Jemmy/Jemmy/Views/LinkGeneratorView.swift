@@ -5,108 +5,129 @@ struct LinkGeneratorView: View {
     @State private var generatedLink: String?
     @State private var isGenerating = false
     @State private var showCopied = false
-    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dismiss) var dismiss
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color(colorScheme == .dark ? .black : .white)
-                    .ignoresSafeArea()
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                    }
+                    
+                    Spacer()
+                    
+                    Text("Создать ссылку")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Color.clear.frame(width: 32, height: 32)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
                 
-                VStack(spacing: 32) {
-                    // Icon
-                    ZStack {
+                Divider()
+                    .background(Color.white.opacity(0.1))
+                
+                ScrollView {
+                    VStack(spacing: 32) {
+                        // Icon
                         Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
+                            .fill(Color.white.opacity(0.1))
+                            .frame(width: 100, height: 100)
+                            .overlay(
+                                Image(systemName: "link.circle.fill")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.white.opacity(0.8))
                             )
-                            .frame(width: 120, height: 120)
+                            .padding(.top, 40)
                         
-                        Image(systemName: "link.circle.fill")
-                            .font(.system(size: 60))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    }
-                    .padding(.top, 40)
-                    
-                    VStack(spacing: 12) {
-                        Text("Одноразовая ссылка")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                        
-                        Text("Создай ссылку для начала чата.\nОна действует 24 часа.")
-                            .font(.system(size: 15))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    
-                    if let link = generatedLink {
-                        VStack(spacing: 16) {
-                            Text(link)
-                                .font(.system(size: 13, design: .monospaced))
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(Color.secondary.opacity(0.1))
-                                .cornerRadius(12)
-                                .padding(.horizontal)
+                        VStack(spacing: 12) {
+                            Text("Одноразовая ссылка")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundColor(.white)
                             
-                            Button(action: copyLink) {
-                                HStack {
-                                    Image(systemName: showCopied ? "checkmark" : "doc.on.doc")
-                                    Text(showCopied ? "Скопировано!" : "Копировать")
-                                        .font(.system(size: 17, weight: .semibold))
+                            Text("Создай ссылку для начала чата.\nОна действует 24 часа.")
+                                .font(.system(size: 15))
+                                .foregroundColor(.white.opacity(0.5))
+                                .multilineTextAlignment(.center)
+                        }
+                        
+                        if let link = generatedLink {
+                            VStack(spacing: 16) {
+                                Text(link)
+                                    .font(.system(size: 13, design: .monospaced))
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color.white.opacity(0.1))
+                                    .cornerRadius(12)
+                                    .padding(.horizontal, 20)
+                                
+                                HStack(spacing: 12) {
+                                    Button(action: copyLink) {
+                                        HStack {
+                                            Image(systemName: showCopied ? "checkmark" : "doc.on.doc")
+                                            Text(showCopied ? "Скопировано" : "Копировать")
+                                                .font(.system(size: 16, weight: .medium))
+                                        }
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 14)
+                                        .background(Color.white.opacity(showCopied ? 0.2 : 0.15))
+                                        .cornerRadius(12)
+                                    }
+                                    
+                                    Button(action: shareLink) {
+                                        HStack {
+                                            Image(systemName: "square.and.arrow.up")
+                                            Text("Поделиться")
+                                                .font(.system(size: 16, weight: .medium))
+                                        }
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 14)
+                                        .background(Color.white.opacity(0.15))
+                                        .cornerRadius(12)
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                            }
+                            .transition(.scale.combined(with: .opacity))
+                        } else {
+                            Button(action: generateLink) {
+                                HStack(spacing: 8) {
+                                    if isGenerating {
+                                        ProgressView()
+                                            .tint(.white)
+                                    } else {
+                                        Image(systemName: "plus.circle.fill")
+                                        Text("Создать ссылку")
+                                            .font(.system(size: 17, weight: .semibold))
+                                    }
                                 }
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
-                                .background(showCopied ? Color.green : Color.blue)
+                                .background(Color.white.opacity(0.15))
                                 .cornerRadius(12)
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, 20)
+                            .disabled(isGenerating)
                         }
-                        .transition(.scale.combined(with: .opacity))
-                    } else {
-                        Button(action: generateLink) {
-                            HStack {
-                                if isGenerating {
-                                    ProgressView()
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: "plus.circle.fill")
-                                    Text("Создать ссылку")
-                                        .font(.system(size: 17, weight: .semibold))
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .background(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .cornerRadius(16)
-                            .shadow(color: .blue.opacity(0.3), radius: 15, y: 8)
-                        }
-                        .padding(.horizontal, 40)
-                        .disabled(isGenerating)
+                        
+                        Spacer()
                     }
-                    
-                    Spacer()
                 }
             }
-            .navigationTitle("Пригласить")
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
     
@@ -128,28 +149,43 @@ struct LinkGeneratorView: View {
                 let response = try JSONSerialization.jsonObject(with: data) as? [String: Any]
                 
                 if let link = response?["link"] as? String {
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                        generatedLink = link
+                    await MainActor.run {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            generatedLink = link
+                        }
                     }
                 }
             } catch {
                 print("Generate link error: \(error)")
             }
-            isGenerating = false
+            await MainActor.run {
+                isGenerating = false
+            }
         }
     }
     
     private func copyLink() {
         if let link = generatedLink {
             UIPasteboard.general.string = link
-            withAnimation {
+            withAnimation(.easeInOut(duration: 0.2)) {
                 showCopied = true
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                withAnimation {
+                withAnimation(.easeInOut(duration: 0.2)) {
                     showCopied = false
                 }
             }
+        }
+    }
+    
+    private func shareLink() {
+        guard let link = generatedLink else { return }
+        let activityVC = UIActivityViewController(activityItems: [link], applicationActivities: nil)
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootVC = window.rootViewController {
+            rootVC.present(activityVC, animated: true)
         }
     }
 }
