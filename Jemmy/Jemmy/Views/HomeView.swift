@@ -36,13 +36,6 @@ struct ProfileView: View {
     @State private var showDeleteAlert = false
     @State private var showImagePicker = false
     @State private var isDeleting = false
-    @State private var showPrivacySettings = false
-    @State private var showDataSettings = false
-    @State private var showDevicesSettings = false
-    
-    var isNavigatingToSettings: Bool {
-        showPrivacySettings || showDataSettings || showDevicesSettings
-    }
     
     var body: some View {
         NavigationView {
@@ -129,7 +122,7 @@ struct ProfileView: View {
                             
                             // Приватность
                             SettingsSection(title: "Настройки") {
-                                Button(action: { showPrivacySettings = true }) {
+                                NavigationLink(destination: PrivacySettingsView()) {
                                     HStack(spacing: 12) {
                                         Image(systemName: "lock.shield")
                                             .font(.system(size: 18))
@@ -152,7 +145,7 @@ struct ProfileView: View {
                                 }
                                 .buttonStyle(.plain)
                                 
-                                Button(action: { showDataSettings = true }) {
+                                NavigationLink(destination: DataSettingsView()) {
                                     HStack(spacing: 12) {
                                         Image(systemName: "internaldrive")
                                             .font(.system(size: 18))
@@ -175,7 +168,7 @@ struct ProfileView: View {
                                 }
                                 .buttonStyle(.plain)
                                 
-                                Button(action: { showDevicesSettings = true }) {
+                                NavigationLink(destination: DevicesSettingsView()) {
                                     HStack(spacing: 12) {
                                         Image(systemName: "laptopcomputer.and.iphone")
                                             .font(.system(size: 18))
@@ -268,15 +261,6 @@ struct ProfileView: View {
                 }
             } message: {
                 Text("Все ваши данные будут удалены безвозвратно")
-            }
-            .fullScreenCover(isPresented: $showPrivacySettings) {
-                PrivacySettingsView()
-            }
-            .fullScreenCover(isPresented: $showDataSettings) {
-                DataSettingsView()
-            }
-            .fullScreenCover(isPresented: $showDevicesSettings) {
-                DevicesSettingsView()
             }
         }
         .onAppear {
