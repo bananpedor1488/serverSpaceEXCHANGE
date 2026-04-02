@@ -524,4 +524,24 @@ class APIService {
             throw error
         }
     }
+    
+    func deleteChat(chatId: String) async throws {
+        print("📡 Request: DELETE /chat/\(chatId)")
+        
+        let url = URL(string: "\(baseURL)/chat/\(chatId)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+                print("✅ Chat deleted")
+            }
+        } catch {
+            print("❌ Delete chat error: \(error.localizedDescription)")
+            throw error
+        }
+    }
 }

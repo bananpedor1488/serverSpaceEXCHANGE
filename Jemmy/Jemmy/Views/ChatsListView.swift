@@ -68,9 +68,18 @@ struct ChatsListView: View {
                     } else {
                         List {
                             ForEach(filteredChats) { chat in
-                                NavigationLink(destination: ChatView(chatId: chat.id, otherUser: chat.user)
-                                    .environmentObject(authViewModel)) {
+                                ZStack {
+                                    NavigationLink(destination: ChatView(chatId: chat.id, otherUser: chat.user)
+                                        .environmentObject(authViewModel)) {
+                                        EmptyView()
+                                    }
+                                    .opacity(0)
+                                    
                                     ChatListRow(chat: chat)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture {
+                                            // Navigation handled by hidden NavigationLink
+                                        }
                                 }
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
@@ -169,8 +178,18 @@ struct ChatsListView: View {
     
     private func deleteChat(_ chat: ChatListItem) {
         print("🗑️ Delete chat:", chat.id)
-        // TODO: Implement delete on backend
-        chats.removeAll { $0.id == chat.id }
+        
+        Task {
+            do {
+                try await APIService.shared.deleteChat(chatId: chat.id)
+                
+                await MainActor.run {
+                    chats.removeAll { $0.id == chat.id }
+                }
+            } catch {
+                print("❌ Delete error:", error.localizedDescription)
+            }
+        }
     }
     
     private func togglePin(_ chat: ChatListItem) {

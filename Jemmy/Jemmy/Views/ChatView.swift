@@ -42,60 +42,6 @@ struct ChatView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Custom Header - одна строка
-                Button(action: { showProfile = true }) {
-                    HStack(spacing: 12) {
-                        // Аватар слева
-                        ZStack(alignment: .bottomTrailing) {
-                            Circle()
-                                .fill(Color.white.opacity(0.1))
-                                .frame(width: 40, height: 40)
-                                .overlay(
-                                    Text(String(otherUser.username.prefix(2)).uppercased())
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(.white)
-                                )
-                            
-                            // Индикатор онлайн
-                            if isOnline {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 12, height: 12)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.black, lineWidth: 2)
-                                    )
-                            }
-                        }
-                        
-                        // Имя и статус
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(otherUser.username)
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(.white)
-                            
-                            Text(statusText)
-                                .font(.system(size: 13))
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color.black)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .simultaneousGesture(
-                    LongPressGesture(minimumDuration: 0.5)
-                        .onEnded { _ in
-                            withAnimation {
-                                showSearch = true
-                            }
-                        }
-                )
-                
                 // Search Bar (if active)
                 if showSearch {
                     HStack(spacing: 12) {
@@ -177,7 +123,54 @@ struct ChatView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(false)
+        .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Button(action: { showProfile = true }) {
+                    HStack(spacing: 10) {
+                        ZStack(alignment: .bottomTrailing) {
+                            Circle()
+                                .fill(Color.white.opacity(0.1))
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Text(String(otherUser.username.prefix(2)).uppercased())
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.white)
+                                )
+                            
+                            if isOnline {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 10, height: 10)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.black, lineWidth: 2)
+                                    )
+                            }
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(otherUser.username)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                            
+                            Text(statusText)
+                                .font(.system(size: 12))
+                                .foregroundColor(.white.opacity(0.6))
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .onEnded { _ in
+                            withAnimation {
+                                showSearch = true
+                            }
+                        }
+                )
+            }
+        }
         .sheet(isPresented: $showProfile) {
             UserProfileView(user: otherUser)
                 .environmentObject(authViewModel)

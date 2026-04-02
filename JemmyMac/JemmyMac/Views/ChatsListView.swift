@@ -202,8 +202,18 @@ struct ChatsListView: View {
     
     private func deleteChat(_ chat: ChatListItem) {
         print("🗑️ Delete chat:", chat.id)
-        // TODO: Implement delete on backend
-        chats.removeAll { $0.id == chat.id }
+        
+        Task {
+            do {
+                try await APIService.shared.deleteChat(chatId: chat.id)
+                
+                await MainActor.run {
+                    chats.removeAll { $0.id == chat.id }
+                }
+            } catch {
+                print("❌ Delete error:", error.localizedDescription)
+            }
+        }
     }
     
     private func togglePin(_ chat: ChatListItem) {
