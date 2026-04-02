@@ -49,10 +49,28 @@ struct JemmyApp: App {
     private func handleDeepLink(_ url: URL) {
         print("🔗 Deep link received: \(url.absoluteString)")
         
-        // Check if it's an invite link: https://weeky-six.vercel.app/api/u/{token}
-        if url.host == "weeky-six.vercel.app" && url.path.hasPrefix("/api/u/") {
+        // Check if it's a custom scheme: jemmy://invite/{token}
+        if url.scheme == "jemmy" && url.host == "invite" {
             let token = url.lastPathComponent
-            print("🎫 Invite token: \(token)")
+            print("🎫 Invite token from custom scheme: \(token)")
+            
+            Task {
+                do {
+                    let identity = try await APIService.shared.useInviteLink(token: token)
+                    
+                    await MainActor.run {
+                        print("✅ Showing invite profile: \(identity.username)")
+                        showInviteProfile = identity
+                    }
+                } catch {
+                    print("❌ Failed to use invite link: \(error.localizedDescription)")
+                }
+            }
+        }
+        // Check if it's a Universal Link: https://weeky-six.vercel.app/api/u/{token}
+        else if url.host == "weeky-six.vercel.app" && url.path.hasPrefix("/api/u/") {
+            let token = url.lastPathComponent
+            print("🎫 Invite token from Universal Link: \(token)")
             
             Task {
                 do {
