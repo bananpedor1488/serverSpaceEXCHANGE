@@ -176,7 +176,7 @@ struct MessageBubble: View {
                     .background(isFromMe ? Color.green.opacity(0.8) : Color.white.opacity(0.1))
                     .cornerRadius(16)
                 
-                Text(formatTime(message.createdAt))
+                Text(formatTime(message.createdDate))
                     .font(.system(size: 12))
                     .foregroundColor(.white.opacity(0.5))
                     .padding(.horizontal, 4)
