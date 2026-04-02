@@ -15,7 +15,6 @@ struct ChatView: View {
     @State private var searchText = ""
     @State private var isOnline = false
     @State private var lastSeen: Date?
-    @Environment(\.dismiss) var dismiss
     
     var statusText: String {
         if isOnline {
@@ -42,7 +41,7 @@ struct ChatView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Search Bar (if active)
+                // Search Bar
                 if showSearch {
                     HStack(spacing: 12) {
                         Image(systemName: "magnifyingglass")
@@ -123,7 +122,6 @@ struct ChatView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 HStack(spacing: 0) {
