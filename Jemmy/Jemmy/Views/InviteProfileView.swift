@@ -95,48 +95,25 @@ struct InviteProfileView: View {
         }
         
         print("💬 Starting chat with \(identity.username)...")
+        print("📡 start chat:", token)
         isCreatingChat = true
         
         Task {
             do {
-                // First, consume the invite link to mark it as used
-                print("🔗 Consuming invite link...")
-                _ = try await APIService.shared.consumeInviteLink(token: token)
+                let chatResponse = try await APIService.shared.startChat(token: token, myIdentityId: myIdentityId)
                 
-                // Create chat with both identities
-                let url = URL(string: "https://weeky-six.vercel.app/api/chat/create")!
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                print("✅ чат создан:", chatResponse.chatId)
                 
-                let body: [String: Any] = [
-                    "identity_ids": [myIdentityId, identity.id],
-                    "is_group": false
-                ]
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                
-                let (data, response) = try await URLSession.shared.data(for: request)
-                
-                if let httpResponse = response as? HTTPURLResponse {
-                    print("📥 Response: \(httpResponse.statusCode)")
-                    
-                    if httpResponse.statusCode == 200 {
-                        print("✅ Chat created successfully")
-                        
-                        await MainActor.run {
-                            dismiss()
-                        }
-                    } else {
-                        let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-                        print("❌ Server error: \(errorText)")
-                    }
+                await MainActor.run {
+                    isCreatingChat = false
+                    dismiss()
+                    // TODO: Navigate to chat view with chatResponse.chatId
                 }
             } catch {
-                print("❌ Failed to create chat: \(error.localizedDescription)")
-            }
-            
-            await MainActor.run {
-                isCreatingChat = false
+                print("❌ error:", error.localizedDescription)
+                await MainActor.run {
+                    isCreatingChat = false
+                }
             }
         }
     }
