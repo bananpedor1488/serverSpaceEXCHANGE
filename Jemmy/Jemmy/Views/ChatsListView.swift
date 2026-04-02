@@ -145,7 +145,6 @@ struct ChatsListView: View {
             }
             .refreshable {
                 loadChats()
-            }   loadChats()
             }
             .onChange(of: openChat) { newValue in
                 if let chat = newValue {
