@@ -134,6 +134,7 @@ struct ChatsListView: View {
                 }
             }
             .navigationTitle("Чаты")
+            .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
             .onAppear {
                 loadChats()
             }
@@ -224,33 +225,35 @@ struct ChatListRow: View {
             // Avatar
             Circle()
                 .fill(Color.white.opacity(0.1))
-                .frame(width: 48, height: 48)
+                .frame(width: 44, height: 44)
                 .overlay(
                     Text(String(chat.user.username.prefix(2)).uppercased())
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white)
                 )
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(chat.user.username)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
+                        .lineLimit(1)
                     
                     Spacer()
                     
                     Text(formatTime(chat.lastMessageDate))
-                        .font(.system(size: 13))
+                        .font(.system(size: 12))
                         .foregroundColor(.white.opacity(0.5))
                 }
                 
                 Text(chat.lastMessage.isEmpty ? "Начните переписку" : chat.lastMessage)
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
                     .foregroundColor(.white.opacity(0.6))
-                    .lineLimit(1)
+                    .lineLimit(2)
             }
         }
         .padding(.vertical, 8)
+        .padding(.horizontal, 4)
     }
     
     private func formatTime(_ date: Date) -> String {

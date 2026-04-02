@@ -10,9 +10,81 @@ struct ChatView: View {
     @State private var isLoading = false
     @State private var isSending = false
     @State private var pollingTimer: Timer?
+    @State private var showProfile = false
+    @State private var showSearch = false
+    @State private var searchText = ""
+    @State private var isOnline = false
+    
+    var filteredMessages: [ChatMessage] {
+        if searchText.isEmpty {
+            return messages
+        }
+        return messages.filter { $0.encryptedContent.localizedCaseInsensitiveContains(searchText) }
+    }
     
     var body: some View {
         VStack(spacing: 0) {
+            // Custom Header
+            Button(action: { showProfile = true }) {
+                HStack(spacing: 12) {
+                    Spacer()
+                    
+                    VStack(spacing: 2) {
+                        Text(otherUser.username)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                        
+                        Text(isOnline ? "в сети" : "был(а) недавно")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                    
+                    Spacer()
+                    
+                    Circle()
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 32, height: 32)
+                        .overlay(
+                            Text(String(otherUser.username.prefix(2)).uppercased())
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.white)
+                        )
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.black)
+            }
+            .buttonStyle(.plain)
+            
+            // Search Bar (if active)
+            if showSearch {
+                HStack(spacing: 12) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.white.opacity(0.5))
+                        .font(.system(size: 12))
+                    
+                    TextField("Поиск в чате", text: $searchText)
+                        .textFieldStyle(.plain)
+                        .foregroundColor(.white)
+                        .font(.system(size: 13))
+                    
+                    if !searchText.isEmpty {
+                        Button(action: { searchText = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.1))
+                .cornerRadius(8)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            
             // Messages
             if isLoading {
                 Spacer()
@@ -23,7 +95,7 @@ struct ChatView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 8) {
-                            ForEach(messages) { message in
+                            ForEach(filteredMessages) { message in
                                 MessageBubble(
                                     message: message,
                                     isFromMe: message.senderIdentityId == authViewModel.identity?.id
@@ -67,7 +139,25 @@ struct ChatView: View {
             .background(Color.black)
         }
         .background(Color.black)
-        .navigationTitle(otherUser.username)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: { 
+                    withAnimation {
+                        showSearch.toggle()
+                        if !showSearch {
+                            searchText = ""
+                        }
+                    }
+                }) {
+                    Image(systemName: "magnifyingglass")
+                }
+            }
+        }
+        .sheet(isPresented: $showProfile) {
+            UserProfileView(user: otherUser)
+                .environmentObject(authViewModel)
+                .frame(width: 500, height: 700)
+        }
         .onAppear {
             loadMessages()
             startPolling()
