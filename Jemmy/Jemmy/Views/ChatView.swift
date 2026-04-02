@@ -123,55 +123,60 @@ struct ChatView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Button(action: { showProfile = true }) {
-                    HStack(spacing: 10) {
-                        VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 0) {
+                    Spacer()
+                    
+                    Button(action: { showProfile = true }) {
+                        VStack(spacing: 2) {
                             Text(otherUser.username)
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.system(size: 17, weight: .semibold))
                                 .foregroundColor(.white)
                             
                             Text(statusText)
-                                .font(.system(size: 12))
+                                .font(.system(size: 13))
                                 .foregroundColor(.white.opacity(0.6))
                         }
-                        
-                        Spacer()
-                        
-                        ZStack(alignment: .bottomTrailing) {
-                            Circle()
-                                .fill(Color.white.opacity(0.1))
-                                .frame(width: 36, height: 36)
-                                .overlay(
-                                    Text(String(otherUser.username.prefix(2)).uppercased())
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.white)
-                                )
-                            
-                            if isOnline {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 10, height: 10)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.black, lineWidth: 2)
-                                    )
+                    }
+                    .buttonStyle(.plain)
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.5)
+                            .onEnded { _ in
+                                withAnimation {
+                                    showSearch = true
+                                }
                             }
+                    )
+                    
+                    Spacer()
+                }
+            }
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showProfile = true }) {
+                    ZStack(alignment: .bottomTrailing) {
+                        Circle()
+                            .fill(Color.white.opacity(0.1))
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Text(String(otherUser.username.prefix(2)).uppercased())
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.white)
+                            )
+                        
+                        if isOnline {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 10, height: 10)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.black, lineWidth: 2)
+                                )
                         }
                     }
-                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
-                .simultaneousGesture(
-                    LongPressGesture(minimumDuration: 0.5)
-                        .onEnded { _ in
-                            withAnimation {
-                                showSearch = true
-                            }
-                        }
-                )
             }
         }
         .sheet(isPresented: $showProfile) {
