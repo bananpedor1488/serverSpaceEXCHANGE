@@ -71,12 +71,7 @@ struct ChatsListView: View {
                         .background(Color.orange.opacity(0.2))
                     }
                     
-                    if isLoading {
-                        Spacer()
-                        ProgressView()
-                            .tint(.white)
-                        Spacer()
-                    } else if filteredChats.isEmpty {
+                    if filteredChats.isEmpty {
                         VStack(spacing: 16) {
                             Spacer()
                             Image(systemName: "bubble.left.and.bubble.right")
@@ -164,9 +159,17 @@ struct ChatsListView: View {
             .toolbar(isNavigatingToChat ? .hidden : .visible, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("Чаты")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.white)
+                    HStack(spacing: 8) {
+                        Text("Чаты")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.white)
+                        
+                        if isLoading && networkMonitor.isConnected {
+                            ProgressView()
+                                .tint(.white)
+                                .scaleEffect(0.7)
+                        }
+                    }
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {

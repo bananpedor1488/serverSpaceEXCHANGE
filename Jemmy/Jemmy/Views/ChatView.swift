@@ -71,39 +71,32 @@ struct ChatView: View {
                 }
                 
                 // Messages
-                if isLoading {
-                    Spacer()
-                    ProgressView()
-                        .tint(.white)
-                    Spacer()
-                } else {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 8) {
-                                ForEach(filteredMessages) { message in
-                                    MessageBubble(
-                                        message: message,
-                                        isFromMe: message.senderIdentityId == authViewModel.identity?.id
-                                    )
-                                    .id(message.id)
-                                }
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                        }
-                        .onAppear {
-                            // Скроллим вниз при открытии
-                            if let lastMessage = messages.last {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                                }
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            ForEach(filteredMessages) { message in
+                                MessageBubble(
+                                    message: message,
+                                    isFromMe: message.senderIdentityId == authViewModel.identity?.id
+                                )
+                                .id(message.id)
                             }
                         }
-                        .onChange(of: messages.count) { _ in
-                            if let lastMessage = messages.last {
-                                withAnimation {
-                                    proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                                }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                    }
+                    .onAppear {
+                        // Скроллим вниз при открытии
+                        if let lastMessage = messages.last {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                            }
+                        }
+                    }
+                    .onChange(of: messages.count) { _ in
+                        if let lastMessage = messages.last {
+                            withAnimation {
+                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
                             }
                         }
                     }
