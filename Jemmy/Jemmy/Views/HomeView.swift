@@ -365,7 +365,6 @@ struct ProfileView: View {
             print("👤 ProfileView appeared")
             if let identity = authViewModel.identity {
                 print("   Username: \(identity.username)")
-                print("   Tag: \(identity.tag)")
             }
         }
     }

@@ -169,8 +169,6 @@ struct ProfileEditView: View {
         return valid
     }
     
-    private var checkUsernameTask: Task<Void, Never>?
-    
     private func checkUsernameDebounced() {
         checkUsernameTask?.cancel()
         

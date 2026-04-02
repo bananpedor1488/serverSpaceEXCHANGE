@@ -4,15 +4,16 @@ struct ProfileEditView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var username: String
-    @State private var tag: String
     @State private var bio: String
     @State private var isSaving = false
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var isCheckingUsername = false
+    @State private var usernameAvailable: Bool? = nil
+    @State private var checkUsernameTask: Task<Void, Never>?
     
     init(identity: Identity) {
         _username = State(initialValue: identity.username)
-        _tag = State(initialValue: identity.tag)
         _bio = State(initialValue: identity.bio)
     }
     
@@ -62,46 +63,39 @@ struct ProfileEditView: View {
                     
                     // Username field
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Имя")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.secondary)
-                        
-                        TextField("Имя пользователя", text: $username)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 17))
-                            .padding(10)
-                            .background(Color(NSColor.controlBackgroundColor))
-                            .cornerRadius(8)
-                    }
-                    .padding(.horizontal, 40)
-                    
-                    // Tag field
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Тег")
+                        Text("Username")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(.secondary)
                         
                         HStack {
-                            Text("#")
-                                .font(.system(size: 17, design: .monospaced))
-                                .foregroundColor(.secondary)
-                            
-                            TextField("ABC123", text: $tag)
+                            TextField("username", text: $username)
                                 .textFieldStyle(.plain)
-                                .font(.system(size: 17, design: .monospaced))
-                                .onChange(of: tag) { _, newValue in
-                                    let filtered = newValue.uppercased().filter { $0.isLetter || $0.isNumber }
-                                    if filtered != newValue {
-                                        tag = filtered
-                                    }
+                                .font(.system(size: 17))
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .onChange(of: username) { _, newValue in
+                                    usernameAvailable = nil
+                                    checkUsernameDebounced()
                                 }
+                            
+                            if isCheckingUsername {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else if let available = usernameAvailable {
+                                Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundColor(available ? .green : .red)
+                            }
                         }
                         .padding(10)
                         .background(Color(NSColor.controlBackgroundColor))
                         .cornerRadius(8)
                         
-                        if !tag.isEmpty && tag.count < 6 {
-                            Text("Тег должен содержать 6 символов")
+                        if !username.isEmpty && (username.count < 4 || username.count > 16) {
+                            Text("4-16 символов: a-z, 0-9, _")
+                                .font(.system(size: 12))
+                                .foregroundColor(.red)
+                        } else if let available = usernameAvailable, !available {
+                            Text("Username уже занят")
                                 .font(.system(size: 12))
                                 .foregroundColor(.red)
                         }
@@ -135,7 +129,52 @@ struct ProfileEditView: View {
     }
     
     private var isValid: Bool {
-        !username.isEmpty && tag.count == 6
+        let regex = "^[a-zA-Z0-9_]{4,16}$"
+        let valid = username.range(of: regex, options: .regularExpression) != nil && (usernameAvailable ?? false || username == authViewModel.identity?.username)
+        return valid
+    }
+    
+    private func checkUsernameDebounced() {
+        checkUsernameTask?.cancel()
+        
+        guard username != authViewModel.identity?.username else {
+            usernameAvailable = true
+            return
+        }
+        
+        let regex = "^[a-zA-Z0-9_]{4,16}$"
+        guard username.range(of: regex, options: .regularExpression) != nil else {
+            usernameAvailable = false
+            return
+        }
+        
+        checkUsernameTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            
+            guard !Task.isCancelled else { return }
+            
+            await checkUsername()
+        }
+    }
+    
+    private func checkUsername() async {
+        isCheckingUsername = true
+        
+        do {
+            let url = URL(string: "https://weeky-six.vercel.app/api/identity/check-username/\(username)")!
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let response = try JSONDecoder().decode([String: Bool].self, from: data)
+            
+            await MainActor.run {
+                usernameAvailable = response["available"] ?? false
+                isCheckingUsername = false
+            }
+        } catch {
+            await MainActor.run {
+                usernameAvailable = false
+                isCheckingUsername = false
+            }
+        }
     }
     
     private func saveProfile() {
@@ -153,7 +192,6 @@ struct ProfileEditView: View {
                 let body: [String: Any] = [
                     "identity_id": identityId,
                     "username": username,
-                    "tag": tag,
                     "bio": bio
                 ]
                 request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -172,7 +210,7 @@ struct ProfileEditView: View {
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = "Не удалось сохранить. Возможно, тег уже занят."
+                    errorMessage = "Не удалось сохранить. Возможно, username уже занят."
                     showError = true
                 }
             }

@@ -112,12 +112,7 @@ struct ChatsView: View {
                         .font(.system(size: 17))
                         .foregroundColor(.secondary)
                     
-                    if searchText.isEmpty {
-                        Button("Найти по тегу") {
-                            showSearchByTag = true
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
+
                     
                     Spacer()
                 }
@@ -203,10 +198,6 @@ struct ProfileView: View {
                         VStack(spacing: 8) {
                             Text(identity.username)
                                 .font(.system(size: 28, weight: .semibold))
-                            
-                            Text("#\(identity.tag)")
-                                .font(.system(size: 15, design: .monospaced))
-                                .foregroundColor(.secondary)
                             
                             if !identity.bio.isEmpty {
                                 Text(identity.bio)

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SearchView: View {
-    @State private var searchTag = ""
+    @State private var searchUsername = ""
     @State private var foundIdentity: Identity?
     @State private var isSearching = false
     @State private var showError = false
@@ -11,7 +11,7 @@ struct SearchView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Найти по тегу")
+                Text("Найти по username")
                     .font(.system(size: 17, weight: .semibold))
                 
                 Spacer()
@@ -33,15 +33,14 @@ struct SearchView: View {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
                         
-                        TextField("Введи тег (ABC123)", text: $searchTag)
+                        TextField("Введи username", text: $searchUsername)
                             .textFieldStyle(.plain)
                             .font(.system(size: 17))
-                            .onChange(of: searchTag) { _, newValue in
-                                searchTag = newValue.uppercased()
-                            }
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
                         
-                        if !searchTag.isEmpty {
-                            Button(action: { searchTag = "" }) {
+                        if !searchUsername.isEmpty {
+                            Button(action: { searchUsername = "" }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(.secondary)
                             }
@@ -54,7 +53,7 @@ struct SearchView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
                     
-                    Button(action: searchByTag) {
+                    Button(action: searchByUsername) {
                         HStack(spacing: 8) {
                             if isSearching {
                                 ProgressView()
@@ -70,7 +69,7 @@ struct SearchView: View {
                         .cornerRadius(8)
                     }
                     .buttonStyle(.plain)
-                    .disabled(searchTag.isEmpty || isSearching)
+                    .disabled(searchUsername.isEmpty || isSearching)
                     
                     if let identity = foundIdentity {
                         VStack(spacing: 20) {
@@ -85,10 +84,6 @@ struct SearchView: View {
                             VStack(spacing: 8) {
                                 Text(identity.username)
                                     .font(.system(size: 22, weight: .semibold))
-                                
-                                Text("#\(identity.tag)")
-                                    .font(.system(size: 15, design: .monospaced))
-                                    .foregroundColor(.secondary)
                             }
                             
                             if !identity.bio.isEmpty {
@@ -124,15 +119,15 @@ struct SearchView: View {
         .alert("Не найдено", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("Пользователь с тегом \(searchTag) не найден")
+            Text("Пользователь с username \(searchUsername) не найден")
         }
     }
     
-    private func searchByTag() {
+    private func searchByUsername() {
         isSearching = true
         Task {
             do {
-                let url = URL(string: "https://weeky-six.vercel.app/api/identity/search/\(searchTag)")!
+                let url = URL(string: "https://weeky-six.vercel.app/api/identity/search/\(searchUsername)")!
                 let (data, _) = try await URLSession.shared.data(from: url)
                 let identity = try JSONDecoder().decode(Identity.self, from: data)
                 
