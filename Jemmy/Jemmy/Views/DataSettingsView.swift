@@ -9,7 +9,11 @@ struct DataSettingsView: View {
     @State private var autoDownloadFiles = false
     @State private var showStorageBreakdown = false
     @State private var showCacheLimitSheet = false
+    @State private var showWiFiOnlySheet = false
+    @State private var showDownloadQualitySheet = false
     @AppStorage("cacheLimitMB") private var cacheLimitMB: Int = 0 // 0 = безлимит
+    @AppStorage("wifiOnlyDownload") private var wifiOnlyDownload: Bool = false
+    @AppStorage("downloadQuality") private var downloadQuality: String = "high" // low, medium, high
     
     var maxCacheSize: Int64 {
         cacheLimitMB == 0 ? Int64.max : Int64(cacheLimitMB) * 1_000_000
@@ -24,6 +28,19 @@ struct DataSettingsView: View {
     
     var cacheLimitText: String {
         cacheLimitMB == 0 ? "Безлимит" : "\(cacheLimitMB) MB"
+    }
+    
+    var downloadQualityText: String {
+        switch downloadQuality {
+        case "low": return "Низкое"
+        case "medium": return "Среднее"
+        case "high": return "Высокое"
+        default: return "Высокое"
+        }
+    }
+    
+    var wifiOnlyText: String {
+        wifiOnlyDownload ? "Включено" : "Выключено"
     }
     
     var body: some View {
@@ -216,17 +233,27 @@ struct DataSettingsView: View {
                             .padding(.horizontal, 20)
                         
                         VStack(spacing: 0) {
-                            SettingsRow(icon: "wifi", title: "Только Wi-Fi", subtitle: "Включено", action: {
-                                print("📡 Wi-Fi only")
-                            })
+                            Button(action: { showWiFiOnlySheet = true }) {
+                                SettingsRow(
+                                    icon: "wifi",
+                                    title: "Только Wi-Fi",
+                                    subtitle: wifiOnlyText,
+                                    color: .blue
+                                )
+                            }
                             
                             Divider()
                                 .background(Color.white.opacity(0.1))
-                                .padding(.leading, 60)
+                                .padding(.leading, 80)
                             
-                            SettingsRow(icon: "arrow.down.circle", title: "Качество загрузки", subtitle: "Высокое", action: {
-                                print("📥 Download quality")
-                            })
+                            Button(action: { showDownloadQualitySheet = true }) {
+                                SettingsRow(
+                                    icon: "arrow.down.circle",
+                                    title: "Качество загрузки",
+                                    subtitle: downloadQualityText,
+                                    color: .green
+                                )
+                            }
                         }
                         .background(Color.white.opacity(0.05))
                         .cornerRadius(16)
@@ -267,6 +294,26 @@ struct DataSettingsView: View {
                 .transition(.move(edge: .bottom))
                 .zIndex(1)
             }
+            
+            // WiFi Only Sheet
+            if showWiFiOnlySheet {
+                WiFiOnlySheet(
+                    isPresented: $showWiFiOnlySheet,
+                    wifiOnlyDownload: $wifiOnlyDownload
+                )
+                .transition(.move(edge: .bottom))
+                .zIndex(1)
+            }
+            
+            // Download Quality Sheet
+            if showDownloadQualitySheet {
+                DownloadQualitySheet(
+                    isPresented: $showDownloadQualitySheet,
+                    downloadQuality: $downloadQuality
+                )
+                .transition(.move(edge: .bottom))
+                .zIndex(1)
+            }
         }
         .navigationTitle("Данные и память")
         .navigationBarTitleDisplayMode(.inline)
@@ -276,6 +323,8 @@ struct DataSettingsView: View {
         .animation(.easeInOut(duration: 0.3), value: showClearCacheSheet)
         .animation(.easeInOut(duration: 0.3), value: showStorageBreakdown)
         .animation(.easeInOut(duration: 0.3), value: showCacheLimitSheet)
+        .animation(.easeInOut(duration: 0.3), value: showWiFiOnlySheet)
+        .animation(.easeInOut(duration: 0.3), value: showDownloadQualitySheet)
     }
     
     private func calculateCacheSize() {
@@ -861,5 +910,323 @@ struct CacheLimitSheet: View {
         default:
             return ""
         }
+    }
+}
+
+struct SettingsRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    var color: Color = .blue
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(color.opacity(0.15))
+                    .frame(width: 48, height: 48)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 22))
+                    .foregroundColor(color)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundColor(.white)
+                Text(subtitle)
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            
+            Spacer()
+            
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white.opacity(0.3))
+        }
+        .padding(16)
+    }
+}
+
+struct WiFiOnlySheet: View {
+    @Binding var isPresented: Bool
+    @Binding var wifiOnlyDownload: Bool
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            
+            VStack(spacing: 0) {
+                // Handle
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(Color.white.opacity(0.3))
+                    .frame(width: 36, height: 5)
+                    .padding(.top, 8)
+                    .padding(.bottom, 20)
+                
+                // Header
+                HStack {
+                    Text("Только Wi-Fi")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isPresented = false
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(.white.opacity(0.3))
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+                
+                // Description
+                Text("Загружать медиафайлы только при подключении к Wi-Fi сети. Это поможет сэкономить мобильный трафик.")
+                    .font(.system(size: 15))
+                    .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(4)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
+                
+                // Options
+                VStack(spacing: 0) {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            wifiOnlyDownload = false
+                        }
+                    }) {
+                        HStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .stroke(!wifiOnlyDownload ? Color.blue : Color.white.opacity(0.2), lineWidth: 2)
+                                    .frame(width: 24, height: 24)
+                                
+                                if !wifiOnlyDownload {
+                                    Circle()
+                                        .fill(Color.blue)
+                                        .frame(width: 12, height: 12)
+                                }
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Всегда загружать")
+                                    .font(.system(size: 17, weight: .medium))
+                                    .foregroundColor(.white)
+                                
+                                Text("Загружать через любое соединение")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                            
+                            Spacer()
+                            
+                            if !wifiOnlyDownload {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .background(!wifiOnlyDownload ? Color.blue.opacity(0.1) : Color.clear)
+                    }
+                    
+                    Divider()
+                        .background(Color.white.opacity(0.1))
+                        .padding(.leading, 60)
+                    
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            wifiOnlyDownload = true
+                        }
+                    }) {
+                        HStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .stroke(wifiOnlyDownload ? Color.blue : Color.white.opacity(0.2), lineWidth: 2)
+                                    .frame(width: 24, height: 24)
+                                
+                                if wifiOnlyDownload {
+                                    Circle()
+                                        .fill(Color.blue)
+                                        .frame(width: 12, height: 12)
+                                }
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Только Wi-Fi")
+                                    .font(.system(size: 17, weight: .medium))
+                                    .foregroundColor(.white)
+                                
+                                Text("Экономия мобильного трафика")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                            
+                            Spacer()
+                            
+                            if wifiOnlyDownload {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .background(wifiOnlyDownload ? Color.blue.opacity(0.1) : Color.clear)
+                    }
+                }
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(16)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+            }
+            .frame(maxWidth: .infinity)
+            .background(Color(red: 0.1, green: 0.1, blue: 0.1))
+            .cornerRadius(20, corners: [.topLeft, .topRight])
+            .ignoresSafeArea(edges: .bottom)
+        }
+        .background(
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isPresented = false
+                    }
+                }
+        )
+    }
+}
+
+struct DownloadQualitySheet: View {
+    @Binding var isPresented: Bool
+    @Binding var downloadQuality: String
+    
+    let qualityOptions = [
+        ("low", "Низкое", "Экономия трафика и памяти"),
+        ("medium", "Среднее", "Баланс качества и размера"),
+        ("high", "Высокое", "Максимальное качество")
+    ]
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            
+            VStack(spacing: 0) {
+                // Handle
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(Color.white.opacity(0.3))
+                    .frame(width: 36, height: 5)
+                    .padding(.top, 8)
+                    .padding(.bottom, 20)
+                
+                // Header
+                HStack {
+                    Text("Качество загрузки")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isPresented = false
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(.white.opacity(0.3))
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+                
+                // Description
+                Text("Выберите качество загружаемых медиафайлов. Более низкое качество экономит трафик и место на устройстве.")
+                    .font(.system(size: 15))
+                    .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(4)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
+                
+                // Options
+                VStack(spacing: 0) {
+                    ForEach(Array(qualityOptions.enumerated()), id: \.offset) { index, option in
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                downloadQuality = option.0
+                            }
+                        }) {
+                            HStack(spacing: 16) {
+                                ZStack {
+                                    Circle()
+                                        .stroke(downloadQuality == option.0 ? Color.green : Color.white.opacity(0.2), lineWidth: 2)
+                                        .frame(width: 24, height: 24)
+                                    
+                                    if downloadQuality == option.0 {
+                                        Circle()
+                                            .fill(Color.green)
+                                            .frame(width: 12, height: 12)
+                                    }
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(option.1)
+                                        .font(.system(size: 17, weight: .medium))
+                                        .foregroundColor(.white)
+                                    
+                                    Text(option.2)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.6))
+                                }
+                                
+                                Spacer()
+                                
+                                if downloadQuality == option.0 {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.green)
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 16)
+                            .background(downloadQuality == option.0 ? Color.green.opacity(0.1) : Color.clear)
+                        }
+                        
+                        if index < qualityOptions.count - 1 {
+                            Divider()
+                                .background(Color.white.opacity(0.1))
+                                .padding(.leading, 60)
+                        }
+                    }
+                }
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(16)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+            }
+            .frame(maxWidth: .infinity)
+            .background(Color(red: 0.1, green: 0.1, blue: 0.1))
+            .cornerRadius(20, corners: [.topLeft, .topRight])
+            .ignoresSafeArea(edges: .bottom)
+        }
+        .background(
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isPresented = false
+                    }
+                }
+        )
     }
 }
