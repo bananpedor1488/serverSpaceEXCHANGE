@@ -6,6 +6,7 @@ struct LinkGeneratorView: View {
     @State private var linkExpiresAt: Date?
     @State private var isGenerating = false
     @State private var showCopied = false
+    @State private var showShareSheet = false
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
@@ -102,7 +103,7 @@ struct LinkGeneratorView: View {
                                         .cornerRadius(12)
                                     }
                                     
-                                    Button(action: shareLink) {
+                                    Button(action: { showShareSheet = true }) {
                                         HStack {
                                             Image(systemName: "square.and.arrow.up")
                                             Text("Поделиться")
@@ -111,7 +112,7 @@ struct LinkGeneratorView: View {
                                         .foregroundColor(.white)
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 14)
-                                        .background(Color.white.opacity(0.15))
+                                        .background(Color.blue.opacity(0.8))
                                         .cornerRadius(12)
                                     }
                                 }
@@ -159,6 +160,11 @@ struct LinkGeneratorView: View {
         .onAppear {
             print("🔗 LinkGeneratorView appeared")
             loadSavedLink()
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let link = generatedLink {
+                ShareSheet(items: [link])
+            }
         }
     }
     
@@ -282,16 +288,18 @@ struct LinkGeneratorView: View {
     }
     
     private func shareLink() {
-        guard let link = generatedLink else { return }
-        
-        print("📤 Sharing link: \(link)")
-        
-        let activityVC = UIActivityViewController(activityItems: [link], applicationActivities: nil)
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first,
-           let rootVC = window.rootViewController {
-            rootVC.present(activityVC, animated: true)
-        }
+        showShareSheet = true
+        print("📤 Opening share sheet")
     }
+}
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
