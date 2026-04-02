@@ -25,3 +25,57 @@ struct AuthResponse: Codable {
         case identity
     }
 }
+
+struct ChatStartResponse: Codable {
+    let chatId: String
+    let otherUser: Identity
+    
+    enum CodingKeys: String, CodingKey {
+        case chatId = "chat_id"
+        case otherUser = "other_user"
+    }
+}
+
+struct ChatListItem: Codable, Identifiable {
+    let id: String
+    let lastMessage: String
+    let lastMessageTime: Date
+    let user: Identity
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case lastMessage
+        case lastMessageTime
+        case user
+    }
+}
+
+struct ChatMessage: Codable, Identifiable {
+    let id: String
+    let chatId: String
+    let senderIdentityId: String
+    let encryptedContent: String
+    let type: String
+    let createdAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id = "_id"
+        case chatId = "chat_id"
+        case senderIdentityId = "sender_identity_id"
+        case encryptedContent = "encrypted_content"
+        case type
+        case createdAt
+    }
+}
+
+struct Chat: Codable, Identifiable {
+    let id: String
+    let participants: [String]
+    let isGroup: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case id = "_id"
+        case participants
+        case isGroup = "is_group"
+    }
+}

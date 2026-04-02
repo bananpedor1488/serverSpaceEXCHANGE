@@ -142,6 +142,63 @@ class APIService {
     
     // MARK: - Chats
     
+    func startChat(token: String, myIdentityId: String) async throws -> ChatStartResponse {
+        print("📡 start chat:", token)
+        
+        let url = URL(string: "\(baseURL)/chat/start")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "token": token,
+            "my_identity_id": myIdentityId
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode != 200 {
+                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    print("❌ Server error: \(errorText)")
+                    throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorText])
+                }
+            }
+            
+            let chatResponse = try JSONDecoder().decode(ChatStartResponse.self, from: data)
+            print("✅ чат создан:", chatResponse.chatId)
+            return chatResponse
+        } catch {
+            print("❌ error:", error.localizedDescription)
+            throw error
+        }
+    }
+    
+    func getChats(identityId: String) async throws -> [ChatListItem] {
+        print("📡 Request: GET /chats?identity_id=\(identityId)")
+        
+        let url = URL(string: "\(baseURL)/chats?identity_id=\(identityId)")!
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let chats = try JSONDecoder().decode([ChatListItem].self, from: data)
+            print("📥 chats loaded:", chats.count)
+            return chats
+        } catch {
+            print("❌ error:", error.localizedDescription)
+            throw error
+        }
+    }
+    
     func getUserChats(identityId: String) async throws -> [Chat] {
         print("📡 Request: GET /chat/user/\(identityId)")
         
@@ -181,5 +238,57 @@ class APIService {
         let chat = try JSONDecoder().decode(Chat.self, from: data)
         print("✅ Chat created")
         return chat
+    }
+    
+    func sendMessage(chatId: String, senderIdentityId: String, text: String) async throws -> ChatMessage {
+        print("📤 message:", text)
+        
+        let url = URL(string: "\(baseURL)/message")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "chat_id": chatId,
+            "sender_identity_id": senderIdentityId,
+            "text": text
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let message = try JSONDecoder().decode(ChatMessage.self, from: data)
+            print("✅ Message sent")
+            return message
+        } catch {
+            print("❌ error:", error.localizedDescription)
+            throw error
+        }
+    }
+    
+    func getMessages(chatId: String) async throws -> [ChatMessage] {
+        print("📡 Request: GET /messages?chat_id=\(chatId)")
+        
+        let url = URL(string: "\(baseURL)/messages?chat_id=\(chatId)")!
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let messages = try JSONDecoder().decode([ChatMessage].self, from: data)
+            print("✅ Messages loaded:", messages.count)
+            return messages
+        } catch {
+            print("❌ error:", error.localizedDescription)
+            throw error
+        }
     }
 }
