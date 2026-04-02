@@ -270,25 +270,24 @@ struct ProfileView: View {
             } message: {
                 Text("Все ваши данные будут удалены безвозвратно")
             }
-            
-            // Hidden NavigationLinks
-            NavigationLink(
-                destination: PrivacySettingsView(),
-                isActive: $showPrivacySettings
-            ) { EmptyView() }
-            .hidden()
-            
-            NavigationLink(
-                destination: DataSettingsView(),
-                isActive: $showDataSettings
-            ) { EmptyView() }
-            .hidden()
-            
-            NavigationLink(
-                destination: DevicesSettingsView(),
-                isActive: $showDevicesSettings
-            ) { EmptyView() }
-            .hidden()
+            .background(
+                Group {
+                    NavigationLink(
+                        destination: PrivacySettingsView(),
+                        isActive: $showPrivacySettings
+                    ) { EmptyView() }
+                    
+                    NavigationLink(
+                        destination: DataSettingsView(),
+                        isActive: $showDataSettings
+                    ) { EmptyView() }
+                    
+                    NavigationLink(
+                        destination: DevicesSettingsView(),
+                        isActive: $showDevicesSettings
+                    ) { EmptyView() }
+                }
+            )
         }
         .onAppear {
             print("📡 load profile")
