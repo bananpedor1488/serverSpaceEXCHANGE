@@ -2,7 +2,7 @@ import Foundation
 
 class APIService {
     static let shared = APIService()
-    private let baseURL = "http://178.104.40.37:25593/api"
+    private let baseURL = "https://weeky-six.vercel.app/api"
     
     private init() {}
     
@@ -25,8 +25,8 @@ class APIService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let body = ["device_id": deviceId, "enabled": enabled]
-        request.httpBody = try JSONEncoder().encode(body)
+        let body: [String: Any] = ["device_id": deviceId, "enabled": enabled]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
         _ = try await URLSession.shared.data(for: request)
     }

@@ -7,7 +7,7 @@ class SocketService: ObservableObject {
     @Published var isConnected = false
     
     private var webSocketTask: URLSessionWebSocketTask?
-    private let url = URL(string: "ws://178.104.40.37:25593")!
+    private let url = URL(string: "wss://weeky-six.vercel.app")!
     
     private init() {}
     
