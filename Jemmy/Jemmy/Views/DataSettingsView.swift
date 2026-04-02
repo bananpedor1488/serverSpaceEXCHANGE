@@ -8,11 +8,22 @@ struct DataSettingsView: View {
     @State private var autoDownloadVideos = false
     @State private var autoDownloadFiles = false
     @State private var showStorageBreakdown = false
+    @State private var showCacheLimitSheet = false
+    @AppStorage("cacheLimitMB") private var cacheLimitMB: Int = 0 // 0 = безлимит
     
-    let maxCacheSize: Int64 = 500_000_000 // 500 MB лимит
+    var maxCacheSize: Int64 {
+        cacheLimitMB == 0 ? Int64.max : Int64(cacheLimitMB) * 1_000_000
+    }
     
     var cachePercentage: Double {
-        min(Double(cacheSize) / Double(maxCacheSize), 1.0)
+        if cacheLimitMB == 0 {
+            return 0 // Безлимит - не показываем прогресс
+        }
+        return min(Double(cacheSize) / Double(maxCacheSize), 1.0)
+    }
+    
+    var cacheLimitText: String {
+        cacheLimitMB == 0 ? "Безлимит" : "\(cacheLimitMB) MB"
     }
     
     var body: some View {
@@ -30,16 +41,18 @@ struct DataSettingsView: View {
                                 .stroke(Color.white.opacity(0.1), lineWidth: 12)
                                 .frame(width: 160, height: 160)
                             
-                            // Progress circle
-                            Circle()
-                                .trim(from: 0, to: cachePercentage)
-                                .stroke(
-                                    cachePercentage > 0.8 ? Color.red : Color.blue,
-                                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
-                                )
-                                .frame(width: 160, height: 160)
-                                .rotationEffect(.degrees(-90))
-                                .animation(.spring(response: 0.8, dampingFraction: 0.7), value: cachePercentage)
+                            // Progress circle (только если есть лимит)
+                            if cacheLimitMB > 0 {
+                                Circle()
+                                    .trim(from: 0, to: cachePercentage)
+                                    .stroke(
+                                        cachePercentage > 0.8 ? Color.red : Color.blue,
+                                        style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                                    )
+                                    .frame(width: 160, height: 160)
+                                    .rotationEffect(.degrees(-90))
+                                    .animation(.spring(response: 0.8, dampingFraction: 0.7), value: cachePercentage)
+                            }
                             
                             // Center text
                             VStack(spacing: 4) {
@@ -47,9 +60,15 @@ struct DataSettingsView: View {
                                     .font(.system(size: 28, weight: .bold))
                                     .foregroundColor(.white)
                                 
-                                Text("из \(formatBytes(maxCacheSize))")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.white.opacity(0.6))
+                                if cacheLimitMB > 0 {
+                                    Text("из \(formatBytes(maxCacheSize))")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.6))
+                                } else {
+                                    Text("без лимита")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.6))
+                                }
                             }
                         }
                         .padding(.top, 20)
@@ -60,24 +79,46 @@ struct DataSettingsView: View {
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundColor(.white)
                             
-                            Text("\(Int(cachePercentage * 100))% заполнено")
-                                .font(.system(size: 15))
-                                .foregroundColor(cachePercentage > 0.8 ? .red : .white.opacity(0.7))
+                            if cacheLimitMB > 0 {
+                                Text("\(Int(cachePercentage * 100))% заполнено")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(cachePercentage > 0.8 ? .red : .white.opacity(0.7))
+                            } else {
+                                Text("Лимит не установлен")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
                         }
                         
-                        // Details button
-                        Button(action: { showStorageBreakdown = true }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "chart.pie.fill")
-                                    .font(.system(size: 16))
-                                Text("Детализация")
-                                    .font(.system(size: 15, weight: .medium))
+                        // Buttons row
+                        HStack(spacing: 12) {
+                            Button(action: { showStorageBreakdown = true }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "chart.pie.fill")
+                                        .font(.system(size: 16))
+                                    Text("Детализация")
+                                        .font(.system(size: 15, weight: .medium))
+                                }
+                                .foregroundColor(.blue)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                                .background(Color.blue.opacity(0.15))
+                                .cornerRadius(20)
                             }
-                            .foregroundColor(.blue)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
-                            .background(Color.blue.opacity(0.15))
-                            .cornerRadius(20)
+                            
+                            Button(action: { showCacheLimitSheet = true }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "slider.horizontal.3")
+                                        .font(.system(size: 16))
+                                    Text("Лимит")
+                                        .font(.system(size: 15, weight: .medium))
+                                }
+                                .foregroundColor(.purple)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                                .background(Color.purple.opacity(0.15))
+                                .cornerRadius(20)
+                            }
                         }
                         .padding(.bottom, 10)
                     }
@@ -216,6 +257,16 @@ struct DataSettingsView: View {
                 .transition(.move(edge: .bottom))
                 .zIndex(1)
             }
+            
+            // Cache Limit Sheet
+            if showCacheLimitSheet {
+                CacheLimitSheet(
+                    isPresented: $showCacheLimitSheet,
+                    cacheLimitMB: $cacheLimitMB
+                )
+                .transition(.move(edge: .bottom))
+                .zIndex(1)
+            }
         }
         .navigationTitle("Данные и память")
         .navigationBarTitleDisplayMode(.inline)
@@ -224,6 +275,7 @@ struct DataSettingsView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: showClearCacheSheet)
         .animation(.easeInOut(duration: 0.3), value: showStorageBreakdown)
+        .animation(.easeInOut(duration: 0.3), value: showCacheLimitSheet)
     }
     
     private func calculateCacheSize() {
@@ -621,5 +673,193 @@ struct StorageItem: View {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
         return formatter.string(fromByteCount: bytes)
+    }
+}
+
+struct CacheLimitSheet: View {
+    @Binding var isPresented: Bool
+    @Binding var cacheLimitMB: Int
+    @State private var selectedLimit: Int
+    
+    let limitOptions = [0, 100, 250, 500, 1000, 2000, 5000] // 0 = безлимит
+    
+    init(isPresented: Binding<Bool>, cacheLimitMB: Binding<Int>) {
+        self._isPresented = isPresented
+        self._cacheLimitMB = cacheLimitMB
+        self._selectedLimit = State(initialValue: cacheLimitMB.wrappedValue)
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            
+            VStack(spacing: 0) {
+                // Handle
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(Color.white.opacity(0.3))
+                    .frame(width: 36, height: 5)
+                    .padding(.top, 8)
+                    .padding(.bottom, 20)
+                
+                // Header
+                HStack {
+                    Text("Лимит кэша")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isPresented = false
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(.white.opacity(0.3))
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+                
+                // Description
+                Text("Выберите максимальный размер кэша. При превышении лимита старые данные будут автоматически удаляться.")
+                    .font(.system(size: 15))
+                    .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(4)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
+                
+                // Current selection display
+                VStack(spacing: 8) {
+                    Text("Текущий лимит")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.6))
+                    
+                    Text(selectedLimit == 0 ? "Безлимит" : "\(selectedLimit) MB")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(.blue)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 20)
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(16)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+                
+                // Options list
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(limitOptions, id: \.self) { limit in
+                            Button(action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    selectedLimit = limit
+                                }
+                            }) {
+                                HStack(spacing: 16) {
+                                    ZStack {
+                                        Circle()
+                                            .stroke(selectedLimit == limit ? Color.blue : Color.white.opacity(0.2), lineWidth: 2)
+                                            .frame(width: 24, height: 24)
+                                        
+                                        if selectedLimit == limit {
+                                            Circle()
+                                                .fill(Color.blue)
+                                                .frame(width: 12, height: 12)
+                                        }
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(limit == 0 ? "Безлимит" : "\(limit) MB")
+                                            .font(.system(size: 17, weight: .medium))
+                                            .foregroundColor(.white)
+                                        
+                                        Text(limitDescription(for: limit))
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.white.opacity(0.6))
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    if selectedLimit == limit {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 16)
+                                .background(selectedLimit == limit ? Color.blue.opacity(0.1) : Color.clear)
+                            }
+                            
+                            if limit != limitOptions.last {
+                                Divider()
+                                    .background(Color.white.opacity(0.1))
+                                    .padding(.leading, 60)
+                            }
+                        }
+                    }
+                    .background(Color.white.opacity(0.05))
+                    .cornerRadius(16)
+                    .padding(.horizontal, 20)
+                }
+                .frame(maxHeight: 300)
+                
+                // Apply button
+                Button(action: {
+                    cacheLimitMB = selectedLimit
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isPresented = false
+                    }
+                }) {
+                    Text("Применить")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(Color.blue)
+                        .cornerRadius(14)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 24)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 650)
+            .background(Color(red: 0.1, green: 0.1, blue: 0.1))
+            .cornerRadius(20, corners: [.topLeft, .topRight])
+            .ignoresSafeArea(edges: .bottom)
+        }
+        .background(
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isPresented = false
+                    }
+                }
+        )
+    }
+    
+    private func limitDescription(for limit: Int) -> String {
+        switch limit {
+        case 0:
+            return "Без ограничений"
+        case 100:
+            return "Минимальный размер"
+        case 250:
+            return "Экономия памяти"
+        case 500:
+            return "Рекомендуемый"
+        case 1000:
+            return "Стандартный"
+        case 2000:
+            return "Увеличенный"
+        case 5000:
+            return "Максимальный"
+        default:
+            return ""
+        }
     }
 }
