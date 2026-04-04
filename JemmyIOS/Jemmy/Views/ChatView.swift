@@ -246,7 +246,7 @@ struct ChatView: View {
                 stopPolling()
             }
         }
-        .onChange(of: messages) { newMessages in
+        .onChange(of: messages.count) { _ in
             // Auto-mark NEW messages as read when they arrive (while chat is open)
             handleAutoRead()
         }
