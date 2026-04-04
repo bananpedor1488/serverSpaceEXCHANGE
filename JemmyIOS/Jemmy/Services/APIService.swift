@@ -664,8 +664,6 @@ class APIService {
         let (_, _) = try await URLSession.shared.data(for: request)
         print("✅ Chat marked as read")
     }
-}
-
     
     // MARK: - Privacy Settings
     
