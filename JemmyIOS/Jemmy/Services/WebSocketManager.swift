@@ -98,11 +98,14 @@ class WebSocketManager: ObservableObject {
     }
     
     func sendMessage(chatId: String, senderIdentityId: String, content: String) {
+        let clientTime = Int64(Date().timeIntervalSince1970 * 1000)
+        
         socket?.emit("send_message", [
             "chat_id": chatId,
             "sender_identity_id": senderIdentityId,
             "encrypted_content": content,
-            "type": "text"
+            "type": "text",
+            "client_time": clientTime
         ])
     }
     

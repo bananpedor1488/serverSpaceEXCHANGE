@@ -406,7 +406,7 @@ fun MessageBubble(
                 
                 // Время справа внизу
                 Text(
-                    text = formatTime(message.createdAt),
+                    text = formatTime(message.getDisplayTime()),
                     fontSize = 11.sp,
                     color = Color.White.copy(alpha = 0.5f),
                     modifier = Modifier
@@ -442,5 +442,15 @@ private fun formatTime(timestamp: String): String {
         date?.let { outputFormat.format(it) } ?: timestamp
     } catch (e: Exception) {
         timestamp
+    }
+}
+
+private fun formatTime(timestamp: Long): String {
+    return try {
+        val date = Date(timestamp)
+        val outputFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        outputFormat.format(date)
+    } catch (e: Exception) {
+        ""
     }
 }

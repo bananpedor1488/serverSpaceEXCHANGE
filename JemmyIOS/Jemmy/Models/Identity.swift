@@ -136,6 +136,8 @@ struct ChatMessage: Codable, Identifiable {
     let encryptedContent: String
     let type: String
     let createdAt: String
+    let clientTime: Int64?
+    let serverTime: Int64?
     let delivered: Bool
     let deliveredAt: String?
     let read: Bool
@@ -148,6 +150,8 @@ struct ChatMessage: Codable, Identifiable {
         case encryptedContent = "encrypted_content"
         case type
         case createdAt
+        case clientTime = "client_time"
+        case serverTime = "server_time"
         case delivered
         case deliveredAt = "delivered_at"
         case read
@@ -162,6 +166,8 @@ struct ChatMessage: Codable, Identifiable {
         encryptedContent = try container.decode(String.self, forKey: .encryptedContent)
         type = try container.decode(String.self, forKey: .type)
         createdAt = try container.decode(String.self, forKey: .createdAt)
+        clientTime = try? container.decode(Int64.self, forKey: .clientTime)
+        serverTime = try? container.decode(Int64.self, forKey: .serverTime)
         delivered = (try? container.decode(Bool.self, forKey: .delivered)) ?? false
         deliveredAt = try? container.decode(String.self, forKey: .deliveredAt)
         read = (try? container.decode(Bool.self, forKey: .read)) ?? false
@@ -169,8 +175,15 @@ struct ChatMessage: Codable, Identifiable {
     }
     
     var createdDate: Date {
-        let formatter = ISO8601DateFormatter()
-        return formatter.date(from: createdAt) ?? Date()
+        // Используем serverTime если есть, иначе clientTime, иначе парсим createdAt
+        if let serverTime = serverTime {
+            return Date(timeIntervalSince1970: TimeInterval(serverTime) / 1000)
+        } else if let clientTime = clientTime {
+            return Date(timeIntervalSince1970: TimeInterval(clientTime) / 1000)
+        } else {
+            let formatter = ISO8601DateFormatter()
+            return formatter.date(from: createdAt) ?? Date()
+        }
     }
 }
 

@@ -18,6 +18,12 @@ data class Message(
     @SerializedName("createdAt")
     val createdAt: String,
     
+    @SerializedName("client_time")
+    val clientTime: Long? = null,
+    
+    @SerializedName("server_time")
+    val serverTime: Long? = null,
+    
     @SerializedName("delivered")
     val delivered: Boolean = false,
     
@@ -29,7 +35,21 @@ data class Message(
     
     @SerializedName("read_at")
     val readAt: String? = null
-)
+) {
+    // Используем serverTime если есть, иначе clientTime, иначе createdAt
+    fun getDisplayTime(): Long {
+        return serverTime ?: clientTime ?: run {
+            // Парсим createdAt если нет других времен
+            try {
+                val formatter = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
+                formatter.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                formatter.parse(createdAt)?.time ?: System.currentTimeMillis()
+            } catch (e: Exception) {
+                System.currentTimeMillis()
+            }
+        }
+    }
+}
 
 data class SendMessageRequest(
     @SerializedName("chat_id")
@@ -39,5 +59,8 @@ data class SendMessageRequest(
     val senderIdentityId: String,
     
     @SerializedName("text")
-    val text: String
+    val text: String,
+    
+    @SerializedName("client_time")
+    val clientTime: Long = System.currentTimeMillis()
 )

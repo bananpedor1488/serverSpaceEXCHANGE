@@ -47,7 +47,10 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
     }
     
     private fun updateUserStatus(identityId: String, online: Boolean, lastSeen: Long) {
-        Log.d(TAG, "🔄 updateUserStatus: $identityId, online=$online, lastSeen=$lastSeen")
+        Log.d(TAG, "🔄 updateUserStatus called")
+        Log.d(TAG, "   Identity: $identityId")
+        Log.d(TAG, "   Online: $online")
+        Log.d(TAG, "   Last seen: $lastSeen")
         
         val currentState = _chatListState.value
         Log.d(TAG, "   Current state: ${currentState::class.simpleName}")
@@ -55,17 +58,21 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
         if (currentState is ChatListState.Success) {
             Log.d(TAG, "   Chats count: ${currentState.chats.size}")
             
+            // Создаем НОВЫЙ список чтобы StateFlow обновился
             val updatedChats = currentState.chats.map { chat ->
                 if (chat.user.id == identityId) {
                     Log.d(TAG, "   ✅ Updating chat: ${chat.user.username}")
+                    Log.d(TAG, "      Old: online=${chat.isOnline}, lastSeen=${chat.lastSeen}")
+                    Log.d(TAG, "      New: online=$online, lastSeen=$lastSeen")
                     chat.copy(isOnline = online, lastSeen = lastSeen)
                 } else {
                     chat
                 }
             }
             
+            // Обновляем StateFlow новым списком
             _chatListState.value = ChatListState.Success(updatedChats)
-            Log.d(TAG, "   ✅ State updated")
+            Log.d(TAG, "   ✅ StateFlow updated with new list")
         } else {
             Log.d(TAG, "   ⚠️ State is not Success, cannot update")
         }

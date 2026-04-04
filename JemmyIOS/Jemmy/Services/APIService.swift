@@ -481,10 +481,13 @@ class APIService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        let clientTime = Int64(Date().timeIntervalSince1970 * 1000)
+        
         let body: [String: Any] = [
             "chat_id": chatId,
             "sender_identity_id": senderIdentityId,
-            "text": text
+            "text": text,
+            "client_time": clientTime
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
