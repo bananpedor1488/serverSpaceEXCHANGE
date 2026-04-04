@@ -41,10 +41,12 @@ struct AvatarView: View {
         defer { isLoading = false }
         
         // Check if we have avatar data
-        guard let avatarBase64 = identity.avatar, !avatarBase64.isEmpty else {
+        guard !identity.avatar.isEmpty else {
             print("AVATAR: ❌ No avatar data for \(identity.username)")
             return
         }
+        
+        let avatarBase64 = identity.avatar
         
         let serverUpdatedAt = identity.avatarUpdatedAt ?? 0
         
