@@ -198,8 +198,7 @@ class CacheManager {
         }
         return UIImage(data: data)
     }
-}
-
+    
     // MARK: - LastSeen Cache
     
     private let lastSeenPrefix = "last_seen_"
@@ -230,3 +229,4 @@ class CacheManager {
         
         print("🧹 Cleared lastSeen cache (\(lastSeenKeys.count) entries)")
     }
+}

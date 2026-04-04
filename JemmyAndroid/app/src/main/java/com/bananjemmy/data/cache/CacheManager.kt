@@ -279,25 +279,6 @@ class CacheManager(context: Context) {
         Log.d("CACHE", "🧹 Cleared avatar for user $userId")
     }
     
-    // Base64 to Bitmap conversion
-    fun base64ToBitmap(base64: String): Bitmap? {
-        return try {
-            val bytes = Base64.decode(base64, Base64.DEFAULT)
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-        } catch (e: Exception) {
-            Log.e("CACHE", "❌ Failed to decode base64 to bitmap: ${e.message}")
-            null
-        }
-    }
-}
-
-data class CacheStats(
-    val chatsCount: Int,
-    val messagesCount: Int,
-    val sizeBytes: Long,
-    val sizeMB: Double
-)
-
     // LastSeen Cache (using SharedPreferences)
     private val lastSeenPrefs = context.getSharedPreferences("last_seen_cache", Context.MODE_PRIVATE)
     
@@ -328,3 +309,22 @@ data class CacheStats(
         }
         Log.d("CACHE", "🧹 Cleared lastSeen cache (${keys.size} entries)")
     }
+    
+    // Base64 to Bitmap conversion
+    fun base64ToBitmap(base64: String): Bitmap? {
+        return try {
+            val bytes = Base64.decode(base64, Base64.DEFAULT)
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        } catch (e: Exception) {
+            Log.e("CACHE", "❌ Failed to decode base64 to bitmap: ${e.message}")
+            null
+        }
+    }
+}
+
+data class CacheStats(
+    val chatsCount: Int,
+    val messagesCount: Int,
+    val sizeBytes: Long,
+    val sizeMB: Double
+)
