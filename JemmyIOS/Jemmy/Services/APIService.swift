@@ -516,8 +516,15 @@ class APIService {
                 print("📥 Response: \(httpResponse.statusCode)")
             }
             
-            let messages = try JSONDecoder().decode([ChatMessage].self, from: data)
+            // Настраиваем декодер для правильного парсинга дат
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            
+            let messages = try decoder.decode([ChatMessage].self, from: data)
             print("✅ Messages loaded:", messages.count)
+            if let first = messages.first {
+                print("   First message createdAt: \(first.createdAt)")
+            }
             return messages
         } catch {
             print("❌ error:", error.localizedDescription)
@@ -547,6 +554,30 @@ class APIService {
             }
         } catch {
             print("❌ Delete chat error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    func getUserStatus(identityId: String) async throws -> (online: Bool, lastSeen: Int64) {
+        print("📡 Request: GET /user/status/\(identityId)")
+        
+        let url = URL(string: "\(baseURL)/api/user/status/\(identityId)")!
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let online = json?["online"] as? Bool ?? false
+            let lastSeen = json?["last_seen"] as? Int64 ?? 0
+            
+            print("✅ Status loaded: online=\(online), lastSeen=\(lastSeen)")
+            return (online, lastSeen)
+        } catch {
+            print("❌ error:", error.localizedDescription)
             throw error
         }
     }
