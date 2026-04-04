@@ -4,27 +4,41 @@ struct OnboardingView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var isEphemeral = false
-    @State private var showAccountDialog = false
+    @State private var isCheckingDevice = true
     
     var body: some View {
         ZStack {
             Color(UIColor.systemBackground)
                 .ignoresSafeArea()
             
-            VStack(spacing: 0) {
+            if isCheckingDevice {
+                // Loading state
+                ProgressView()
+                    .scaleEffect(1.5)
+            } else {
+                VStack(spacing: 0) {
                 Spacer()
                 
-                // Logo
-                ZStack {
-                    RoundedRectangle(cornerRadius: 24)
-                        .fill(Color.blue.opacity(0.15))
+                // Logo - App Icon
+                if let appIcon = UIImage(named: "AppIcon") {
+                    Image(uiImage: appIcon)
+                        .resizable()
                         .frame(width: 100, height: 100)
-                    
-                    Text("J")
-                        .font(.system(size: 48, weight: .bold))
-                        .foregroundColor(.blue)
+                        .cornerRadius(24)
+                        .padding(.bottom, 32)
+                } else {
+                    // Fallback if AppIcon not found
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 24)
+                            .fill(Color.blue.opacity(0.15))
+                            .frame(width: 100, height: 100)
+                        
+                        Text("J")
+                            .font(.system(size: 48, weight: .bold))
+                            .foregroundColor(.blue)
+                    }
+                    .padding(.bottom, 32)
                 }
-                .padding(.bottom, 32)
                 
                 // Title
                 Text("Добро пожаловать в Jemmy")
@@ -101,8 +115,12 @@ struct OnboardingView: View {
                 
                 Spacer()
             }
+            }
         }
-        .alert("Аккаунт найден", isPresented: $showAccountDialog) {
+        .alert("Аккаунт найден", isPresented: Binding(
+            get: { authViewModel.existingAccount != nil && !isCheckingDevice },
+            set: { if !$0 { authViewModel.existingAccount = nil } }
+        )) {
             Button("Войти") {
                 Task {
                     await authViewModel.restoreAccount()
@@ -124,9 +142,7 @@ struct OnboardingView: View {
             print("👋 OnboardingView appeared")
             Task {
                 await authViewModel.checkDevice()
-                if authViewModel.existingAccount != nil {
-                    showAccountDialog = true
-                }
+                isCheckingDevice = false
             }
         }
     }
