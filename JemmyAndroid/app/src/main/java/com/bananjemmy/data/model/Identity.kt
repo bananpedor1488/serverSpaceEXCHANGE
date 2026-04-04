@@ -36,6 +36,10 @@ data class Identity(
     // Use _id if available, otherwise use id
     val id: String
         get() = _id ?: idField ?: ""
+    
+    // Parse avatarUpdatedAt timestamp from string
+    val avatarUpdatedAtLong: Long?
+        get() = avatarUpdatedAt?.toLongOrNull()
 }
 
 data class CreateIdentityRequest(
