@@ -230,11 +230,6 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                     _chatListState.value = ChatListState.Success(chats)
                     _isRefreshing.value = false
                     
-                    // Запрашиваем статусы для всех пользователей
-                    chats.forEach { chat ->
-                        webSocket.requestUserStatus(chat.user.id)
-                    }
-                    
                     // Сохраняем в кеш
                     cacheManager?.let { cache ->
                         viewModelScope.launch {
@@ -244,6 +239,27 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                                 cache.cacheChats(chats)
                             }
                         }
+                    }
+                    
+                    // Загружаем статусы для всех пользователей через HTTP API
+                    Log.d(TAG, "🔍 Loading status for ${chats.size} users via HTTP")
+                    chats.forEach { chat ->
+                        viewModelScope.launch {
+                            repository.getUserStatus(chat.user.id).fold(
+                                onSuccess = { (online, lastSeen) ->
+                                    Log.d(TAG, "✅ Status loaded for ${chat.user.username}: online=$online, lastSeen=$lastSeen")
+                                    updateUserStatus(chat.user.id, online, lastSeen)
+                                },
+                                onFailure = { error ->
+                                    Log.e(TAG, "❌ Failed to load status for ${chat.user.username}: ${error.message}")
+                                }
+                            )
+                        }
+                    }
+                    
+                    // Также запрашиваем через WebSocket для real-time обновлений
+                    chats.forEach { chat ->
+                        webSocket.requestUserStatus(chat.user.id)
                     }
                 },
                 onFailure = { error ->
@@ -271,17 +287,18 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
         if (_isRefreshing.value) return
         
         viewModelScope.launch {
-            // Сохраняем текущие статусы
-            val currentState = _chatListState.value
-            val currentStatuses = if (currentState is ChatListState.Success) {
-                currentState.chats.associate { it.user.id to Pair(it.isOnline, it.lastSeen) }
-            } else {
-                emptyMap()
-            }
-            
             repository.getChats(identityId).fold(
                 onSuccess = { chats ->
-                    // Восстанавливаем статусы
+                    val currentState = _chatListState.value
+                    
+                    // Сохраняем текущие статусы
+                    val currentStatuses = if (currentState is ChatListState.Success) {
+                        currentState.chats.associate { it.user.id to Pair(it.isOnline, it.lastSeen) }
+                    } else {
+                        emptyMap()
+                    }
+                    
+                    // Восстанавливаем статусы в новых чатах
                     val chatsWithStatus = chats.map { chat ->
                         val (isOnline, lastSeen) = currentStatuses[chat.user.id] ?: Pair(false, 0L)
                         chat.copy(isOnline = isOnline, lastSeen = lastSeen)
@@ -289,11 +306,6 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                     
                     _chatListState.value = ChatListState.Success(chatsWithStatus)
                     _isRefreshing.value = false
-                    
-                    // Запрашиваем свежие статусы для всех пользователей
-                    chats.forEach { chat ->
-                        webSocket.requestUserStatus(chat.user.id)
-                    }
                     
                     // Сохраняем в кеш
                     cacheManager?.let { cache ->
@@ -305,9 +317,14 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                             }
                         }
                     }
+                    
+                    // Запрашиваем свежие статусы только через WebSocket (не HTTP чтобы не перегружать)
+                    chats.forEach { chat ->
+                        webSocket.requestUserStatus(chat.user.id)
+                    }
                 },
                 onFailure = { error ->
-                    _isRefreshing.value = true
+                    _isRefreshing.value = false
                 }
             )
         }

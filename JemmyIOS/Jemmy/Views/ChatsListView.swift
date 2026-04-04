@@ -403,7 +403,7 @@ struct ChatsListView: View {
                 CacheManager.shared.saveChats(updatedChats)
                 updateBadgeCount()
                 
-                // Запрашиваем свежие статусы
+                // Запрашиваем свежие статусы только через WebSocket (не HTTP чтобы не перегружать)
                 for chat in updatedChats {
                     WebSocketManager.shared.requestUserStatus(identityId: chat.user.id)
                 }

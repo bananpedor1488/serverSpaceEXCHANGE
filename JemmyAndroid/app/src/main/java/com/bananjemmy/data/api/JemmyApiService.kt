@@ -81,4 +81,14 @@ interface JemmyApiService {
     
     @DELETE("api/chat/{id}/pin")
     suspend fun unpinChat(@Path("id") chatId: String): Response<Unit>
+    
+    // User status
+    @GET("api/user/status/{identity_id}")
+    suspend fun getUserStatus(@Path("identity_id") identityId: String): Response<UserStatusResponse>
 }
+
+data class UserStatusResponse(
+    val identity_id: String,
+    val online: Boolean,
+    val last_seen: Long
+)

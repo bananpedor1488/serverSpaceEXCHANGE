@@ -385,4 +385,24 @@ class JemmyRepository {
             }
         }
     }
+    
+    // Get user status
+    suspend fun getUserStatus(identityId: String): Result<Pair<Boolean, Long>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Getting user status: $identityId")
+                val response = api.getUserStatus(identityId)
+                if (response.isSuccessful && response.body() != null) {
+                    val status = response.body()!!
+                    Log.d(TAG, "User status: online=${status.online}, lastSeen=${status.last_seen}")
+                    Result.success(Pair(status.online, status.last_seen))
+                } else {
+                    Result.failure(Exception("Failed to get user status"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting user status", e)
+                Result.failure(e)
+            }
+        }
+    }
 }
