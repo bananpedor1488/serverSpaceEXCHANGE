@@ -489,14 +489,7 @@ struct ChatListRow: View {
         HStack(spacing: 12) {
             // Avatar with online indicator
             ZStack(alignment: .bottomTrailing) {
-                Circle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(width: 56, height: 56)
-                    .overlay(
-                        Text(String(chat.user.username.prefix(2)).uppercased())
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.white)
-                    )
+                AvatarView(identity: chat.user, size: 56)
                 
                 // Online indicator
                 if chat.isOnline == true {

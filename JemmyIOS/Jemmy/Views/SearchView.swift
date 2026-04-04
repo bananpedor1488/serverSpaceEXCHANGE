@@ -87,14 +87,7 @@ struct SearchView: View {
                         
                         if let identity = foundIdentity {
                             VStack(spacing: 20) {
-                                Circle()
-                                    .fill(Color.white.opacity(0.1))
-                                    .frame(width: 80, height: 80)
-                                    .overlay(
-                                        Text(String(identity.username.prefix(2)).uppercased())
-                                            .font(.system(size: 32, weight: .semibold))
-                                            .foregroundColor(.white)
-                                    )
+                                AvatarView(identity: identity, size: 80)
                                 
                                 VStack(spacing: 8) {
                                     Text(identity.username)

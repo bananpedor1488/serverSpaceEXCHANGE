@@ -197,14 +197,7 @@ struct ChatView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showProfile = true }) {
                     ZStack(alignment: .bottomTrailing) {
-                        Circle()
-                            .fill(Color.white.opacity(0.1))
-                            .frame(width: 36, height: 36)
-                            .overlay(
-                                Text(String(otherUser.username.prefix(2)).uppercased())
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.white)
-                            )
+                        AvatarView(identity: otherUser, size: 36)
                         
                         if isOnline {
                             Circle()

@@ -61,14 +61,7 @@ struct UserProfileView: View {
                     // Avatar & Info
                     VStack(spacing: 12) {
                         ZStack(alignment: .bottomTrailing) {
-                            Circle()
-                                .fill(Color.white.opacity(0.1))
-                                .frame(width: 100, height: 100)
-                                .overlay(
-                                    Text(String(user.username.prefix(2)).uppercased())
-                                        .font(.system(size: 40, weight: .bold))
-                                        .foregroundColor(.white)
-                                )
+                            AvatarView(identity: user, size: 100)
                             
                             if isOnline {
                                 Circle()
