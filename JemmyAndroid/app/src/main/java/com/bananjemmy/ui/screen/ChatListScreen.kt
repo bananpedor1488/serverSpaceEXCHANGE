@@ -308,7 +308,7 @@ fun ChatListItem(
                 }
                 
                 // Online indicator
-                if (chat.isOnline) {
+                if (chat.isOnline == true) {
                     Surface(
                         modifier = Modifier
                             .size(14.dp)

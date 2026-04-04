@@ -83,6 +83,17 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
             }
             _messagesState.value = MessagesState.Success(updatedMessages)
             Log.d(TAG, "✅ Updated message status: $messageId")
+            
+            // Сохраняем обновленные сообщения в кеш
+            val chatId = updatedMessages.firstOrNull()?.chatId
+            if (chatId != null) {
+                cacheManager?.let { cache ->
+                    viewModelScope.launch {
+                        cache.cacheMessages(chatId, updatedMessages)
+                        Log.d(TAG, "💾 Saved updated messages to cache")
+                    }
+                }
+            }
         }
     }
     

@@ -54,8 +54,8 @@ struct ChatListItem: Codable, Identifiable {
     var isPinned: Bool
     var unreadCount: Int
     var isMuted: Bool
-    var isOnline: Bool = false
-    var lastSeen: Int64 = 0
+    var isOnline: Bool? = nil
+    var lastSeen: Int64? = nil
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -76,8 +76,8 @@ struct ChatListItem: Codable, Identifiable {
         isPinned = (try? container.decode(Bool.self, forKey: .isPinned)) ?? false
         unreadCount = (try? container.decode(Int.self, forKey: .unreadCount)) ?? 0
         isMuted = (try? container.decode(Bool.self, forKey: .isMuted)) ?? false
-        isOnline = false
-        lastSeen = 0
+        isOnline = nil
+        lastSeen = nil
     }
     
     var lastMessageDate: Date {
@@ -86,9 +86,9 @@ struct ChatListItem: Codable, Identifiable {
     }
     
     func formatLastSeen() -> String {
-        if isOnline {
+        if isOnline == true {
             return "в сети"
-        } else if lastSeen > 0 {
+        } else if let lastSeen = lastSeen, lastSeen > 0 {
             let date = Date(timeIntervalSince1970: TimeInterval(lastSeen) / 1000)
             let now = Date()
             let diff = now.timeIntervalSince(date)
@@ -124,7 +124,7 @@ struct ChatListItem: Codable, Identifiable {
                 return formatter.string(from: date)
             }
         } else {
-            return "был(а) давно"
+            return "" // Не показываем статус пока не загрузился
         }
     }
 }

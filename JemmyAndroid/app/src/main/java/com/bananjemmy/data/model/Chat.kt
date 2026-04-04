@@ -25,8 +25,8 @@ data class Chat(
     val isMuted: Boolean = false,
     
     // Online status (not from API, managed locally)
-    var isOnline: Boolean = false,
-    var lastSeen: Long = 0
+    var isOnline: Boolean? = null,
+    var lastSeen: Long? = null
 )
 
 data class CreateChatRequest(

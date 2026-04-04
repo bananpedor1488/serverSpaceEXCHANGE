@@ -61,32 +61,32 @@ fun ChatScreen(
     
     // Format last seen time
     val lastSeenText = remember(currentLastSeen, currentIsOnline) {
-        if (currentIsOnline) {
-            "в сети"
-        } else if (currentLastSeen > 0) {
-            val date = Date(currentLastSeen)
-            val now = Date()
-            val diff = now.time - date.time
-            val seconds = diff / 1000
-            val minutes = seconds / 60
-            val hours = minutes / 60
-            val days = hours / 24
-            
-            when {
-                seconds < 30 -> "только что"
-                minutes < 1 -> "меньше минуты назад"
-                minutes == 1L -> "минуту назад"
-                minutes < 5 -> "$minutes минуты назад"
-                minutes < 60 -> "$minutes минут назад"
-                hours == 1L -> "час назад"
-                hours < 5 -> "$hours часа назад"
-                hours < 24 -> "$hours часов назад"
-                days == 1L -> "вчера"
-                days < 7 -> "$days дней назад"
-                else -> SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(date)
+        when {
+            currentIsOnline == true -> "в сети"
+            currentLastSeen != null && currentLastSeen > 0 -> {
+                val date = Date(currentLastSeen)
+                val now = Date()
+                val diff = now.time - date.time
+                val seconds = diff / 1000
+                val minutes = seconds / 60
+                val hours = minutes / 60
+                val days = hours / 24
+                
+                when {
+                    seconds < 30 -> "только что"
+                    minutes < 1 -> "меньше минуты назад"
+                    minutes == 1L -> "минуту назад"
+                    minutes < 5 -> "$minutes минуты назад"
+                    minutes < 60 -> "$minutes минут назад"
+                    hours == 1L -> "час назад"
+                    hours < 5 -> "$hours часа назад"
+                    hours < 24 -> "$hours часов назад"
+                    days == 1L -> "вчера"
+                    days < 7 -> "$days дней назад"
+                    else -> SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(date)
+                }
             }
-        } else {
-            "был(а) давно"
+            else -> "" // Не показываем статус пока не загрузился
         }
     }
     

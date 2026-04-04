@@ -508,7 +508,7 @@ struct ChatListRow: View {
                     )
                 
                 // Online indicator
-                if chat.isOnline {
+                if chat.isOnline == true {
                     Circle()
                         .fill(Color.green)
                         .frame(width: 14, height: 14)
