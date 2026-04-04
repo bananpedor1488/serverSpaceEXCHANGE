@@ -926,7 +926,7 @@ struct ExportIPAButton: View {
     @State private var errorMessage = ""
     
     var body: some View {
-        Button(action: exportIPA) {
+        Button(action: handleExport) {
             HStack(spacing: 12) {
                 if isExporting {
                     ProgressView()
@@ -976,7 +976,7 @@ struct ExportIPAButton: View {
         }
     }
     
-    private func exportIPA() {
+    private func handleExport() {
         Task { @MainActor in
             do {
                 let ipaPath = try await exportIPA()
