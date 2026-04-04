@@ -91,5 +91,8 @@ data class UpdateProfileRequest(
     val username: String? = null,
     
     @SerializedName("bio")
-    val bio: String? = null
+    val bio: String? = null,
+    
+    @SerializedName("avatar")
+    val avatar: String? = null
 )

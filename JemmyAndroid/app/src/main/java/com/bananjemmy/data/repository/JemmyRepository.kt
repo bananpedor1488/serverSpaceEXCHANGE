@@ -97,11 +97,14 @@ class JemmyRepository {
         }
     }
     
-    suspend fun updateProfile(identityId: String, username: String? = null, bio: String? = null): Result<Identity> {
+    suspend fun updateProfile(identityId: String, username: String? = null, bio: String? = null, avatar: String? = null): Result<Identity> {
         return withContext(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Updating profile for: $identityId")
-                val response = api.updateProfile(UpdateProfileRequest(identityId, username, bio))
+                if (avatar != null) {
+                    Log.d(TAG, "Avatar included, size: ${avatar.length} chars")
+                }
+                val response = api.updateProfile(UpdateProfileRequest(identityId, username, bio, avatar))
                 if (response.isSuccessful && response.body() != null) {
                     Log.d(TAG, "Profile updated: ${response.body()?.username}")
                     Result.success(response.body()!!)

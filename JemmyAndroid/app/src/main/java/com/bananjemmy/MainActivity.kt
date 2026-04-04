@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import com.bananjemmy.data.model.Chat
 import com.bananjemmy.data.model.Identity
 import com.bananjemmy.data.repository.JemmyRepository
@@ -418,16 +419,25 @@ fun MainScreen(
                 ProfileEditScreen(
                     identity = identity,
                     onCheckUsername = { username ->
-                        val repository = com.bananjemmy.data.repository.JemmyRepository()
-                        repository.checkUsername(username)
-                    },
-                    onSave = { username, bio ->
-                        val repository = com.bananjemmy.data.repository.JemmyRepository()
-                        val result = repository.updateProfile(identity.id, username, bio)
-                        result.onSuccess { updatedIdentity ->
-                            authViewModel.updateLocalIdentity(updatedIdentity)
+                        runBlocking {
+                            val repository = com.bananjemmy.data.repository.JemmyRepository()
+                            repository.checkUsername(username)
                         }
-                        result
+                    },
+                    onSave = { username, bio, avatar ->
+                        runBlocking {
+                            val repository = com.bananjemmy.data.repository.JemmyRepository()
+                            val result = repository.updateProfile(identity.id, username, bio, avatar)
+                            result.onSuccess { updatedIdentity ->
+                                authViewModel.updateLocalIdentity(updatedIdentity)
+                                
+                                // Save avatar to cache if updated
+                                if (avatar != null && updatedIdentity.avatarUpdatedAt != null) {
+                                    cacheManager.saveAvatar(identity.id, avatar, updatedIdentity.avatarUpdatedAt)
+                                }
+                            }
+                            result
+                        }
                     },
                     onDismiss = { showEditProfile = false }
                 )
