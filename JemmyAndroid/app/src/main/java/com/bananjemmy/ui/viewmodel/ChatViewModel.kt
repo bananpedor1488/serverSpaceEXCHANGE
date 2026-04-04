@@ -141,19 +141,31 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
     }
     
     fun markChatMessagesAsRead(chatId: String, currentUserId: String) {
+        Log.d(TAG, "🔍 markChatMessagesAsRead called")
+        Log.d(TAG, "   Chat ID: $chatId")
+        Log.d(TAG, "   Current User: $currentUserId")
+        
         viewModelScope.launch {
             val currentState = _messagesState.value
+            Log.d(TAG, "   Messages state: ${currentState::class.simpleName}")
+            
             if (currentState is MessagesState.Success) {
-                val unreadMessages = currentState.messages
-                    .filter { it.senderId != currentUserId && !it.read }
+                val allMessages = currentState.messages
+                Log.d(TAG, "   Total messages: ${allMessages.size}")
+                
+                val unreadMessages = allMessages.filter { it.senderId != currentUserId && !it.read }
+                Log.d(TAG, "   Unread messages: ${unreadMessages.size}")
                 
                 if (unreadMessages.isNotEmpty()) {
                     val messageIds = unreadMessages.map { it.id }
-                    Log.d(TAG, "📖 Marking ${messageIds.size} messages as read")
+                    Log.d(TAG, "📖 Sending read request for ${messageIds.size} messages")
+                    Log.d(TAG, "   Message IDs: $messageIds")
                     webSocket.markMessagesRead(messageIds, chatId)
                 } else {
                     Log.d(TAG, "✅ No unread messages to mark")
                 }
+            } else {
+                Log.d(TAG, "⚠️ Cannot mark as read - state is not Success")
             }
         }
     }
@@ -439,13 +451,33 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
     
     fun refreshMessages(chatId: String) {
         viewModelScope.launch {
-            // Тихое обновление без показа Loading
+            // Загружаем сообщения из БД
             repository.getMessages(chatId).fold(
-                onSuccess = { messages ->
+                onSuccess = { freshMessages ->
                     val currentState = _messagesState.value
                     if (currentState is MessagesState.Success) {
-                        // Всегда обновляем, чтобы получить актуальные статусы
-                        _messagesState.value = MessagesState.Success(messages)
+                        val currentMessages = currentState.messages
+                        
+                        // МЕРЖИМ: берем read/delivered статусы из текущего состояния (WebSocket обновления)
+                        // а остальное (новые сообщения, текст) из БД
+                        val mergedMessages = freshMessages.map { freshMsg ->
+                            val currentMsg = currentMessages.find { it.id == freshMsg.id }
+                            if (currentMsg != null) {
+                                // Сообщение уже есть - берем статусы из текущего (WebSocket мог обновить)
+                                freshMsg.copy(
+                                    delivered = currentMsg.delivered || freshMsg.delivered,
+                                    read = currentMsg.read || freshMsg.read
+                                )
+                            } else {
+                                // Новое сообщение - берем как есть
+                                freshMsg
+                            }
+                        }
+                        
+                        _messagesState.value = MessagesState.Success(mergedMessages)
+                        Log.d(TAG, "✅ Merged messages: ${mergedMessages.size}")
+                    } else {
+                        _messagesState.value = MessagesState.Success(freshMessages)
                     }
                 },
                 onFailure = { 

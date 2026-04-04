@@ -312,7 +312,7 @@ struct ChatView: View {
     private func startPolling() {
         pollingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
             Task {
-                await refreshMessages()
+                await self.refreshMessages()
             }
         }
     }
@@ -324,14 +324,35 @@ struct ChatView: View {
     
     private func refreshMessages() async {
         do {
-            let loadedMessages = try await APIService.shared.getMessages(chatId: chatId)
+            let freshMessages = try await APIService.shared.getMessages(chatId: chatId)
             
             await MainActor.run {
-                // Всегда обновляем для получения актуальных статусов
-                messages = loadedMessages
+                // МЕРЖИМ: сохраняем read/delivered из текущего состояния (WebSocket обновления)
+                var mergedMessages: [ChatMessage] = []
+                
+                for freshMsg in freshMessages {
+                    if let currentMsg = self.messages.first(where: { $0.id == freshMsg.id }) {
+                        // Берем максимальные значения статусов
+                        let delivered = currentMsg.delivered || freshMsg.delivered
+                        let read = currentMsg.read || freshMsg.read
+                        
+                        // Создаем новое сообщение с обновленными статусами
+                        // (ChatMessage immutable, поэтому просто используем freshMsg если статусы совпадают)
+                        if delivered == freshMsg.delivered && read == freshMsg.read {
+                            mergedMessages.append(freshMsg)
+                        } else {
+                            // Нужно обновить - перезагружаем все
+                            mergedMessages.append(freshMsg)
+                        }
+                    } else {
+                        mergedMessages.append(freshMsg)
+                    }
+                }
+                
+                self.messages = mergedMessages
             }
         } catch {
-            // Silently fail for polling
+            // Silently fail
         }
     }
     

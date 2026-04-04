@@ -1,5 +1,6 @@
 package com.bananjemmy.ui.screen
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -58,6 +59,7 @@ fun ChatScreen(
     val coroutineScope = rememberCoroutineScope()
     var showContactProfile by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
+    var hasMarkedAsRead by remember { mutableStateOf(false) }
     
     // Format last seen time
     val lastSeenText = remember(currentLastSeen, currentIsOnline) {
@@ -94,9 +96,18 @@ fun ChatScreen(
         chatViewModel.loadMessages(chatId)
         chatViewModel.joinChat(chatId)
         chatViewModel.requestUserStatus(otherUser.id)
-        
-        // Mark all messages as read when opening chat
-        chatViewModel.markChatMessagesAsRead(chatId, currentUserId)
+    }
+    
+    // Mark messages as read AFTER they are loaded (only once)
+    LaunchedEffect(messagesState, hasMarkedAsRead) {
+        if (!hasMarkedAsRead && messagesState is MessagesState.Success) {
+            val messages = (messagesState as MessagesState.Success).messages
+            if (messages.isNotEmpty()) {
+                Log.d("ChatScreen", "📖 Marking messages as read on first load")
+                chatViewModel.markChatMessagesAsRead(chatId, currentUserId)
+                hasMarkedAsRead = true
+            }
+        }
     }
     
     // Polling для обновления статуса каждые 2 секунды
@@ -107,7 +118,7 @@ fun ChatScreen(
         }
     }
     
-    // Polling для обновления сообщений каждые 0.5 секунды
+    // Polling для обновления сообщений каждые 0.5 секунды (для новых сообщений)
     LaunchedEffect(chatId) {
         while (true) {
             kotlinx.coroutines.delay(500)

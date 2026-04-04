@@ -230,14 +230,27 @@ class WebSocketManager private constructor() {
     
     fun markMessagesRead(messageIds: List<String>, chatId: String) {
         try {
+            Log.d(TAG, "📖 markMessagesRead called")
+            Log.d(TAG, "   Message IDs: $messageIds")
+            Log.d(TAG, "   Chat ID: $chatId")
+            Log.d(TAG, "   Socket connected: $isConnected")
+            
+            if (!isConnected) {
+                Log.e(TAG, "❌ Cannot mark messages - socket not connected!")
+                return
+            }
+            
             val data = JSONObject().apply {
                 put("message_ids", org.json.JSONArray(messageIds))
                 put("chat_id", chatId)
             }
+            
+            Log.d(TAG, "   Sending data: $data")
             socket?.emit("messages_read", data)
-            Log.d(TAG, "📖 Marked ${messageIds.size} messages as read in chat $chatId")
+            Log.d(TAG, "✅ Emitted messages_read event for ${messageIds.size} messages")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error marking messages as read", e)
+            e.printStackTrace()
         }
     }
     
@@ -326,7 +339,16 @@ class WebSocketManager private constructor() {
     
     private fun handleMessagesRead(args: Array<Any>) {
         try {
-            val data = args.firstOrNull() as? JSONObject ?: return
+            Log.d(TAG, "📖 handleMessagesRead called")
+            Log.d(TAG, "   Args: ${args.contentToString()}")
+            
+            val data = args.firstOrNull() as? JSONObject ?: run {
+                Log.e(TAG, "❌ No data in args")
+                return
+            }
+            
+            Log.d(TAG, "   Data: $data")
+            
             val messageIdsArray = data.getJSONArray("message_ids")
             val messageIds = mutableListOf<String>()
             
@@ -334,10 +356,14 @@ class WebSocketManager private constructor() {
                 messageIds.add(messageIdsArray.getString(i))
             }
             
-            Log.d(TAG, "📖 Messages read event: ${messageIds.size} messages")
+            Log.d(TAG, "✅ Parsed ${messageIds.size} message IDs")
+            Log.d(TAG, "   IDs: $messageIds")
+            
             onMessagesRead?.invoke(messageIds)
+            Log.d(TAG, "✅ Callback invoked")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error handling messages read", e)
+            e.printStackTrace()
         }
     }
 }
