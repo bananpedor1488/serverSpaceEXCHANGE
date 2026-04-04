@@ -408,7 +408,8 @@ fun MainScreen(
                     chatViewModel.loadChats(identity.id)
                     showSearch = false
                     selectedTab = 0
-                }
+                },
+                cacheManager = cacheManager
             )
         } else {
             androidx.compose.animation.Crossfade(
@@ -425,7 +426,8 @@ fun MainScreen(
                             selectedChat = null 
                         },
                         isOnline = chat.isOnline ?: false,
-                        lastSeen = chat.lastSeen ?: 0L
+                        lastSeen = chat.lastSeen ?: 0L,
+                        cacheManager = cacheManager
                     )
                 } else {
                     Box(
@@ -475,7 +477,8 @@ fun MainScreen(
                                     onNavigateToLinkGenerator = { showLinkGenerator = true },
                                     onNavigateToSearch = { showSearch = true },
                                     onNavigateToEdit = { showEditProfile = true },
-                                    onNavigateToDataStorage = { showDataStorage = true }
+                                    onNavigateToDataStorage = { showDataStorage = true },
+                                    cacheManager = cacheManager
                                 )
                             }
                         }

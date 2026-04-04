@@ -206,6 +206,12 @@ struct UserProfileView: View {
     }
     
     private func setupWebSocket() {
+        // Загружаем lastSeen из кеша при инициализации
+        if let cachedLastSeen = CacheManager.shared.getLastSeen(userId: user.id) {
+            lastSeen = cachedLastSeen
+            print("📦 Loaded lastSeen from cache for \(user.username): \(cachedLastSeen)")
+        }
+        
         WebSocketManager.shared.onUserStatus = { identityId, online, lastSeenTimestamp in
             if identityId == self.user.id {
                 self.isOnline = online

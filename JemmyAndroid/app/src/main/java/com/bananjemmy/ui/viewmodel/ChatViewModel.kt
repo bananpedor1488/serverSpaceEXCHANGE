@@ -42,6 +42,12 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
             Log.d(TAG, "📲 Received status in ViewModel: $identityId, online=$online")
             // Обновляем кеш статусов
             _userStatuses.value = _userStatuses.value + (identityId to Pair(online, lastSeen))
+            // Сохраняем lastSeen в кеш
+            if (lastSeen > 0) {
+                viewModelScope.launch {
+                    cacheManager?.saveLastSeen(identityId, lastSeen)
+                }
+            }
             updateUserStatus(identityId, online, lastSeen)
         }
         

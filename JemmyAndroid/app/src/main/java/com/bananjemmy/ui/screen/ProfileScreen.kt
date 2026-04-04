@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bananjemmy.data.model.Identity
 import com.bananjemmy.ui.viewmodel.AuthViewModel
+import com.bananjemmy.ui.components.AvatarImage
+import com.bananjemmy.data.cache.CacheManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,7 +30,8 @@ fun ProfileScreen(
     onNavigateToLinkGenerator: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onNavigateToEdit: () -> Unit = {},
-    onNavigateToDataStorage: () -> Unit = {}
+    onNavigateToDataStorage: () -> Unit = {},
+    cacheManager: CacheManager
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     
@@ -57,20 +60,11 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(24.dp))
             
             // Avatar
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = identity.username.take(2).uppercase(),
-                    fontSize = 40.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
+            AvatarImage(
+                identity = identity,
+                cacheManager = cacheManager,
+                size = 100.dp
+            )
             
             Spacer(modifier = Modifier.height(16.dp))
             

@@ -213,6 +213,11 @@ class WebSocketManager: ObservableObject {
         print("   Online: \(online)")
         print("   Last seen: \(lastSeen)")
         
+        // Сохраняем lastSeen в кеш
+        if lastSeen > 0 {
+            CacheManager.shared.saveLastSeen(userId: identityId, lastSeen: lastSeen)
+        }
+        
         DispatchQueue.main.async {
             print("📤 Calling onUserStatus callback")
             self.onUserStatus?(identityId, online, lastSeen)

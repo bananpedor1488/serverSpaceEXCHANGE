@@ -373,6 +373,12 @@ struct ChatView: View {
                 print("   First message time: \(first.createdAt)")
             }
         }
+        
+        // Загружаем lastSeen из кеша
+        if let cachedLastSeen = CacheManager.shared.getLastSeen(userId: otherUser.id) {
+            lastSeen = cachedLastSeen
+            print("📦 Loaded lastSeen from cache: \(cachedLastSeen)")
+        }
     }
     
     private func loadMessages() {

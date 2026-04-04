@@ -27,6 +27,7 @@ import com.bananjemmy.ui.viewmodel.MessagesState
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import com.bananjemmy.ui.components.AvatarImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,14 +38,19 @@ fun ChatScreen(
     chatViewModel: ChatViewModel,
     onBack: () -> Unit,
     isOnline: Boolean = false,
-    lastSeen: Long = 0
+    lastSeen: Long = 0,
+    cacheManager: com.bananjemmy.data.cache.CacheManager
 ) {
     val messagesState by chatViewModel.messagesState.collectAsState()
     val isSending by chatViewModel.isSending.collectAsState()
     
     // Get status from centralized cache
     val userStatuses by chatViewModel.userStatuses.collectAsState()
-    val (currentIsOnline, currentLastSeen) = userStatuses[otherUser.id] ?: Pair(isOnline, lastSeen)
+    val (currentIsOnline, currentLastSeen) = userStatuses[otherUser.id] ?: run {
+        // Если нет в памяти, пробуем загрузить из кеша
+        val cachedLastSeen = cacheManager.getLastSeen(otherUser.id) ?: lastSeen
+        Pair(isOnline, cachedLastSeen)
+    }
     
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -205,20 +211,11 @@ fun ChatScreen(
                     },
                     actions = {
                         IconButton(onClick = { showContactProfile = true }) {
-                            Surface(
-                                modifier = Modifier.size(36.dp),
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = otherUser.username.take(2).uppercase(),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                            }
+                            AvatarImage(
+                                identity = otherUser,
+                                cacheManager = cacheManager,
+                                size = 36.dp
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -383,7 +380,8 @@ fun ChatScreen(
                 onDismiss = { showContactProfile = false },
                 chatViewModel = chatViewModel,
                 isOnline = currentIsOnline,
-                lastSeen = currentLastSeen
+                lastSeen = currentLastSeen,
+                cacheManager = cacheManager
             )
         }
     }

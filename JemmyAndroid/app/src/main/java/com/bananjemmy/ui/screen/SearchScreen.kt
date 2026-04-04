@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bananjemmy.data.model.Identity
 import kotlinx.coroutines.launch
+import com.bananjemmy.ui.components.AvatarImage
+import com.bananjemmy.data.cache.CacheManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,7 +26,8 @@ fun SearchScreen(
     onSearch: suspend (String) -> Result<Identity>,
     onStartChat: suspend (Identity) -> Result<String>,
     onDismiss: () -> Unit,
-    onChatCreated: (String) -> Unit
+    onChatCreated: (String) -> Unit,
+    cacheManager: CacheManager
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var foundIdentity by remember { mutableStateOf<Identity?>(null) }
@@ -182,20 +185,11 @@ fun SearchScreen(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             // Avatar
-                            Surface(
-                                modifier = Modifier.size(72.dp),
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = identity.username.take(2).uppercase(),
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                            }
+                            AvatarImage(
+                                identity = identity,
+                                cacheManager = cacheManager,
+                                size = 72.dp
+                            )
                             
                             // Username
                             Text(

@@ -297,3 +297,34 @@ data class CacheStats(
     val sizeBytes: Long,
     val sizeMB: Double
 )
+
+    // LastSeen Cache (using SharedPreferences)
+    private val lastSeenPrefs = context.getSharedPreferences("last_seen_cache", Context.MODE_PRIVATE)
+    
+    fun saveLastSeen(userId: String, lastSeen: Long) {
+        lastSeenPrefs.edit().apply {
+            putLong("last_seen_$userId", lastSeen)
+            apply()
+        }
+        Log.d("CACHE", "💾 Saved lastSeen for user $userId: $lastSeen")
+    }
+    
+    fun getLastSeen(userId: String): Long? {
+        val lastSeen = lastSeenPrefs.getLong("last_seen_$userId", -1)
+        return if (lastSeen != -1L) {
+            Log.d("CACHE", "📦 Loaded lastSeen from cache for user $userId: $lastSeen")
+            lastSeen
+        } else {
+            Log.d("CACHE", "⚠️ No cached lastSeen for user $userId")
+            null
+        }
+    }
+    
+    fun clearLastSeenCache() {
+        val keys = lastSeenPrefs.all.keys.filter { it.startsWith("last_seen_") }
+        lastSeenPrefs.edit().apply {
+            keys.forEach { remove(it) }
+            apply()
+        }
+        Log.d("CACHE", "🧹 Cleared lastSeen cache (${keys.size} entries)")
+    }

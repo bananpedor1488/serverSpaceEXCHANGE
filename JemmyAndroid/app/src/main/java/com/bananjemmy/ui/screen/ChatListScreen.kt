@@ -26,6 +26,7 @@ import com.bananjemmy.ui.viewmodel.ChatListState
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
+import com.bananjemmy.ui.components.AvatarImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,7 +111,8 @@ fun ChatListScreen(
                                     repository.togglePinChat(chat.id, chat.isPinned)
                                     onRefresh()
                                 }
-                            }
+                            },
+                            cacheManager = cacheManager
                         )
                     }
                 }
@@ -135,7 +137,8 @@ fun ChatListScreen(
                                     repository.togglePinChat(chat.id, chat.isPinned)
                                     onRefresh()
                                 }
-                            }
+                            },
+                            cacheManager = cacheManager
                         )
                     }
                 }
@@ -183,7 +186,8 @@ fun ChatList(
     currentUserId: String,
     onChatClick: (Chat) -> Unit,
     onDeleteChat: (Chat) -> Unit,
-    onTogglePin: (Chat) -> Unit
+    onTogglePin: (Chat) -> Unit,
+    cacheManager: com.bananjemmy.data.cache.CacheManager
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -196,7 +200,8 @@ fun ChatList(
                 onClick = { onChatClick(chat) },
                 onDelete = { onDeleteChat(chat) },
                 onTogglePin = { onTogglePin(chat) },
-                modifier = Modifier.animateItem()
+                modifier = Modifier.animateItem(),
+                cacheManager = cacheManager
             )
             Divider(
                 modifier = Modifier.padding(start = 88.dp),
@@ -213,7 +218,8 @@ fun ChatListItem(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onTogglePin: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    cacheManager: com.bananjemmy.data.cache.CacheManager
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
@@ -292,20 +298,11 @@ fun ChatListItem(
         ) {
             // Avatar with unread badge and online indicator
             Box {
-                Surface(
-                    modifier = Modifier.size(56.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = chat.user.username.take(2).uppercase(),
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
+                AvatarImage(
+                    identity = chat.user,
+                    cacheManager = cacheManager,
+                    size = 56.dp
+                )
                 
                 // Online indicator
                 if (chat.isOnline == true) {

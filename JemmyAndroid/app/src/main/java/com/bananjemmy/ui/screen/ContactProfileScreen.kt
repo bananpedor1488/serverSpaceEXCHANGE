@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bananjemmy.data.model.Identity
 import com.bananjemmy.ui.viewmodel.ChatViewModel
+import com.bananjemmy.ui.components.AvatarImage
+import com.bananjemmy.data.cache.CacheManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,13 +33,18 @@ fun ContactProfileScreen(
     onDismiss: () -> Unit,
     chatViewModel: ChatViewModel,
     isOnline: Boolean = false,
-    lastSeen: Long = 0
+    lastSeen: Long = 0,
+    cacheManager: CacheManager
 ) {
     var selectedMediaTab by remember { mutableIntStateOf(0) }
     
     // Get status from centralized cache
     val userStatuses by chatViewModel.userStatuses.collectAsState()
-    val (currentIsOnline, currentLastSeen) = userStatuses[user.id] ?: Pair(isOnline, lastSeen)
+    val (currentIsOnline, currentLastSeen) = userStatuses[user.id] ?: run {
+        // Если нет в памяти, пробуем загрузить из кеша
+        val cachedLastSeen = cacheManager.getLastSeen(user.id) ?: lastSeen
+        Pair(isOnline, cachedLastSeen)
+    }
     
     val lastSeenText = remember(currentLastSeen, currentIsOnline) {
         if (currentIsOnline) {
@@ -105,20 +112,11 @@ fun ContactProfileScreen(
                     .padding(vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Surface(
-                    modifier = Modifier.size(100.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = user.username.take(2).uppercase(),
-                            fontSize = 40.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
+                AvatarImage(
+                    identity = user,
+                    cacheManager = cacheManager,
+                    size = 100.dp
+                )
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 

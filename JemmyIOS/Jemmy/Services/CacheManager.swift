@@ -199,3 +199,34 @@ class CacheManager {
         return UIImage(data: data)
     }
 }
+
+    // MARK: - LastSeen Cache
+    
+    private let lastSeenPrefix = "last_seen_"
+    
+    func saveLastSeen(userId: String, lastSeen: Int64) {
+        UserDefaults.standard.set(lastSeen, forKey: lastSeenPrefix + userId)
+        print("💾 Saved lastSeen for user \(userId): \(lastSeen)")
+    }
+    
+    func getLastSeen(userId: String) -> Int64? {
+        let lastSeen = UserDefaults.standard.object(forKey: lastSeenPrefix + userId) as? Int64
+        if let lastSeen = lastSeen {
+            print("📦 Loaded lastSeen from cache for user \(userId): \(lastSeen)")
+            return lastSeen
+        } else {
+            print("⚠️ No cached lastSeen for user \(userId)")
+            return nil
+        }
+    }
+    
+    func clearLastSeenCache() {
+        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys
+        let lastSeenKeys = allKeys.filter { $0.hasPrefix(lastSeenPrefix) }
+        
+        for key in lastSeenKeys {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        
+        print("🧹 Cleared lastSeen cache (\(lastSeenKeys.count) entries)")
+    }
