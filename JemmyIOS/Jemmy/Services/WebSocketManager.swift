@@ -140,8 +140,7 @@ class WebSocketManager: ObservableObject {
             self.onMuteUpdate?(chatId, isMuted)
         }
     }
-}
-
+    
     private func handleUserStatus(data: [Any]) {
         guard let statusData = data.first as? [String: Any],
               let identityId = statusData["identity_id"] as? String,
@@ -152,3 +151,4 @@ class WebSocketManager: ObservableObject {
             self.onUserStatus?(identityId, online, lastSeen)
         }
     }
+}
