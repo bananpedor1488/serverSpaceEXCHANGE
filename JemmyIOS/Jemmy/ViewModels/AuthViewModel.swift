@@ -12,16 +12,20 @@ class AuthViewModel: ObservableObject {
     
     private let identityKey = "cached_identity"
     private let userIdKey = "cached_user_id"
+    private let deviceIdKey = "deviceId"
     
     init() {
         print("🔧 AuthViewModel initialized")
-        if let savedDeviceId = UserDefaults.standard.string(forKey: "deviceId") {
+        
+        // Пытаемся загрузить deviceId из Keychain (сохраняется даже после удаления приложения)
+        if let savedDeviceId = KeychainHelper.load(key: deviceIdKey) {
             self.deviceId = savedDeviceId
-            print("📱 Device ID loaded: \(savedDeviceId)")
+            print("📱 Device ID loaded from Keychain: \(savedDeviceId)")
         } else {
+            // Если нет в Keychain, создаем новый и сохраняем
             self.deviceId = UUID().uuidString
-            UserDefaults.standard.set(self.deviceId, forKey: "deviceId")
-            print("📱 New Device ID created: \(self.deviceId)")
+            KeychainHelper.save(key: deviceIdKey, value: self.deviceId)
+            print("📱 New Device ID created and saved to Keychain: \(self.deviceId)")
         }
         
         // Загружаем сохраненные данные
@@ -167,7 +171,9 @@ class AuthViewModel: ObservableObject {
             try await APIService.shared.deleteAccount(deviceId: deviceId)
             
             // Clear local data
-            UserDefaults.standard.removeObject(forKey: "device_id")
+            KeychainHelper.delete(key: deviceIdKey)
+            UserDefaults.standard.removeObject(forKey: userIdKey)
+            UserDefaults.standard.removeObject(forKey: identityKey)
             UserDefaults.standard.removeObject(forKey: "hasSeenOnboarding")
             
             self.identity = nil
@@ -183,12 +189,76 @@ class AuthViewModel: ObservableObject {
     func logout() {
         print("👋 Logging out...")
         
-        UserDefaults.standard.removeObject(forKey: "device_id")
+        KeychainHelper.delete(key: deviceIdKey)
+        UserDefaults.standard.removeObject(forKey: userIdKey)
+        UserDefaults.standard.removeObject(forKey: identityKey)
         UserDefaults.standard.removeObject(forKey: "hasSeenOnboarding")
         
         self.identity = nil
         self.isAuthenticated = false
         
         print("✅ Logged out successfully")
+    }
+}
+
+// MARK: - Keychain Helper
+class KeychainHelper {
+    static func save(key: String, value: String) {
+        let data = value.data(using: .utf8)!
+        
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecValueData as String: data
+        ]
+        
+        // Удаляем старое значение если есть
+        SecItemDelete(query as CFDictionary)
+        
+        // Добавляем новое
+        let status = SecItemAdd(query as CFDictionary, nil)
+        
+        if status == errSecSuccess {
+            print("✅ Saved to Keychain: \(key)")
+        } else {
+            print("❌ Failed to save to Keychain: \(status)")
+        }
+    }
+    
+    static func load(key: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        
+        if status == errSecSuccess,
+           let data = result as? Data,
+           let value = String(data: data, encoding: .utf8) {
+            print("✅ Loaded from Keychain: \(key)")
+            return value
+        } else {
+            print("⚠️ Not found in Keychain: \(key)")
+            return nil
+        }
+    }
+    
+    static func delete(key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key
+        ]
+        
+        let status = SecItemDelete(query as CFDictionary)
+        
+        if status == errSecSuccess {
+            print("✅ Deleted from Keychain: \(key)")
+        } else {
+            print("⚠️ Failed to delete from Keychain: \(status)")
+        }
     }
 }
