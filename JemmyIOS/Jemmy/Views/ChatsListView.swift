@@ -364,9 +364,29 @@ struct ChatsListView: View {
             let loadedChats = try await APIService.shared.getChats(identityId: identityId)
             
             await MainActor.run {
-                chats = loadedChats
-                CacheManager.shared.saveChats(loadedChats)
+                // Сохраняем текущие статусы
+                let currentStatuses = chats.reduce(into: [String: (Bool, Int64)]()) { result, chat in
+                    result[chat.user.id] = (chat.isOnline, chat.lastSeen)
+                }
+                
+                // Восстанавливаем статусы в новых чатах
+                var updatedChats = loadedChats
+                for index in updatedChats.indices {
+                    let userId = updatedChats[index].user.id
+                    if let (isOnline, lastSeen) = currentStatuses[userId] {
+                        updatedChats[index].isOnline = isOnline
+                        updatedChats[index].lastSeen = lastSeen
+                    }
+                }
+                
+                chats = updatedChats
+                CacheManager.shared.saveChats(updatedChats)
                 updateBadgeCount()
+                
+                // Запрашиваем свежие статусы
+                for chat in updatedChats {
+                    WebSocketManager.shared.requestUserStatus(identityId: chat.user.id)
+                }
             }
         } catch {
             // Silently fail for polling

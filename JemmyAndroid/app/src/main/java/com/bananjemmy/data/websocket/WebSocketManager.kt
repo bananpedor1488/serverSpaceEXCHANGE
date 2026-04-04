@@ -254,6 +254,7 @@ class WebSocketManager private constructor() {
             Log.d(TAG, "   Last seen: $lastSeen")
             
             onUserStatus?.invoke(identityId, online, lastSeen)
+            Log.d(TAG, "   ✅ Callback invoked")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error handling user status", e)
             Log.e(TAG, "   Raw args: ${args.contentToString()}")

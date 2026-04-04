@@ -40,6 +40,19 @@ fun ChatScreen(
 ) {
     val messagesState by chatViewModel.messagesState.collectAsState()
     val isSending by chatViewModel.isSending.collectAsState()
+    val chatListState by chatViewModel.chatListState.collectAsState()
+    
+    // Get real-time status from chat list state
+    val currentChat = remember(chatListState) {
+        if (chatListState is com.bananjemmy.ui.viewmodel.ChatListState.Success) {
+            (chatListState as com.bananjemmy.ui.viewmodel.ChatListState.Success).chats
+                .find { it.user.id == otherUser.id }
+        } else null
+    }
+    
+    val currentIsOnline = currentChat?.isOnline ?: isOnline
+    val currentLastSeen = currentChat?.lastSeen ?: lastSeen
+    
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -47,11 +60,11 @@ fun ChatScreen(
     var showSearch by remember { mutableStateOf(false) }
     
     // Format last seen time
-    val lastSeenText = remember(lastSeen, isOnline) {
-        if (isOnline) {
+    val lastSeenText = remember(currentLastSeen, currentIsOnline) {
+        if (currentIsOnline) {
             "в сети"
-        } else if (lastSeen > 0) {
-            val date = Date(lastSeen)
+        } else if (currentLastSeen > 0) {
+            val date = Date(currentLastSeen)
             val now = Date()
             val diff = now.time - date.time
             val seconds = diff / 1000
@@ -81,6 +94,14 @@ fun ChatScreen(
         chatViewModel.loadMessages(chatId)
         chatViewModel.joinChat(chatId)
         chatViewModel.requestUserStatus(otherUser.id)
+    }
+    
+    // Polling для обновления статуса каждые 2 секунды
+    LaunchedEffect(otherUser.id) {
+        while (true) {
+            kotlinx.coroutines.delay(2000)
+            chatViewModel.requestUserStatus(otherUser.id)
+        }
     }
     
     // Polling для обновления сообщений каждые 0.5 секунды
@@ -140,7 +161,7 @@ fun ChatScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
-                                    if (isOnline) {
+                                    if (currentIsOnline) {
                                         Surface(
                                             modifier = Modifier.size(8.dp),
                                             shape = CircleShape,
@@ -151,7 +172,7 @@ fun ChatScreen(
                                     Text(
                                         text = lastSeenText,
                                         fontSize = 12.sp,
-                                        color = if (isOnline) Color(0xFF34C759) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        color = if (currentIsOnline) Color(0xFF34C759) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                     )
                                 }
                             }

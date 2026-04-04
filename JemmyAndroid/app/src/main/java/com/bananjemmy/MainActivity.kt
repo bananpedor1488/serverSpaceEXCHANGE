@@ -85,6 +85,12 @@ class MainActivity : ComponentActivity() {
         handleDeepLink(intent)
     }
     
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("MainActivity", "🔌 onDestroy - disconnecting WebSocket")
+        chatViewModel.disconnectWebSocket()
+    }
+    
     private fun handleDeepLink(intent: Intent?) {
         val data: Uri? = intent?.data
         data?.let { uri ->

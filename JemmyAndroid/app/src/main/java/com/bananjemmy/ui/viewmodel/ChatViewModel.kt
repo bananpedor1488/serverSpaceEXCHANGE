@@ -31,33 +31,27 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
     
     init {
         Log.d(TAG, "🚀 ChatViewModel initialized")
-        Log.d(TAG, "📦 CacheManager: ${if (cacheManager != null) "AVAILABLE ✅" else "NULL ❌"}")
         setupWebSocketListeners()
         
         // Setup online status listener
         webSocket.onUserStatus = { identityId, online, lastSeen ->
-            Log.d(TAG, "👤 Status update: $identityId, online=$online")
+            Log.d(TAG, "📲 Received status in ViewModel: $identityId, online=$online")
             updateUserStatus(identityId, online, lastSeen)
         }
     }
     
     private fun updateUserStatus(identityId: String, online: Boolean, lastSeen: Long) {
-        Log.d(TAG, "🔄 updateUserStatus called:")
-        Log.d(TAG, "   Identity: $identityId")
-        Log.d(TAG, "   Online: $online")
-        Log.d(TAG, "   Last seen: $lastSeen")
+        Log.d(TAG, "🔄 updateUserStatus: $identityId, online=$online, lastSeen=$lastSeen")
         
         val currentState = _chatListState.value
         Log.d(TAG, "   Current state: ${currentState::class.simpleName}")
         
         if (currentState is ChatListState.Success) {
-            Log.d(TAG, "   Chats in state: ${currentState.chats.size}")
+            Log.d(TAG, "   Chats count: ${currentState.chats.size}")
             
             val updatedChats = currentState.chats.map { chat ->
                 if (chat.user.id == identityId) {
-                    Log.d(TAG, "   ✅ Found matching chat for user: ${chat.user.username}")
-                    Log.d(TAG, "      Old status: online=${chat.isOnline}, lastSeen=${chat.lastSeen}")
-                    Log.d(TAG, "      New status: online=$online, lastSeen=$lastSeen")
+                    Log.d(TAG, "   ✅ Updating chat: ${chat.user.username}")
                     chat.copy(isOnline = online, lastSeen = lastSeen)
                 } else {
                     chat
@@ -65,9 +59,9 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
             }
             
             _chatListState.value = ChatListState.Success(updatedChats)
-            Log.d(TAG, "   ✅ Chat list state updated")
+            Log.d(TAG, "   ✅ State updated")
         } else {
-            Log.d(TAG, "   ⚠️ Cannot update - state is not Success")
+            Log.d(TAG, "   ⚠️ State is not Success, cannot update")
         }
     }
     
@@ -191,54 +185,40 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
     
     fun loadChats(identityId: String) {
         viewModelScope.launch {
-            Log.d(TAG, "🔄 loadChats called for: $identityId")
             _isRefreshing.value = true
-            
-            // Показываем Loading состояние без кешированных данных
             _chatListState.value = ChatListState.Loading()
-            
-            Log.d(TAG, "📡 Loading chats from server for: $identityId")
             
             repository.getChats(identityId).fold(
                 onSuccess = { chats ->
-                    Log.d(TAG, "✅ Chats loaded from server: ${chats.size}")
                     _chatListState.value = ChatListState.Success(chats)
                     _isRefreshing.value = false
                     
-                    // Запрашиваем статусы для всех пользователей в чатах
+                    // Запрашиваем статусы для всех пользователей
                     chats.forEach { chat ->
-                        Log.d(TAG, "🔍 Requesting status for user: ${chat.user.id}")
                         webSocket.requestUserStatus(chat.user.id)
                     }
                     
-                    // Сохраняем в кеш или очищаем если пусто
+                    // Сохраняем в кеш
                     cacheManager?.let { cache ->
                         viewModelScope.launch {
                             if (chats.isEmpty()) {
-                                Log.d(TAG, "🗑️ Server returned empty list, clearing cache...")
                                 cache.clearAllCache()
-                                Log.d(TAG, "✅ Cache cleared")
                             } else {
-                                Log.d(TAG, "💾 Saving ${chats.size} chats to cache...")
                                 cache.cacheChats(chats)
-                                Log.d(TAG, "✅ Chats saved to cache successfully")
                             }
                         }
-                    } ?: Log.d(TAG, "❌ Cannot save to cache - CacheManager is NULL!")
+                    }
                 },
                 onFailure = { error ->
-                    Log.e(TAG, "❌ Failed to load chats from server: ${error.message}", error)
                     _isRefreshing.value = false
                     
-                    // Только при ошибке загружаем из кеша как fallback
+                    // Fallback to cache
                     cacheManager?.let { cache ->
                         viewModelScope.launch {
                             val cachedChats = cache.getCachedChats()
                             if (cachedChats.isNotEmpty()) {
-                                Log.d(TAG, "📦 Using ${cachedChats.size} cached chats as fallback")
                                 _chatListState.value = ChatListState.Success(cachedChats)
                             } else {
-                                Log.d(TAG, "⚠️ No cached data available, showing error")
                                 _chatListState.value = ChatListState.Error(error.message ?: "Failed to load chats")
                             }
                         }
@@ -251,42 +231,45 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
     }
     
     fun refreshChats(identityId: String) {
-        // Не запускаем новый запрос если уже идет обновление
-        if (_isRefreshing.value) {
-            Log.d(TAG, "⏭️ Skipping refresh - already refreshing")
-            return
-        }
+        if (_isRefreshing.value) return
         
         viewModelScope.launch {
-            // НЕ показываем индикатор при обычном polling
-            // _isRefreshing.value = true
+            // Сохраняем текущие статусы
+            val currentState = _chatListState.value
+            val currentStatuses = if (currentState is ChatListState.Success) {
+                currentState.chats.associate { it.user.id to Pair(it.isOnline, it.lastSeen) }
+            } else {
+                emptyMap()
+            }
             
-            Log.d(TAG, "🔄 Refreshing chats...")
-            
-            // Тихое обновление без показа Loading
             repository.getChats(identityId).fold(
                 onSuccess = { chats ->
-                    Log.d(TAG, "✅ Chats refreshed: ${chats.size}")
-                    _chatListState.value = ChatListState.Success(chats)
+                    // Восстанавливаем статусы
+                    val chatsWithStatus = chats.map { chat ->
+                        val (isOnline, lastSeen) = currentStatuses[chat.user.id] ?: Pair(false, 0L)
+                        chat.copy(isOnline = isOnline, lastSeen = lastSeen)
+                    }
                     
-                    // Сохраняем в кеш или очищаем если пусто
+                    _chatListState.value = ChatListState.Success(chatsWithStatus)
+                    _isRefreshing.value = false
+                    
+                    // Запрашиваем свежие статусы для всех пользователей
+                    chats.forEach { chat ->
+                        webSocket.requestUserStatus(chat.user.id)
+                    }
+                    
+                    // Сохраняем в кеш
                     cacheManager?.let { cache ->
                         viewModelScope.launch {
                             if (chats.isEmpty()) {
-                                Log.d(TAG, "🗑️ Server returned empty list, clearing cache...")
                                 cache.clearAllCache()
                             } else {
-                                cache.cacheChats(chats)
+                                cache.cacheChats(chatsWithStatus)
                             }
                         }
                     }
-                    
-                    // Сбрасываем индикатор если он был (после ошибки)
-                    _isRefreshing.value = false
                 },
                 onFailure = { error ->
-                    Log.e(TAG, "❌ Failed to refresh chats: ${error.message}")
-                    // Показываем индикатор только при ошибке (нет связи)
                     _isRefreshing.value = true
                 }
             )
