@@ -58,22 +58,21 @@ struct ProfileView: View {
                                 print("📸 Avatar tapped")
                                 showImagePicker = true
                             }) {
-                                Circle()
-                                    .fill(Color.white.opacity(0.1))
-                                    .frame(width: 100, height: 100)
-                                    .overlay(
-                                        Group {
-                                            if let identity = authViewModel.identity {
-                                                Text(String(identity.username.prefix(2)).uppercased())
-                                                    .font(.system(size: 40, weight: .semibold))
-                                                    .foregroundColor(.white)
-                                            }
-                                        }
-                                    )
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white.opacity(0.2), lineWidth: 2)
-                                    )
+                                if let identity = authViewModel.identity {
+                                    AvatarView(identity: identity, size: 100)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.white.opacity(0.2), lineWidth: 2)
+                                        )
+                                } else {
+                                    Circle()
+                                        .fill(Color.white.opacity(0.1))
+                                        .frame(width: 100, height: 100)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.white.opacity(0.2), lineWidth: 2)
+                                        )
+                                }
                             }
                             
                             // User info
