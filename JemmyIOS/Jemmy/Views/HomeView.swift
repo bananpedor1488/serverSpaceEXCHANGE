@@ -1,4 +1,28 @@
 import SwiftUI
+import UniformTypeIdentifiers
+
+extension UTType {
+    static let ipa = UTType(filenameExtension: "ipa")!
+}
+
+struct IPAFile: FileDocument {
+    let file: FileWrapper
+    
+    static var readableContentTypes: [UTType] { [.ipa] }
+    static var writableContentTypes: [UTType] { [.ipa] }
+    
+    init(ipaURL: URL) throws {
+        self.file = try FileWrapper(url: ipaURL, options: .immediate)
+    }
+    
+    init(configuration: ReadConfiguration) throws {
+        self.file = configuration.file
+    }
+    
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        return self.file
+    }
+}
 
 struct HomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
@@ -241,6 +265,11 @@ struct ProfileView: View {
                                     .cornerRadius(12)
                                 }
                                 .disabled(isDeleting)
+                            }
+                            
+                            // Export IPA
+                            SettingsSection(title: "Разработка") {
+                                ExportIPAButton()
                             }
                         }
                         .padding(.horizontal, 16)
@@ -885,5 +914,81 @@ struct TerminateAllSheet: View {
                 .ignoresSafeArea()
                 .onTapGesture { isPresented = false }
         )
+    }
+}
+
+// MARK: - Export IPA Button
+
+struct ExportIPAButton: View {
+    @State private var isExporting = false
+    @State private var ipaFile: IPAFile?
+    @State private var showError = false
+    @State private var errorMessage = ""
+    
+    var body: some View {
+        Button(action: exportIPA) {
+            HStack(spacing: 12) {
+                if isExporting {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white)
+                        .frame(width: 24)
+                    
+                    Text("Экспорт IPA")
+                        .font(.system(size: 17))
+                        .foregroundColor(.white)
+                }
+                
+                Spacer()
+                
+                if !isExporting {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.3))
+                }
+            }
+            .padding()
+            .background(Color.white.opacity(0.05))
+            .cornerRadius(12)
+        }
+        .disabled(isExporting)
+        .fileExporter(
+            isPresented: $isExporting,
+            document: ipaFile,
+            contentType: .ipa
+        ) { result in
+            switch result {
+            case .success(let url):
+                print("✅ IPA exported to:", url)
+            case .failure(let error):
+                print("❌ Export failed:", error)
+                errorMessage = error.localizedDescription
+                showError = true
+            }
+        }
+        .alert("Ошибка экспорта", isPresented: $showError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    private func exportIPA() {
+        Task { @MainActor in
+            do {
+                let ipaPath = try await exportIPA()
+                let ipaURL = URL(fileURLWithPath: ipaPath)
+                
+                ipaFile = try IPAFile(ipaURL: ipaURL)
+                isExporting = true
+            } catch {
+                print("❌ Could not export .ipa:", error)
+                errorMessage = error.localizedDescription
+                showError = true
+            }
+        }
     }
 }
