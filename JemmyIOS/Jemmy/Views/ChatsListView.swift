@@ -378,7 +378,13 @@ struct ChatsListView: View {
         guard networkMonitor.isConnected else { return }
         
         do {
-            let loadedChats = try await APIService.shared.getChats(identityId: identityId)
+            var loadedChats = try await APIService.shared.getChats(identityId: identityId)
+            
+            // Применяем локальные закрепления
+            for index in loadedChats.indices {
+                let locallyPinned = PinnedChatsManager.shared.isPinned(loadedChats[index].id)
+                loadedChats[index].isPinned = locallyPinned
+            }
             
             await MainActor.run {
                 // Сохраняем текущие статусы
