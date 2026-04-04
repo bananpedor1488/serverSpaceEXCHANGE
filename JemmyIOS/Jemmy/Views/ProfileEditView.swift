@@ -5,6 +5,9 @@ struct ProfileEditView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var username: String
     @State private var bio: String
+    @State private var avatarImage: UIImage?
+    @State private var avatarBase64: String?
+    @State private var showImagePicker = false
     @State private var isSaving = false
     @State private var showError = false
     @State private var errorMessage = ""
@@ -64,16 +67,44 @@ struct ProfileEditView: View {
                 
                 ScrollView {
                     VStack(spacing: 24) {
-                        // Avatar
-                        Circle()
-                            .fill(Color.white.opacity(0.1))
-                            .frame(width: 100, height: 100)
-                            .overlay(
-                                Text(String(username.prefix(2)).uppercased())
-                                    .font(.system(size: 40, weight: .semibold))
-                                    .foregroundColor(.white)
-                            )
-                            .padding(.top, 32)
+                        // Avatar with tap to change
+                        Button(action: {
+                            showImagePicker = true
+                        }) {
+                            ZStack {
+                                if let avatarImage = avatarImage {
+                                    Image(uiImage: avatarImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 100, height: 100)
+                                        .clipShape(Circle())
+                                } else {
+                                    Circle()
+                                        .fill(Color.white.opacity(0.1))
+                                        .frame(width: 100, height: 100)
+                                        .overlay(
+                                            Text(String(username.prefix(2)).uppercased())
+                                                .font(.system(size: 40, weight: .semibold))
+                                                .foregroundColor(.white)
+                                        )
+                                }
+                                
+                                // Edit overlay
+                                Circle()
+                                    .fill(Color.black.opacity(0.3))
+                                    .frame(width: 100, height: 100)
+                                    .overlay(
+                                        Image(systemName: "camera.fill")
+                                            .font(.system(size: 24))
+                                            .foregroundColor(.white.opacity(0.7))
+                                    )
+                            }
+                        }
+                        .padding(.top, 32)
+                        
+                        Text("Нажмите, чтобы изменить фото")
+                            .font(.system(size: 13))
+                            .foregroundColor(.white.opacity(0.5))
                         
                         // Username field
                         VStack(alignment: .leading, spacing: 8) {
@@ -159,6 +190,18 @@ struct ProfileEditView: View {
         } message: {
             Text("Профиль обновлен")
         }
+        .sheet(isPresented: $showImagePicker) {
+            ImagePicker(image: $avatarImage)
+        }
+        .onChange(of: avatarImage) { _, newImage in
+            if let image = newImage {
+                // Convert to base64
+                if let imageData = image.jpegData(compressionQuality: 0.8) {
+                    avatarBase64 = imageData.base64EncodedString()
+                    print("📸 Avatar selected, base64 length: \(avatarBase64?.count ?? 0)")
+                }
+            }
+        }
     }
     
     private var isValid: Bool {
@@ -217,6 +260,7 @@ struct ProfileEditView: View {
         print("💾 Saving profile...")
         print("   Username: \(username)")
         print("   Bio: \(bio)")
+        print("   Avatar: \(avatarBase64 != nil ? "Yes" : "No")")
         
         isSaving = true
         
@@ -224,7 +268,8 @@ struct ProfileEditView: View {
             do {
                 try await authViewModel.updateProfile(
                     username: username,
-                    bio: bio
+                    bio: bio,
+                    avatar: avatarBase64
                 )
                 
                 await MainActor.run {

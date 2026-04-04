@@ -463,6 +463,8 @@ fun MainScreen(
             ) {
                 DataStorageScreen(
                     cacheStats = cacheStats,
+                    avatarCacheSize = cacheManager.getAvatarCacheSize(),
+                    avatarCount = cacheManager.getAvatarCount(),
                     onClearCache = {
                         scope.launch {
                             isClearing = true
@@ -475,6 +477,17 @@ fun MainScreen(
                                 Log.e("MainActivity", "Error clearing cache", e)
                             } finally {
                                 isClearing = false
+                            }
+                        }
+                    },
+                    onClearAvatarCache = {
+                        scope.launch {
+                            try {
+                                cacheManager.clearAvatarCache()
+                                kotlinx.coroutines.delay(300)
+                                cacheStats = cacheManager.getCacheStats()
+                            } catch (e: Exception) {
+                                Log.e("MainActivity", "Error clearing avatar cache", e)
                             }
                         }
                     },

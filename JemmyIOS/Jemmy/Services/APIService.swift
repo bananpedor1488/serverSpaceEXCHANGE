@@ -122,11 +122,12 @@ class APIService {
         }
     }
     
-    func updateProfile(identityId: String, username: String?, bio: String?) async throws -> Identity {
+    func updateProfile(identityId: String, username: String?, bio: String?, avatar: String? = nil) async throws -> Identity {
         print("📡 Request: POST /identity/update")
         print("📦 Body: identity_id=\(identityId)")
         if let username = username { print("   username=\(username)") }
         if let bio = bio { print("   bio=\(bio)") }
+        if let avatar = avatar { print("   avatar: Yes (length: \(avatar.count))") }
         
         let url = URL(string: "\(baseURL)/identity/update")!
         var request = URLRequest(url: url)
@@ -136,6 +137,7 @@ class APIService {
         var body: [String: Any] = ["identity_id": identityId]
         if let username = username { body["username"] = username }
         if let bio = bio { body["bio"] = bio }
+        if let avatar = avatar { body["avatar"] = avatar }
         
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         

@@ -4,6 +4,7 @@ struct Identity: Codable, Identifiable {
     let id: String
     let username: String
     let avatar: String
+    let avatarUpdatedAt: Int64?
     let bio: String
     let expiresAt: Date?
     let isOnline: Bool?
@@ -13,6 +14,7 @@ struct Identity: Codable, Identifiable {
         case id = "_id"
         case username
         case avatar
+        case avatarUpdatedAt = "avatar_updated_at"
         case bio
         case expiresAt = "expires_at"
         case isOnline = "is_online"

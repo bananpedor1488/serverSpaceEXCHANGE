@@ -125,4 +125,76 @@ class CacheManager {
         // В будущем можно добавить кэширование медиа
         return (photos: 0, videos: 0, files: 0, messages: messagesSize)
     }
+    
+    // MARK: - Avatar Cache
+    
+    private let avatarPrefix = "avatar_"
+    private let avatarUpdatedPrefix = "avatar_updated_"
+    
+    func saveAvatar(userId: String, base64: String, updatedAt: Int64) {
+        UserDefaults.standard.set(base64, forKey: avatarPrefix + userId)
+        UserDefaults.standard.set(updatedAt, forKey: avatarUpdatedPrefix + userId)
+        print("💾 Saved avatar for user \(userId), updatedAt=\(updatedAt)")
+    }
+    
+    func getAvatar(userId: String) -> (avatar: String, updatedAt: Int64)? {
+        guard let avatar = UserDefaults.standard.string(forKey: avatarPrefix + userId) else {
+            print("⚠️ No cached avatar for user \(userId)")
+            return nil
+        }
+        
+        let updatedAt = UserDefaults.standard.object(forKey: avatarUpdatedPrefix + userId) as? Int64 ?? 0
+        print("📦 Loaded avatar from cache for user \(userId)")
+        return (avatar, updatedAt)
+    }
+    
+    func getAvatarCacheSize() -> Int64 {
+        var totalSize: Int64 = 0
+        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys
+        
+        for key in allKeys {
+            if key.hasPrefix(avatarPrefix) && !key.hasPrefix(avatarUpdatedPrefix) {
+                if let avatar = UserDefaults.standard.string(forKey: key) {
+                    totalSize += Int64(avatar.count)
+                }
+            }
+        }
+        
+        print("📊 Avatar cache size: \(totalSize) bytes (\(Double(totalSize) / 1024.0) KB)")
+        return totalSize
+    }
+    
+    func getAvatarCount() -> Int {
+        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys
+        let count = allKeys.filter { $0.hasPrefix(avatarPrefix) && !$0.hasPrefix(avatarUpdatedPrefix) }.count
+        print("📊 Cached avatars count: \(count)")
+        return count
+    }
+    
+    func clearAvatarCache() {
+        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys
+        let avatarKeys = allKeys.filter { $0.hasPrefix(avatarPrefix) }
+        
+        for key in avatarKeys {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        
+        print("🧹 Cleared avatar cache (\(avatarKeys.count / 2) avatars)")
+    }
+    
+    func clearAvatar(userId: String) {
+        UserDefaults.standard.removeObject(forKey: avatarPrefix + userId)
+        UserDefaults.standard.removeObject(forKey: avatarUpdatedPrefix + userId)
+        print("🧹 Cleared avatar for user \(userId)")
+    }
+    
+    // MARK: - Base64 to UIImage
+    
+    func base64ToImage(_ base64: String) -> UIImage? {
+        guard let data = Data(base64Encoded: base64) else {
+            print("❌ Failed to decode base64 string")
+            return nil
+        }
+        return UIImage(data: data)
+    }
 }

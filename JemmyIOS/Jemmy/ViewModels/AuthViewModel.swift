@@ -112,23 +112,34 @@ class AuthViewModel: ObservableObject {
         }
     }
     
-    func updateProfile(username: String?, bio: String?) async throws {
+    func updateProfile(username: String?, bio: String?, avatar: String? = nil) async throws {
         guard let identityId = identity?.id else {
             print("⚠️ Cannot update profile: no identity ID")
             throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No identity ID"])
         }
         
         print("📡 Updating profile...")
+        if avatar != nil {
+            print("   Avatar: Yes (base64 length: \(avatar!.count))")
+        }
         
         do {
             let updatedIdentity = try await APIService.shared.updateProfile(
                 identityId: identityId,
                 username: username,
-                bio: bio
+                bio: bio,
+                avatar: avatar
             )
             
             self.identity = updatedIdentity
             saveAuth()
+            
+            // Save avatar to cache if updated
+            if let avatar = updatedIdentity.avatar, let avatarUpdatedAt = updatedIdentity.avatarUpdatedAt {
+                CacheManager.shared.saveAvatar(userId: identityId, base64: avatar, updatedAt: avatarUpdatedAt)
+                print("💾 Avatar saved to cache")
+            }
+            
             print("✅ Profile updated in ViewModel")
         } catch {
             print("❌ Failed to update profile: \(error.localizedDescription)")

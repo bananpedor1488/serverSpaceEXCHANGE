@@ -23,10 +23,14 @@ import kotlinx.coroutines.launch
 @Composable
 fun DataStorageScreen(
     cacheStats: CacheStats,
+    avatarCacheSize: Long,
+    avatarCount: Int,
     onClearCache: () -> Unit,
+    onClearAvatarCache: () -> Unit,
     onDismiss: () -> Unit
 ) {
     var showClearDialog by remember { mutableStateOf(false) }
+    var showClearAvatarDialog by remember { mutableStateOf(false) }
     
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -155,6 +159,79 @@ fun DataStorageScreen(
             
             Spacer(modifier = Modifier.height(24.dp))
             
+            // Photos Section
+            Text(
+                text = "ФОТО",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+            )
+            
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Аватары",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "$avatarCount шт. • ${String.format("%.2f", avatarCacheSize / 1024.0)} КБ",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                        
+                        Icon(
+                            imageVector = Icons.Filled.AccountCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                        )
+                    }
+                    
+                    if (avatarCount > 0) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Button(
+                            onClick = { showClearAvatarDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Очистить аватары",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
             // Network Settings Section
             Text(
                 text = "СЕТЬ",
@@ -216,6 +293,30 @@ fun DataStorageScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+    
+    // Clear Avatar Cache Confirmation Dialog
+    if (showClearAvatarDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearAvatarDialog = false },
+            title = { Text("Очистить аватары?") },
+            text = { Text("Все сохранённые аватары будут удалены. Они загрузятся заново при следующем просмотре профилей.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearAvatarDialog = false
+                        onClearAvatarCache()
+                    }
+                ) {
+                    Text("Очистить", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearAvatarDialog = false }) {
                     Text("Отмена")
                 }
             }

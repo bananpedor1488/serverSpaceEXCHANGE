@@ -18,6 +18,9 @@ data class Identity(
     @SerializedName("avatar")
     val avatar: String? = null,
     
+    @SerializedName("avatar_updated_at")
+    val avatarUpdatedAt: Long? = null,
+    
     @SerializedName("createdAt")
     val createdAt: String? = null,
     

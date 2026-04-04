@@ -1,6 +1,9 @@
 package com.bananjemmy.data.cache
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Base64
 import android.util.Log
 import com.bananjemmy.data.cache.entity.CachedChat
 import com.bananjemmy.data.cache.entity.CachedIdentity
@@ -214,6 +217,86 @@ class CacheManager(context: Context) {
             content = this.content,
             createdAt = this.createdAt
         )
+    }
+}
+
+data class CacheStats(
+    val chatsCount: Int,
+    val messagesCount: Int,
+    val sizeBytes: Long,
+    val sizeMB: Double
+)
+
+    
+    // Avatar Cache (using SharedPreferences for base64 strings)
+    private val avatarPrefs = context.getSharedPreferences("avatar_cache", Context.MODE_PRIVATE)
+    
+    fun saveAvatar(userId: String, base64: String, updatedAt: Long) {
+        avatarPrefs.edit().apply {
+            putString("avatar_$userId", base64)
+            putLong("avatar_updated_${userId}", updatedAt)
+            apply()
+        }
+        Log.d("CACHE", "💾 Saved avatar for user $userId, updatedAt=$updatedAt")
+    }
+    
+    fun getAvatar(userId: String): Pair<String?, Long>? {
+        val avatar = avatarPrefs.getString("avatar_$userId", null)
+        val updatedAt = avatarPrefs.getLong("avatar_updated_${userId}", 0)
+        
+        return if (avatar != null) {
+            Log.d("CACHE", "📦 Loaded avatar from cache for user $userId")
+            Pair(avatar, updatedAt)
+        } else {
+            Log.d("CACHE", "⚠️ No cached avatar for user $userId")
+            null
+        }
+    }
+    
+    fun getAvatarCacheSize(): Long {
+        var totalSize = 0L
+        avatarPrefs.all.forEach { (key, value) ->
+            if (key.startsWith("avatar_") && value is String) {
+                totalSize += value.length
+            }
+        }
+        Log.d("CACHE", "📊 Avatar cache size: $totalSize bytes (${totalSize / 1024.0} KB)")
+        return totalSize
+    }
+    
+    fun getAvatarCount(): Int {
+        val count = avatarPrefs.all.count { it.key.startsWith("avatar_") && !it.key.contains("updated") }
+        Log.d("CACHE", "📊 Cached avatars count: $count")
+        return count
+    }
+    
+    fun clearAvatarCache() {
+        val keys = avatarPrefs.all.keys.filter { it.startsWith("avatar_") }
+        avatarPrefs.edit().apply {
+            keys.forEach { remove(it) }
+            apply()
+        }
+        Log.d("CACHE", "🧹 Cleared avatar cache (${ keys.size / 2} avatars)")
+    }
+    
+    fun clearAvatar(userId: String) {
+        avatarPrefs.edit().apply {
+            remove("avatar_$userId")
+            remove("avatar_updated_${userId}")
+            apply()
+        }
+        Log.d("CACHE", "🧹 Cleared avatar for user $userId")
+    }
+    
+    // Base64 to Bitmap conversion
+    fun base64ToBitmap(base64: String): Bitmap? {
+        return try {
+            val bytes = Base64.decode(base64, Base64.DEFAULT)
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        } catch (e: Exception) {
+            Log.e("CACHE", "❌ Failed to decode base64 to bitmap: ${e.message}")
+            null
+        }
     }
 }
 
