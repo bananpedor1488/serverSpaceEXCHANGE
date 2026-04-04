@@ -383,10 +383,8 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                 onSuccess = { messages ->
                     val currentState = _messagesState.value
                     if (currentState is MessagesState.Success) {
-                        // Обновляем только если количество сообщений изменилось
-                        if (messages.size > currentState.messages.size) {
-                            _messagesState.value = MessagesState.Success(messages)
-                        }
+                        // Всегда обновляем, чтобы получить актуальные статусы
+                        _messagesState.value = MessagesState.Success(messages)
                     }
                 },
                 onFailure = { 

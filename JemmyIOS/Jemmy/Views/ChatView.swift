@@ -303,9 +303,8 @@ struct ChatView: View {
             let loadedMessages = try await APIService.shared.getMessages(chatId: chatId)
             
             await MainActor.run {
-                if loadedMessages.count > messages.count {
-                    messages = loadedMessages
-                }
+                // Всегда обновляем для получения актуальных статусов
+                messages = loadedMessages
             }
         } catch {
             // Silently fail for polling
@@ -315,6 +314,10 @@ struct ChatView: View {
     private func loadMessagesFromCache() {
         if let cachedMessages = CacheManager.shared.loadMessages(chatId: chatId) {
             messages = cachedMessages
+            print("📦 Loaded \(cachedMessages.count) messages from cache")
+            if let first = cachedMessages.first {
+                print("   First message time: \(first.createdAt)")
+            }
         }
     }
     
@@ -334,6 +337,12 @@ struct ChatView: View {
                 await MainActor.run {
                     messages = loadedMessages
                     isLoading = false
+                    
+                    print("✅ Loaded \(loadedMessages.count) messages from server")
+                    if let first = loadedMessages.first {
+                        print("   First message time: \(first.createdAt)")
+                        print("   First message date: \(first.createdDate)")
+                    }
                     
                     // Сохраняем в кэш
                     CacheManager.shared.saveMessages(loadedMessages, chatId: chatId)
