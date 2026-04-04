@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 @MainActor
 class AuthViewModel: ObservableObject {
@@ -17,15 +18,22 @@ class AuthViewModel: ObservableObject {
     init() {
         print("🔧 AuthViewModel initialized")
         
-        // Пытаемся загрузить deviceId из Keychain (сохраняется даже после удаления приложения)
-        if let savedDeviceId = KeychainHelper.load(key: deviceIdKey) {
-            self.deviceId = savedDeviceId
-            print("📱 Device ID loaded from Keychain: \(savedDeviceId)")
+        // Используем реальный UUID устройства (identifierForVendor)
+        // Он уникален для каждого устройства и не меняется при переустановке
+        if let vendorId = UIDevice.current.identifierForVendor?.uuidString {
+            self.deviceId = vendorId
+            print("📱 Device ID from identifierForVendor: \(vendorId)")
         } else {
-            // Если нет в Keychain, создаем новый и сохраняем
-            self.deviceId = UUID().uuidString
-            KeychainHelper.save(key: deviceIdKey, value: self.deviceId)
-            print("📱 New Device ID created and saved to Keychain: \(self.deviceId)")
+            // Fallback: пытаемся загрузить из Keychain
+            if let savedDeviceId = KeychainHelper.load(key: deviceIdKey) {
+                self.deviceId = savedDeviceId
+                print("📱 Device ID loaded from Keychain: \(savedDeviceId)")
+            } else {
+                // Если и там нет, создаем новый и сохраняем
+                self.deviceId = UUID().uuidString
+                KeychainHelper.save(key: deviceIdKey, value: self.deviceId)
+                print("📱 New Device ID created and saved to Keychain: \(self.deviceId)")
+            }
         }
         
         // Загружаем сохраненные данные
