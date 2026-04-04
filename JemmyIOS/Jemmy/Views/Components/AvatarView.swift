@@ -40,6 +40,11 @@ struct AvatarView: View {
         isLoading = true
         defer { isLoading = false }
         
+        print("AVATAR: 🔍 Loading avatar for \(identity.username)")
+        print("AVATAR:    avatar.isEmpty = \(identity.avatar.isEmpty)")
+        print("AVATAR:    avatar length = \(identity.avatar.count)")
+        print("AVATAR:    avatarUpdatedAt = \(identity.avatarUpdatedAt ?? 0)")
+        
         // Check if we have avatar data
         guard !identity.avatar.isEmpty else {
             print("AVATAR: ❌ No avatar data for \(identity.username)")
@@ -68,6 +73,7 @@ struct AvatarView: View {
         print("AVATAR: 📥 Decoding avatar from server for \(identity.username)")
         if let decodedImage = CacheManager.shared.base64ToImage(avatarBase64) {
             self.image = decodedImage
+            print("AVATAR: ✅ Successfully decoded avatar, size: \(decodedImage.size)")
             
             // Save to cache
             CacheManager.shared.saveAvatar(userId: identity.id, base64: avatarBase64, updatedAt: serverUpdatedAt)
