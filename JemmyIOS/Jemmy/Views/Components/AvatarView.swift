@@ -31,7 +31,7 @@ struct AvatarView: View {
                     .foregroundColor(.blue)
             }
         }
-        .task(id: identity.id + (identity.avatarUpdatedAt ?? "0")) {
+        .task(id: identity.id + String(identity.avatarUpdatedAt ?? 0)) {
             await loadAvatar()
         }
     }
@@ -46,7 +46,7 @@ struct AvatarView: View {
             return
         }
         
-        let serverUpdatedAt = Int64(identity.avatarUpdatedAt ?? "0") ?? 0
+        let serverUpdatedAt = identity.avatarUpdatedAt ?? 0
         
         // Check cache first
         if let cached = CacheManager.shared.getAvatar(userId: identity.id) {
