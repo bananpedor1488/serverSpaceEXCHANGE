@@ -135,8 +135,8 @@ class AuthViewModel: ObservableObject {
             saveAuth()
             
             // Save avatar to cache if updated
-            if let avatar = updatedIdentity.avatar, let avatarUpdatedAt = updatedIdentity.avatarUpdatedAt {
-                CacheManager.shared.saveAvatar(userId: identityId, base64: avatar, updatedAt: avatarUpdatedAt)
+            if !updatedIdentity.avatar.isEmpty, let avatarUpdatedAt = updatedIdentity.avatarUpdatedAt {
+                CacheManager.shared.saveAvatar(userId: identityId, base64: updatedIdentity.avatar, updatedAt: avatarUpdatedAt)
                 print("💾 Avatar saved to cache")
             }
             

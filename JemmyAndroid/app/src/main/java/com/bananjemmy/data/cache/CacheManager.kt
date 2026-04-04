@@ -218,15 +218,6 @@ class CacheManager(context: Context) {
             createdAt = this.createdAt
         )
     }
-}
-
-data class CacheStats(
-    val chatsCount: Int,
-    val messagesCount: Int,
-    val sizeBytes: Long,
-    val sizeMB: Double
-)
-
     
     // Avatar Cache (using SharedPreferences for base64 strings)
     private val avatarPrefs = context.getSharedPreferences("avatar_cache", Context.MODE_PRIVATE)
@@ -299,3 +290,10 @@ data class CacheStats(
         }
     }
 }
+
+data class CacheStats(
+    val chatsCount: Int,
+    val messagesCount: Int,
+    val sizeBytes: Long,
+    val sizeMB: Double
+)
