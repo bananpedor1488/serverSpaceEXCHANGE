@@ -327,8 +327,8 @@ fun MainScreen(
                         onBack = { 
                             selectedChat = null 
                         },
-                        isOnline = chat.isOnline,
-                        lastSeen = chat.lastSeen
+                        isOnline = chat.isOnline ?: false,
+                        lastSeen = chat.lastSeen ?: 0L
                     )
                 } else {
                     Box(

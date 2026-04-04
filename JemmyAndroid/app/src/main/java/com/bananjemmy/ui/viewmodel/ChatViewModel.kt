@@ -252,23 +252,8 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                         }
                     }
                     
-                    // Загружаем статусы для всех пользователей через HTTP API
-                    Log.d(TAG, "🔍 Loading status for ${chats.size} users via HTTP")
-                    chats.forEach { chat ->
-                        viewModelScope.launch {
-                            repository.getUserStatus(chat.user.id).fold(
-                                onSuccess = { (online, lastSeen) ->
-                                    Log.d(TAG, "✅ Status loaded for ${chat.user.username}: online=$online, lastSeen=$lastSeen")
-                                    updateUserStatus(chat.user.id, online, lastSeen)
-                                },
-                                onFailure = { error ->
-                                    Log.e(TAG, "❌ Failed to load status for ${chat.user.username}: ${error.message}")
-                                }
-                            )
-                        }
-                    }
-                    
-                    // Также запрашиваем через WebSocket для real-time обновлений
+                    // Запрашиваем статусы через WebSocket
+                    Log.d(TAG, "🔍 Requesting status for ${chats.size} users via WebSocket")
                     chats.forEach { chat ->
                         webSocket.requestUserStatus(chat.user.id)
                     }

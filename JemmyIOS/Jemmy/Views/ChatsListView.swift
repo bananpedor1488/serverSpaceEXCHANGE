@@ -253,29 +253,9 @@ struct ChatsListView: View {
                     // Проверяем новые сообщения
                     checkForNewMessages(oldChats: oldChats, newChats: loadedChats)
                     updateBadgeCount()
-                }
-                
-                // Загружаем статусы для всех пользователей через HTTP API
-                print("🔍 Loading status for \(loadedChats.count) users via HTTP")
-                for chat in loadedChats {
-                    Task {
-                        do {
-                            let status = try await APIService.shared.getUserStatus(identityId: chat.user.id)
-                            await MainActor.run {
-                                if let index = self.chats.firstIndex(where: { $0.user.id == chat.user.id }) {
-                                    self.chats[index].isOnline = status.online
-                                    self.chats[index].lastSeen = status.lastSeen
-                                    print("✅ Status loaded for \(chat.user.username): online=\(status.online), lastSeen=\(status.lastSeen)")
-                                }
-                            }
-                        } catch {
-                            print("❌ Failed to load status for \(chat.user.username)")
-                        }
-                    }
-                }
-                
-                // Также запрашиваем через WebSocket для real-time обновлений
-                await MainActor.run {
+                    
+                    // Запрашиваем статусы через WebSocket
+                    print("🔍 Requesting status for \(loadedChats.count) users via WebSocket")
                     for chat in loadedChats {
                         WebSocketManager.shared.requestUserStatus(identityId: chat.user.id)
                     }
