@@ -249,6 +249,19 @@ fun JemmyApp(
             )
         }
         
+        is AuthState.AccountFound -> {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            OnboardingScreen(
+                onCreateIdentity = { ephemeral ->
+                    authViewModel.createIdentity(context)
+                },
+                onRestoreAccount = {
+                    authViewModel.restoreAccount(context, state.identity, state.userId)
+                },
+                existingAccount = state.identity
+            )
+        }
+        
         is AuthState.Authenticated -> {
             val identity = state.identity
             

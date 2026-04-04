@@ -1,6 +1,7 @@
 package com.bananjemmy.ui.viewmodel
 
 import android.content.Context
+import android.provider.Settings
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,6 +17,7 @@ sealed class AuthState {
     object Loading : AuthState()
     object Unauthenticated : AuthState()
     data class Authenticated(val identity: Identity) : AuthState()
+    data class AccountFound(val identity: Identity, val userId: String) : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
@@ -61,9 +63,36 @@ class AuthViewModel : ViewModel() {
                     loadIdentityFromServer(identityId, silent = false)
                 }
             } else {
-                Log.d(TAG, "No saved identity found")
-                _authState.value = AuthState.Unauthenticated
-                _isLoading.value = false
+                Log.d(TAG, "No saved identity found, checking device...")
+                
+                // Проверяем есть ли аккаунт с этим deviceId
+                val androidId = Settings.Secure.getString(
+                    context.contentResolver,
+                    Settings.Secure.ANDROID_ID
+                )
+                
+                if (!androidId.isNullOrEmpty()) {
+                    repository.checkDevice(androidId).fold(
+                        onSuccess = { checkResult ->
+                            if (checkResult.exists && checkResult.identity != null && checkResult.userId != null) {
+                                Log.d(TAG, "✅ Found existing account: ${checkResult.identity.username}")
+                                _authState.value = AuthState.AccountFound(checkResult.identity, checkResult.userId)
+                            } else {
+                                Log.d(TAG, "No existing account found")
+                                _authState.value = AuthState.Unauthenticated
+                            }
+                            _isLoading.value = false
+                        },
+                        onFailure = { error ->
+                            Log.e(TAG, "Failed to check device: ${error.message}")
+                            _authState.value = AuthState.Unauthenticated
+                            _isLoading.value = false
+                        }
+                    )
+                } else {
+                    _authState.value = AuthState.Unauthenticated
+                    _isLoading.value = false
+                }
             }
         }
     }
@@ -107,16 +136,34 @@ class AuthViewModel : ViewModel() {
         loadIdentityFromServer(id, silent = false)
     }
     
+    fun restoreAccount(context: Context, identity: Identity, userId: String) {
+        Log.d(TAG, "Restoring account: ${identity.username}")
+        saveIdentity(context, identity)
+        _authState.value = AuthState.Authenticated(identity)
+    }
+    
     fun createIdentity(context: Context) {
         viewModelScope.launch {
             _isLoading.value = true
             Log.d(TAG, "📱 Creating identity with auto-generated username")
             
-            // Generate device ID if not exists
+            // Используем ANDROID_ID - уникальный ID устройства
+            // Он НЕ меняется при переустановке приложения
+            val androidId = Settings.Secure.getString(
+                context.contentResolver,
+                Settings.Secure.ANDROID_ID
+            )
+            
             val prefs = context.getSharedPreferences("jemmy_prefs", Context.MODE_PRIVATE)
-            val deviceId = prefs.getString("device_id", null) ?: UUID.randomUUID().toString().also {
-                prefs.edit().putString("device_id", it).apply()
-                Log.d(TAG, "🔑 Generated new device ID: $it")
+            val deviceId = if (!androidId.isNullOrEmpty()) {
+                Log.d(TAG, "📱 Using ANDROID_ID as device ID: $androidId")
+                androidId
+            } else {
+                // Fallback: если ANDROID_ID недоступен (очень редко)
+                prefs.getString("device_id", null) ?: UUID.randomUUID().toString().also {
+                    prefs.edit().putString("device_id", it).apply()
+                    Log.d(TAG, "🔑 Generated fallback device ID: $it")
+                }
             }
             
             repository.createIdentity(deviceId, false).fold(

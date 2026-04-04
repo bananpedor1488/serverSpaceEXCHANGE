@@ -15,9 +15,65 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun OnboardingScreen(
-    onCreateIdentity: (Boolean) -> Unit
+    onCreateIdentity: (Boolean) -> Unit,
+    onRestoreAccount: () -> Unit = {},
+    existingAccount: com.bananjemmy.data.model.Identity? = null
 ) {
     var isEphemeral by remember { mutableStateOf(false) }
+    var showAccountDialog by remember { mutableStateOf(existingAccount != null) }
+    
+    // Показываем диалог если найден существующий аккаунт
+    if (showAccountDialog && existingAccount != null) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = {
+                Text(
+                    text = "Аккаунт найден",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Ваш UDID устройства был найден в базе данных.",
+                        fontSize = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Аккаунт: @${existingAccount.username}",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Хотите войти в этот аккаунт или создать новый?",
+                        fontSize = 15.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showAccountDialog = false
+                        onRestoreAccount()
+                    }
+                ) {
+                    Text("Войти")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showAccountDialog = false
+                        onCreateIdentity(false)
+                    }
+                ) {
+                    Text("Создать новый")
+                }
+            }
+        )
+    }
     
     Box(
         modifier = Modifier

@@ -54,6 +54,17 @@ data class AuthResponse(
     val identity: Identity
 )
 
+data class DeviceCheckResponse(
+    @SerializedName("exists")
+    val exists: Boolean,
+    
+    @SerializedName("identity")
+    val identity: Identity? = null,
+    
+    @SerializedName("user_id")
+    val userId: String? = null
+)
+
 data class UpdateIdentityRequest(
     @SerializedName("username")
     val username: String? = null,

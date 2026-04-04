@@ -42,6 +42,27 @@ class APIService {
         }
     }
     
+    func checkDevice(deviceId: String) async throws -> DeviceCheckResponse {
+        print("📡 Request: GET /auth/check-device/\(deviceId)")
+        
+        let url = URL(string: "\(baseURL)/auth/check-device/\(deviceId)")!
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let checkResponse = try JSONDecoder().decode(DeviceCheckResponse.self, from: data)
+            print("✅ Device check: exists=\(checkResponse.exists)")
+            return checkResponse
+        } catch {
+            print("❌ Device check error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
     func toggleEphemeral(deviceId: String, enabled: Bool) async throws {
         print("📡 Request: POST /auth/toggle-ephemeral")
         print("📦 Body: device_id=\(deviceId), enabled=\(enabled)")

@@ -10,6 +10,9 @@ interface JemmyApiService {
     @POST("api/auth/register")
     suspend fun register(@Body request: CreateIdentityRequest): Response<AuthResponse>
     
+    @GET("api/auth/check-device/{deviceId}")
+    suspend fun checkDevice(@Path("deviceId") deviceId: String): Response<DeviceCheckResponse>
+    
     // Identity endpoints
     @GET("api/identity/check-username/{username}")
     suspend fun checkUsername(@Path("username") username: String): Response<UsernameCheckResponse>

@@ -11,6 +11,28 @@ class JemmyRepository {
     private val TAG = "JemmyRepository"
     
     // Identity operations
+    suspend fun checkDevice(deviceId: String): Result<DeviceCheckResponse> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "📡 Request: GET /api/auth/check-device/$deviceId")
+                
+                val response = api.checkDevice(deviceId)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val result = response.body()!!
+                    Log.d(TAG, "✅ Device check: exists=${result.exists}")
+                    Result.success(result)
+                } else {
+                    Log.e(TAG, "❌ Device check failed: ${response.code()}")
+                    Result.failure(Exception("Failed to check device"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Device check error", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
     suspend fun createIdentity(deviceId: String, ephemeral: Boolean = false): Result<Identity> {
         return withContext(Dispatchers.IO) {
             try {

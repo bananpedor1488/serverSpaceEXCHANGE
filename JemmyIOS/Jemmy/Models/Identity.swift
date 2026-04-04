@@ -77,6 +77,18 @@ struct AuthResponse: Codable {
     }
 }
 
+struct DeviceCheckResponse: Codable {
+    let exists: Bool
+    let identity: Identity?
+    let userId: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case exists
+        case identity
+        case userId = "user_id"
+    }
+}
+
 struct ChatStartResponse: Codable {
     let chatId: String
     let otherUser: Identity

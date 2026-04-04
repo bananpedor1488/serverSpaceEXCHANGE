@@ -10,6 +10,7 @@ class AuthViewModel: ObservableObject {
     @Published var ephemeralEnabled = false
     @Published var isLoading = false
     @Published var isAuthenticated = false
+    @Published var existingAccount: Identity?
     
     private let identityKey = "cached_identity"
     private let userIdKey = "cached_user_id"
@@ -66,44 +67,102 @@ class AuthViewModel: ObservableObject {
         print("💾 Auth cached")
     }
     
-    func register() async {
+    func register(isEphemeral: Bool = false) async {
         // Если уже есть сохраненные данные и нет интернета, используем их
         if isAuthenticated && !NetworkMonitor.shared.isConnected {
             print("📦 Using cached auth (offline mode)")
             return
         }
         
-        print("🚀 Starting registration...")
+        print("🚀 Creating new account...")
         isLoading = true
         
         do {
             let publicKey = UUID().uuidString
             let response = try await APIService.shared.register(deviceId: deviceId, publicKey: publicKey)
             
-            self.userId = response.userId
-            self.identity = response.identity
-            self.isAuthenticated = true
-            
-            // Сохраняем данные
-            saveAuth()
-            
-            print("✅ Registration complete")
-            print("   User ID: \(response.userId)")
-            print("   Username: \(response.identity.username)")
-            
-            if let userId = userId, let identityId = identity?.id {
-                WebSocketManager.shared.connect(userId: userId, identityId: identityId)
+            await MainActor.run {
+                self.userId = response.userId
+                self.identity = response.identity
+                self.isAuthenticated = true
+                saveAuth()
+                
+                print("✅ Registration complete")
+                print("   User ID: \(response.userId)")
+                print("   Username: \(response.identity.username)")
+                
+                if let userId = userId, let identityId = identity?.id {
+                    WebSocketManager.shared.connect(userId: userId, identityId: identityId)
+                }
+                
+                self.isLoading = false
             }
         } catch {
             print("❌ Registration failed: \(error.localizedDescription)")
             
-            // Если есть кэш, используем его
-            if isAuthenticated {
-                print("📦 Using cached auth after error")
+            await MainActor.run {
+                // Если есть кэш, используем его
+                if isAuthenticated {
+                    print("📦 Using cached auth after error")
+                }
+                self.isLoading = false
             }
         }
+    }
+    
+    func checkDevice() async {
+        print("🔍 Checking device...")
         
-        isLoading = false
+        do {
+            let checkResponse = try await APIService.shared.checkDevice(deviceId: deviceId)
+            
+            if checkResponse.exists, let existingIdentity = checkResponse.identity {
+                print("✅ Found existing account: \(existingIdentity.username)")
+                await MainActor.run {
+                    self.existingAccount = existingIdentity
+                }
+            } else {
+                print("ℹ️ No existing account found")
+            }
+        } catch {
+            print("❌ Check device failed: \(error.localizedDescription)")
+        }
+    }
+    
+    func restoreAccount() async {
+        print("🔄 Restoring account...")
+        isLoading = true
+        
+        do {
+            let checkResponse = try await APIService.shared.checkDevice(deviceId: deviceId)
+            
+            if checkResponse.exists, let existingIdentity = checkResponse.identity, let existingUserId = checkResponse.userId {
+                await MainActor.run {
+                    self.userId = existingUserId
+                    self.identity = existingIdentity
+                    self.isAuthenticated = true
+                    self.existingAccount = nil
+                    self.isLoading = false
+                    saveAuth()
+                    
+                    print("✅ Account restored: \(existingIdentity.username)")
+                    
+                    if let userId = userId, let identityId = identity?.id {
+                        WebSocketManager.shared.connect(userId: userId, identityId: identityId)
+                    }
+                }
+            } else {
+                print("❌ Account not found")
+                await MainActor.run {
+                    self.isLoading = false
+                }
+            }
+        } catch {
+            print("❌ Restore failed: \(error.localizedDescription)")
+            await MainActor.run {
+                self.isLoading = false
+            }
+        }
     }
     
     func loadProfile() async {
