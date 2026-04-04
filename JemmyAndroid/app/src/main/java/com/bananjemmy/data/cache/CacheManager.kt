@@ -299,10 +299,3 @@ data class CacheStats(
         }
     }
 }
-
-data class CacheStats(
-    val chatsCount: Int,
-    val messagesCount: Int,
-    val sizeBytes: Long,
-    val sizeMB: Double
-)

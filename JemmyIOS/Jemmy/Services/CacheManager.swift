@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 class CacheManager {
     static let shared = CacheManager()
