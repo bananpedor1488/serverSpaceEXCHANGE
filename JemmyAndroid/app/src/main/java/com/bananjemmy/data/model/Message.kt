@@ -18,8 +18,17 @@ data class Message(
     @SerializedName("createdAt")
     val createdAt: String,
     
+    @SerializedName("delivered")
+    val delivered: Boolean = false,
+    
+    @SerializedName("delivered_at")
+    val deliveredAt: String? = null,
+    
     @SerializedName("read")
-    val read: Boolean = false
+    val read: Boolean = false,
+    
+    @SerializedName("read_at")
+    val readAt: String? = null
 )
 
 data class SendMessageRequest(

@@ -14,6 +14,7 @@ class WebSocketManager: ObservableObject {
     var onPinUpdate: ((String, Bool) -> Void)?
     var onMuteUpdate: ((String, Bool) -> Void)?
     var onUserStatus: ((String, Bool, Int64) -> Void)? // identity_id, online, last_seen
+    var onMessageStatusUpdate: ((String, Bool, Bool) -> Void)? // message_id, delivered, read
     
     private init() {}
     
@@ -66,6 +67,11 @@ class WebSocketManager: ObservableObject {
             self?.handleUserStatus(data: data)
         }
         
+        socket?.on("message_status_update") { [weak self] data, ack in
+            print("📬 Received message_status_update event")
+            self?.handleMessageStatusUpdate(data: data)
+        }
+        
         socket?.connect()
         print("🔄 WebSocket connecting...")
     }
@@ -110,6 +116,16 @@ class WebSocketManager: ObservableObject {
     
     func toggleMute(chatId: String, identityId: String) {
         socket?.emit("toggle_mute", ["chat_id": chatId, "identity_id": identityId])
+    }
+    
+    func markMessageDelivered(messageId: String, chatId: String) {
+        socket?.emit("message_delivered", ["message_id": messageId, "chat_id": chatId])
+        print("✅ Marked message as delivered: \(messageId)")
+    }
+    
+    func markMessageRead(messageId: String, chatId: String) {
+        socket?.emit("message_read", ["message_id": messageId, "chat_id": chatId])
+        print("✅ Marked message as read: \(messageId)")
     }
     
     private func handleMessageReceived(data: [Any]) {
@@ -186,6 +202,25 @@ class WebSocketManager: ObservableObject {
         DispatchQueue.main.async {
             print("📤 Calling onUserStatus callback")
             self.onUserStatus?(identityId, online, lastSeen)
+        }
+    }
+    
+    private func handleMessageStatusUpdate(data: [Any]) {
+        guard let updateData = data.first as? [String: Any],
+              let messageId = updateData["message_id"] as? String,
+              let delivered = updateData["delivered"] as? Bool,
+              let read = updateData["read"] as? Bool else { 
+            print("❌ Failed to parse message status update")
+            return 
+        }
+        
+        print("✅ Message status update parsed:")
+        print("   Message ID: \(messageId)")
+        print("   Delivered: \(delivered)")
+        print("   Read: \(read)")
+        
+        DispatchQueue.main.async {
+            self.onMessageStatusUpdate?(messageId, delivered, read)
         }
     }
 }

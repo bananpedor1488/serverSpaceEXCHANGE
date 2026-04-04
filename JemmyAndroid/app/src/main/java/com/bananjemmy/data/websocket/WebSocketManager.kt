@@ -20,6 +20,7 @@ class WebSocketManager private constructor() {
     var onPinUpdate: ((String, Boolean) -> Unit)? = null
     var onMuteUpdate: ((String, Boolean) -> Unit)? = null
     var onUserStatus: ((String, Boolean, Long) -> Unit)? = null // identity_id, online, last_seen
+    var onMessageStatusUpdate: ((String, Boolean, Boolean) -> Unit)? = null // message_id, delivered, read
     
     companion object {
         @Volatile
@@ -85,6 +86,10 @@ class WebSocketManager private constructor() {
             
             socket?.on("user_status") { args ->
                 handleUserStatus(args)
+            }
+            
+            socket?.on("message_status_update") { args ->
+                handleMessageStatusUpdate(args)
             }
             
             socket?.connect()
@@ -192,6 +197,32 @@ class WebSocketManager private constructor() {
         }
     }
     
+    fun markMessageDelivered(messageId: String, chatId: String) {
+        try {
+            val data = JSONObject().apply {
+                put("message_id", messageId)
+                put("chat_id", chatId)
+            }
+            socket?.emit("message_delivered", data)
+            Log.d(TAG, "✅ Marked message as delivered: $messageId")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error marking message as delivered", e)
+        }
+    }
+    
+    fun markMessageRead(messageId: String, chatId: String) {
+        try {
+            val data = JSONObject().apply {
+                put("message_id", messageId)
+                put("chat_id", chatId)
+            }
+            socket?.emit("message_read", data)
+            Log.d(TAG, "✅ Marked message as read: $messageId")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error marking message as read", e)
+        }
+    }
+    
     private fun handleMessageReceived(args: Array<Any>) {
         try {
             val data = args.firstOrNull() as? JSONObject ?: return
@@ -258,6 +289,20 @@ class WebSocketManager private constructor() {
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error handling user status", e)
             Log.e(TAG, "   Raw args: ${args.contentToString()}")
+        }
+    }
+    
+    private fun handleMessageStatusUpdate(args: Array<Any>) {
+        try {
+            val data = args.firstOrNull() as? JSONObject ?: return
+            val messageId = data.getString("message_id")
+            val delivered = data.getBoolean("delivered")
+            val read = data.getBoolean("read")
+            
+            onMessageStatusUpdate?.invoke(messageId, delivered, read)
+            Log.d(TAG, "📬 Message status update: id=$messageId, delivered=$delivered, read=$read")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling message status update", e)
         }
     }
 }

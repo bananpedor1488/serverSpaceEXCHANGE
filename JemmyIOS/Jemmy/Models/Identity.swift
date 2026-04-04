@@ -136,6 +136,10 @@ struct ChatMessage: Codable, Identifiable {
     let encryptedContent: String
     let type: String
     let createdAt: String
+    let delivered: Bool
+    let deliveredAt: String?
+    let read: Bool
+    let readAt: String?
     
     enum CodingKeys: String, CodingKey {
         case id = "_id"
@@ -144,6 +148,24 @@ struct ChatMessage: Codable, Identifiable {
         case encryptedContent = "encrypted_content"
         case type
         case createdAt
+        case delivered
+        case deliveredAt = "delivered_at"
+        case read
+        case readAt = "read_at"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        chatId = try container.decode(String.self, forKey: .chatId)
+        senderIdentityId = try container.decode(String.self, forKey: .senderIdentityId)
+        encryptedContent = try container.decode(String.self, forKey: .encryptedContent)
+        type = try container.decode(String.self, forKey: .type)
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        delivered = (try? container.decode(Bool.self, forKey: .delivered)) ?? false
+        deliveredAt = try? container.decode(String.self, forKey: .deliveredAt)
+        read = (try? container.decode(Bool.self, forKey: .read)) ?? false
+        readAt = try? container.decode(String.self, forKey: .readAt)
     }
     
     var createdDate: Date {

@@ -94,6 +94,9 @@ fun ChatScreen(
         chatViewModel.loadMessages(chatId)
         chatViewModel.joinChat(chatId)
         chatViewModel.requestUserStatus(otherUser.id)
+        
+        // Mark all messages as read when opening chat
+        chatViewModel.markChatMessagesAsRead(chatId, currentUserId)
     }
     
     // Polling для обновления статуса каждые 2 секунды
@@ -366,35 +369,52 @@ fun MessageBubble(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
     ) {
-        Box(
-            modifier = Modifier.widthIn(max = 280.dp)
+        Column(
+            modifier = Modifier.widthIn(max = 280.dp),
+            horizontalAlignment = if (isFromMe) Alignment.End else Alignment.Start
         ) {
-            // Текст сообщения с отступом справа для времени
-            Text(
-                text = message.content + "        ", // Добавляем пробелы для места под время
-                fontSize = 14.sp,
-                color = Color.White,
-                modifier = Modifier
-                    .background(
-                        color = if (isFromMe) {
-                            Color(0xFF4CAF50).copy(alpha = 0.8f)
-                        } else {
-                            Color.White.copy(alpha = 0.1f)
-                        },
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            )
+            Box {
+                // Текст сообщения с отступом справа для времени
+                Text(
+                    text = message.content + "        ", // Добавляем пробелы для места под время
+                    fontSize = 14.sp,
+                    color = Color.White,
+                    modifier = Modifier
+                        .background(
+                            color = if (isFromMe) {
+                                Color(0xFF4CAF50).copy(alpha = 0.8f)
+                            } else {
+                                Color.White.copy(alpha = 0.1f)
+                            },
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+                
+                // Время справа внизу
+                Text(
+                    text = formatTime(message.createdAt),
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 4.dp)
+                )
+            }
             
-            // Время справа внизу
-            Text(
-                text = formatTime(message.createdAt),
-                fontSize = 11.sp,
-                color = Color.White.copy(alpha = 0.5f),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 8.dp, bottom = 4.dp)
-            )
+            // Статус доставки/прочтения (только для своих сообщений)
+            if (isFromMe) {
+                Text(
+                    text = when {
+                        message.read -> "прочитано"
+                        message.delivered -> "доставлено"
+                        else -> "отправлено"
+                    },
+                    fontSize = 10.sp,
+                    color = Color.White.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(top = 2.dp, end = 4.dp)
+                )
+            }
         }
     }
 }

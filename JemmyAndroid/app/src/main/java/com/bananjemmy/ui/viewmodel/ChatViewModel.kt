@@ -38,6 +38,12 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
             Log.d(TAG, "📲 Received status in ViewModel: $identityId, online=$online")
             updateUserStatus(identityId, online, lastSeen)
         }
+        
+        // Setup message status listener
+        webSocket.onMessageStatusUpdate = { messageId, delivered, read ->
+            Log.d(TAG, "📬 Message status update: $messageId, delivered=$delivered, read=$read")
+            updateMessageStatus(messageId, delivered, read)
+        }
     }
     
     private fun updateUserStatus(identityId: String, online: Boolean, lastSeen: Long) {
@@ -62,6 +68,34 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
             Log.d(TAG, "   ✅ State updated")
         } else {
             Log.d(TAG, "   ⚠️ State is not Success, cannot update")
+        }
+    }
+    
+    private fun updateMessageStatus(messageId: String, delivered: Boolean, read: Boolean) {
+        val currentState = _messagesState.value
+        if (currentState is MessagesState.Success) {
+            val updatedMessages = currentState.messages.map { message ->
+                if (message.id == messageId) {
+                    message.copy(delivered = delivered, read = read)
+                } else {
+                    message
+                }
+            }
+            _messagesState.value = MessagesState.Success(updatedMessages)
+            Log.d(TAG, "✅ Updated message status: $messageId")
+        }
+    }
+    
+    fun markChatMessagesAsRead(chatId: String, currentUserId: String) {
+        viewModelScope.launch {
+            val currentState = _messagesState.value
+            if (currentState is MessagesState.Success) {
+                currentState.messages
+                    .filter { it.senderId != currentUserId && !it.read }
+                    .forEach { message ->
+                        webSocket.markMessageRead(message.id, chatId)
+                    }
+            }
         }
     }
     
@@ -99,6 +133,9 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
         
         webSocket.onMessageReceived = { message ->
             addMessageToChat(message)
+            
+            // Mark as delivered when received
+            webSocket.markMessageDelivered(message.id, message.chatId)
         }
     }
     

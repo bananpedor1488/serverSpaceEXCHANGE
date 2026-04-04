@@ -220,10 +220,12 @@ struct ChatView: View {
             startPolling()
             setupWebSocket()
             updateUserStatus()
+            markMessagesAsRead()
         }
         .onDisappear {
             stopPolling()
             WebSocketManager.shared.onUserStatus = nil
+            WebSocketManager.shared.onMessageStatusUpdate = nil
         }
         .onChange(of: networkMonitor.isConnected) { isConnected in
             if isConnected {
@@ -250,8 +252,27 @@ struct ChatView: View {
             }
         }
         
+        WebSocketManager.shared.onMessageStatusUpdate = { messageId, delivered, read in
+            if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                // Update message status in local array
+                // Note: ChatMessage is immutable, so we need to reload or use a mutable wrapper
+                self.loadMessages()
+            }
+        }
+        
         // Request initial status
         WebSocketManager.shared.requestUserStatus(identityId: otherUser.id)
+    }
+    
+    private func markMessagesAsRead() {
+        guard let myIdentityId = authViewModel.identity?.id else { return }
+        
+        // Mark all messages from other user as read
+        messages
+            .filter { $0.senderIdentityId != myIdentityId && !$0.read }
+            .forEach { message in
+                WebSocketManager.shared.markMessageRead(messageId: message.id, chatId: chatId)
+            }
     }
     
     private func startPolling() {
@@ -367,21 +388,31 @@ struct MessageBubble: View {
                 Spacer(minLength: 60)
             }
             
-            HStack(alignment: .bottom, spacing: 4) {
-                Text(message.encryptedContent)
-                    .font(.system(size: 16))
-                    .foregroundColor(.white)
-                    .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: isFromMe ? .trailing : .leading, spacing: 2) {
+                HStack(alignment: .bottom, spacing: 4) {
+                    Text(message.encryptedContent)
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                    
+                    Text(formatTime(message.createdDate))
+                        .font(.system(size: 11))
+                        .foregroundColor(isFromMe ? .white.opacity(0.7) : .white.opacity(0.5))
+                        .padding(.bottom, 1)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(isFromMe ? Color.green.opacity(0.8) : Color.white.opacity(0.1))
+                .cornerRadius(16)
                 
-                Text(formatTime(message.createdDate))
-                    .font(.system(size: 11))
-                    .foregroundColor(isFromMe ? .white.opacity(0.7) : .white.opacity(0.5))
-                    .padding(.bottom, 1)
+                // Статус доставки/прочтения (только для своих сообщений)
+                if isFromMe {
+                    Text(message.read ? "прочитано" : (message.delivered ? "доставлено" : "отправлено"))
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.4))
+                        .padding(.trailing, 4)
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(isFromMe ? Color.green.opacity(0.8) : Color.white.opacity(0.1))
-            .cornerRadius(16)
             
             if !isFromMe {
                 Spacer(minLength: 60)
