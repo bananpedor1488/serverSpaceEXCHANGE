@@ -247,6 +247,12 @@ struct ChatsListView: View {
                     chats = loadedChats
                     isLoading = false
                     
+                    // Request status for all users in chats
+                    print("🔍 Requesting status for \(loadedChats.count) users")
+                    for chat in loadedChats {
+                        WebSocketManager.shared.requestUserStatus(identityId: chat.user.id)
+                    }
+                    
                     // Сохраняем в кэш
                     CacheManager.shared.saveChats(loadedChats)
                     
