@@ -31,7 +31,7 @@ struct AvatarView: View {
                     .foregroundColor(.blue)
             }
         }
-        .task(id: identity.id + (identity.avatarUpdatedAt ?? "")) {
+        .task(id: identity.id + (identity.avatarUpdatedAt ?? "0")) {
             await loadAvatar()
         }
     }

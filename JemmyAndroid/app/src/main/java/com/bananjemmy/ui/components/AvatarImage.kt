@@ -95,11 +95,11 @@ private suspend fun loadAvatar(identity: Identity, cacheManager: CacheManager): 
             
             // Decode from server data
             Log.d("AVATAR", "📥 Decoding avatar from server for ${identity.username}")
-            val bitmap = base64ToBitmap(identity.avatar)
+            val bitmap = base64ToBitmap(identity.avatar!!)
             
             // Save to cache
             if (bitmap != null) {
-                cacheManager.saveAvatar(identity.id, identity.avatar, serverUpdatedAt)
+                cacheManager.saveAvatar(identity.id, identity.avatar!!, serverUpdatedAt)
                 Log.d("AVATAR", "💾 Saved avatar to cache for ${identity.username}")
             }
             
