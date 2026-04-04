@@ -246,6 +246,22 @@ struct ChatView: View {
                 stopPolling()
             }
         }
+        .onChange(of: messages) { newMessages in
+            // Auto-mark NEW messages as read when they arrive (while chat is open)
+            handleAutoRead()
+        }
+    }
+    
+    private func handleAutoRead() {
+        guard let myIdentityId = authViewModel.identity?.id else { return }
+        
+        let unreadMessages = messages.filter { $0.senderIdentityId != myIdentityId && !$0.read }
+        
+        if !unreadMessages.isEmpty {
+            print("📨 New unread messages detected: \(unreadMessages.count)")
+            print("📖 Auto-marking as read (chat is open)")
+            markMessagesAsRead()
+        }
     }
     
     private func updateUserStatus() {

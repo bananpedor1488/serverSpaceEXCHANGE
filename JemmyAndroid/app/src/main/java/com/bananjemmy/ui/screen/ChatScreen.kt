@@ -110,6 +110,20 @@ fun ChatScreen(
         }
     }
     
+    // Auto-mark NEW messages as read when they arrive (while chat is open)
+    LaunchedEffect(messagesState) {
+        if (messagesState is MessagesState.Success) {
+            val messages = (messagesState as MessagesState.Success).messages
+            val unreadMessages = messages.filter { it.senderId != currentUserId && !it.read }
+            
+            if (unreadMessages.isNotEmpty()) {
+                Log.d("ChatScreen", "📨 New unread messages detected: ${unreadMessages.size}")
+                Log.d("ChatScreen", "📖 Auto-marking as read (chat is open)")
+                chatViewModel.markChatMessagesAsRead(chatId, currentUserId)
+            }
+        }
+    }
+    
     // Polling для обновления статуса каждые 2 секунды
     LaunchedEffect(otherUser.id) {
         while (true) {
