@@ -3,13 +3,17 @@
     "apps": [],
     "details": [
       {
-        "appIDs": ["com.banan.Weeky"],
+        "appIDs": ["TEAMID.com.banan.Weeky"],
         "components": [
           {
-            "/": "/api/u/*"
+            "/": "/api/u/*",
+            "comment": "Invite links"
           }
         ]
       }
     ]
+  },
+  "webcredentials": {
+    "apps": ["com.banan.Weeky"]
   }
 }

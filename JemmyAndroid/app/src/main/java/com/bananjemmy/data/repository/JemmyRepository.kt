@@ -316,14 +316,26 @@ class JemmyRepository {
             try {
                 Log.d(TAG, "Previewing invite link: $token")
                 val response = api.previewInviteLink(token)
+                
+                Log.d(TAG, "Response code: ${response.code()}")
+                Log.d(TAG, "Response successful: ${response.isSuccessful}")
+                
                 if (response.isSuccessful && response.body() != null) {
-                    Log.d(TAG, "Invite preview loaded")
-                    Result.success(response.body()!!.identity)
+                    val body = response.body()!!
+                    Log.d(TAG, "Raw response body: $body")
+                    Log.d(TAG, "Invite preview loaded: ${body.identity.username}")
+                    Result.success(body.identity)
                 } else {
-                    Result.failure(Exception("Failed to preview invite"))
+                    val errorMsg = "Failed to preview invite: code=${response.code()}"
+                    val errorBody = response.errorBody()?.string()
+                    Log.e(TAG, "$errorMsg, error: $errorBody")
+                    Result.failure(Exception(errorMsg))
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error previewing invite", e)
+                // Print full JSON response for debugging
+                Log.e(TAG, "Exception type: ${e.javaClass.simpleName}")
+                Log.e(TAG, "Exception message: ${e.message}")
                 Result.failure(e)
             }
         }

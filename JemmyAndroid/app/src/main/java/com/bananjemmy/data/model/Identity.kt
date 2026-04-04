@@ -19,13 +19,19 @@ data class Identity(
     val avatar: String? = null,
     
     @SerializedName("avatar_updated_at")
-    val avatarUpdatedAt: Long? = null,
+    val avatarUpdatedAt: String? = null,
     
     @SerializedName("createdAt")
     val createdAt: String? = null,
     
     @SerializedName("expiresAt")
-    val expiresAt: String? = null
+    val expiresAtCamel: String? = null,
+    
+    @SerializedName("expires_at")
+    val expiresAt: String? = null,
+    
+    @SerializedName("last_seen")
+    val lastSeen: String? = null
 ) {
     // Use _id if available, otherwise use id
     val id: String

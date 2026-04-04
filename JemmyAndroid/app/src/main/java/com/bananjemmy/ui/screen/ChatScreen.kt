@@ -41,18 +41,10 @@ fun ChatScreen(
 ) {
     val messagesState by chatViewModel.messagesState.collectAsState()
     val isSending by chatViewModel.isSending.collectAsState()
-    val chatListState by chatViewModel.chatListState.collectAsState()
     
-    // Get real-time status from chat list state
-    val currentChat = remember(chatListState) {
-        if (chatListState is com.bananjemmy.ui.viewmodel.ChatListState.Success) {
-            (chatListState as com.bananjemmy.ui.viewmodel.ChatListState.Success).chats
-                .find { it.user.id == otherUser.id }
-        } else null
-    }
-    
-    val currentIsOnline = currentChat?.isOnline ?: isOnline
-    val currentLastSeen = currentChat?.lastSeen ?: lastSeen
+    // Get status from centralized cache
+    val userStatuses by chatViewModel.userStatuses.collectAsState()
+    val (currentIsOnline, currentLastSeen) = userStatuses[otherUser.id] ?: Pair(isOnline, lastSeen)
     
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -64,8 +56,8 @@ fun ChatScreen(
     // Format last seen time
     val lastSeenText = remember(currentLastSeen, currentIsOnline) {
         when {
-            currentIsOnline == true -> "в сети"
-            currentLastSeen != null && currentLastSeen > 0 -> {
+            currentIsOnline -> "в сети"
+            currentLastSeen > 0 -> {
                 val date = Date(currentLastSeen)
                 val now = Date()
                 val diff = now.time - date.time
@@ -389,8 +381,9 @@ fun ChatScreen(
             ContactProfileScreen(
                 user = otherUser,
                 onDismiss = { showContactProfile = false },
-                isOnline = isOnline,
-                lastSeen = lastSeen
+                chatViewModel = chatViewModel,
+                isOnline = currentIsOnline,
+                lastSeen = currentLastSeen
             )
         }
     }

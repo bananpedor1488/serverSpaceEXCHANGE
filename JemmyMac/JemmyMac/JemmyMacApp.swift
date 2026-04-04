@@ -49,11 +49,22 @@ struct JemmyMacApp: App {
     
     private func handleDeepLink(_ url: URL) {
         print("🔗 Deep link received: \(url.absoluteString)")
+        print("🔗 Scheme: \(url.scheme ?? "nil"), Host: \(url.host ?? "nil"), Path: \(url.path)")
         
+        var token: String? = nil
+        
+        // jemmy://invite/{token}
         if url.scheme == "jemmy" && url.host == "invite" {
-            let token = url.lastPathComponent
-            print("🎫 Invite token: \(token)")
-            
+            token = url.lastPathComponent
+            print("🎫 Invite token from jemmy:// scheme: \(token ?? "nil")")
+        }
+        // https://weeky-six.vercel.app/api/u/{token}
+        else if url.scheme == "https" && url.host == "weeky-six.vercel.app" && url.pathComponents.contains("u") {
+            token = url.lastPathComponent
+            print("🎫 Invite token from HTTPS link: \(token ?? "nil")")
+        }
+        
+        if let token = token {
             Task {
                 do {
                     let identity = try await APIService.shared.useInviteLink(token: token)
@@ -66,6 +77,8 @@ struct JemmyMacApp: App {
                     print("❌ Failed to use invite link: \(error.localizedDescription)")
                 }
             }
+        } else {
+            print("⚠️ Could not extract token from URL")
         }
     }
 }

@@ -29,6 +29,10 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
     private val webSocket = WebSocketManager.getInstance()
     private val TAG = "ChatViewModel"
     
+    // Единое хранилище статусов пользователей (кеш)
+    private val _userStatuses = MutableStateFlow<Map<String, Pair<Boolean, Long>>>(emptyMap())
+    val userStatuses: StateFlow<Map<String, Pair<Boolean, Long>>> = _userStatuses.asStateFlow()
+    
     init {
         Log.d(TAG, "🚀 ChatViewModel initialized")
         setupWebSocketListeners()
@@ -36,6 +40,8 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
         // Setup online status listener
         webSocket.onUserStatus = { identityId, online, lastSeen ->
             Log.d(TAG, "📲 Received status in ViewModel: $identityId, online=$online")
+            // Обновляем кеш статусов
+            _userStatuses.value = _userStatuses.value + (identityId to Pair(online, lastSeen))
             updateUserStatus(identityId, online, lastSeen)
         }
         
@@ -194,7 +200,19 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
     val pendingInvite: StateFlow<Pair<com.bananjemmy.data.model.Identity, String>?> = _pendingInvite.asStateFlow()
     
     fun setPendingInvite(identity: com.bananjemmy.data.model.Identity?, token: String?) {
-        _pendingInvite.value = if (identity != null && token != null) Pair(identity, token) else null
+        Log.d(TAG, "🎯 setPendingInvite called")
+        Log.d(TAG, "   Identity: ${identity?.username ?: "null"}")
+        Log.d(TAG, "   Token: ${token ?: "null"}")
+        
+        val newValue = if (identity != null && token != null) Pair(identity, token) else null
+        _pendingInvite.value = newValue
+        
+        Log.d(TAG, "✅ pendingInvite updated: ${_pendingInvite.value != null}")
+    }
+    
+    // Получить статус пользователя из кеша
+    fun getUserStatus(identityId: String): Pair<Boolean, Long> {
+        return _userStatuses.value[identityId] ?: Pair(false, 0L)
     }
     
     private fun setupWebSocketListeners() {
@@ -353,18 +371,9 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
         viewModelScope.launch {
             repository.getChats(identityId).fold(
                 onSuccess = { chats ->
-                    val currentState = _chatListState.value
-                    
-                    // Сохраняем текущие статусы
-                    val currentStatuses = if (currentState is ChatListState.Success) {
-                        currentState.chats.associate { it.user.id to Pair(it.isOnline, it.lastSeen) }
-                    } else {
-                        emptyMap()
-                    }
-                    
-                    // Восстанавливаем статусы в новых чатах
+                    // Используем кешированные статусы из _userStatuses
                     val chatsWithStatus = chats.map { chat ->
-                        val (isOnline, lastSeen) = currentStatuses[chat.user.id] ?: Pair(false, 0L)
+                        val (isOnline, lastSeen) = _userStatuses.value[chat.user.id] ?: Pair(false, 0L)
                         chat.copy(isOnline = isOnline, lastSeen = lastSeen)
                     }
                     
@@ -382,7 +391,7 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                         }
                     }
                     
-                    // Запрашиваем свежие статусы только через WebSocket (не HTTP чтобы не перегружать)
+                    // Запрашиваем свежие статусы только через WebSocket
                     chats.forEach { chat ->
                         webSocket.requestUserStatus(chat.user.id)
                     }

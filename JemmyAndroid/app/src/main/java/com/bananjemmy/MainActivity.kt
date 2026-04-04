@@ -61,11 +61,17 @@ class MainActivity : ComponentActivity() {
         // Check auth on start
         authViewModel.checkAuth(this)
         
-        // Handle deep link
-        handleDeepLink(intent)
+        // Handle deep link - extract token
+        val deepLinkToken = extractTokenFromIntent(intent)
+        if (deepLinkToken != null) {
+            Log.d("MainActivity", "🔗 Deep link token found in onCreate: $deepLinkToken")
+        }
         
         enableEdgeToEdge()
         setContent {
+            // Сохраняем токен в State чтобы он был доступен в Compose
+            var pendingToken by remember { mutableStateOf(deepLinkToken) }
+            
             JemmyTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -74,8 +80,26 @@ class MainActivity : ComponentActivity() {
                     JemmyApp(
                         authViewModel = authViewModel,
                         chatViewModel = chatViewModel,
-                        cacheManager = cacheManager
+                        cacheManager = cacheManager,
+                        onProcessDeepLink = { token ->
+                            processDeepLinkToken(token)
+                        }
                     )
+                    
+                    // Process pending deep link when authenticated
+                    val authState by authViewModel.authState.collectAsStateWithLifecycle()
+                    LaunchedEffect(authState, pendingToken) {
+                        Log.d("MainActivity", "🔄 LaunchedEffect triggered")
+                        Log.d("MainActivity", "   authState: ${authState::class.simpleName}")
+                        Log.d("MainActivity", "   pendingToken: $pendingToken")
+                        
+                        if (authState is AuthState.Authenticated && pendingToken != null) {
+                            val token = pendingToken!!
+                            Log.d("MainActivity", "🔗 Processing pending deep link after auth: $token")
+                            processDeepLinkToken(token)
+                            pendingToken = null
+                        }
+                    }
                 }
             }
         }
@@ -83,7 +107,95 @@ class MainActivity : ComponentActivity() {
     
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleDeepLink(intent)
+        val token = extractTokenFromIntent(intent)
+        
+        if (token != null) {
+            Log.d("MainActivity", "🔗 New intent with token: $token")
+            // If already authenticated, process immediately
+            val authState = authViewModel.authState.value
+            if (authState is AuthState.Authenticated) {
+                Log.d("MainActivity", "✅ Already authenticated, processing immediately")
+                processDeepLinkToken(token)
+            } else {
+                Log.d("MainActivity", "⏳ Not authenticated yet, will process after auth")
+                // Token will be processed by LaunchedEffect after auth
+            }
+        }
+    }
+    
+    private fun extractTokenFromIntent(intent: Intent?): String? {
+        val data: Uri? = intent?.data
+        return data?.let { uri ->
+            Log.d("MainActivity", "🔗 Deep link received: $uri")
+            Log.d("MainActivity", "🔗 Scheme: ${uri.scheme}, Host: ${uri.host}, Path: ${uri.path}")
+            Log.d("MainActivity", "🔗 Path segments: ${uri.pathSegments}")
+            
+            when {
+                // jemmy://invite/{token}
+                uri.scheme == "jemmy" && uri.host == "invite" -> {
+                    val t = uri.lastPathSegment
+                    Log.d("MainActivity", "✅ Extracted token from jemmy:// scheme: $t")
+                    t
+                }
+                // https://weeky-six.vercel.app/api/u/{token}
+                uri.scheme == "https" && uri.pathSegments.contains("u") -> {
+                    val t = uri.lastPathSegment
+                    Log.d("MainActivity", "✅ Extracted token from HTTPS link: $t")
+                    t
+                }
+                else -> {
+                    Log.d("MainActivity", "⚠️ Unknown deep link format")
+                    null
+                }
+            }
+        } ?: run {
+            Log.d("MainActivity", "⚠️ No deep link data in intent")
+            null
+        }
+    }
+    
+    private fun processDeepLinkToken(token: String) {
+        Log.d("MainActivity", "✅ Processing deep link token: $token")
+        
+        // Show toast for debugging
+        runOnUiThread {
+            android.widget.Toast.makeText(
+                this,
+                "🔗 Processing invite: $token",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+        
+        val repository = JemmyRepository()
+        lifecycleScope.launch {
+            Log.d("MainActivity", "📡 Calling previewInviteLink API...")
+            val result = repository.previewInviteLink(token)
+            result.onSuccess { identity ->
+                Log.d("MainActivity", "✅ Invite preview loaded: ${identity.username}")
+                Log.d("MainActivity", "🎯 Setting pendingInvite in ViewModel")
+                
+                runOnUiThread {
+                    android.widget.Toast.makeText(
+                        this@MainActivity,
+                        "✅ Loaded: ${identity.username}",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+                
+                chatViewModel.setPendingInvite(identity, token)
+                Log.d("MainActivity", "✅ pendingInvite set successfully")
+            }.onFailure {
+                Log.e("MainActivity", "❌ Failed to load invite preview: ${it.message}", it)
+                
+                runOnUiThread {
+                    android.widget.Toast.makeText(
+                        this@MainActivity,
+                        "❌ Error: ${it.message}",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
     
     override fun onDestroy() {
@@ -91,53 +203,16 @@ class MainActivity : ComponentActivity() {
         Log.d("MainActivity", "🔌 onDestroy - disconnecting WebSocket")
         chatViewModel.disconnectWebSocket()
     }
-    
-    private fun handleDeepLink(intent: Intent?) {
-        val data: Uri? = intent?.data
-        data?.let { uri ->
-            Log.d("MainActivity", "🔗 Deep link received: $uri")
-            Log.d("MainActivity", "🔗 Scheme: ${uri.scheme}, Host: ${uri.host}, Path: ${uri.path}")
-            
-            val token = when {
-                // jemmy://invite/{token}
-                uri.scheme == "jemmy" && uri.host == "invite" -> {
-                    uri.lastPathSegment
-                }
-                // https://weeky-six.vercel.app/api/u/{token}
-                uri.scheme == "https" && uri.pathSegments.contains("u") -> {
-                    uri.lastPathSegment
-                }
-                else -> null
-            }
-            
-            if (token != null) {
-                Log.d("MainActivity", "✅ Loading invite preview for token: $token")
-                // Load invite preview
-                val repository = JemmyRepository()
-                lifecycleScope.launch {
-                    val result = repository.previewInviteLink(token)
-                    result.onSuccess { identity ->
-                        Log.d("MainActivity", "✅ Invite preview loaded: ${identity.username}")
-                        chatViewModel.setPendingInvite(identity, token)
-                    }.onFailure {
-                        Log.e("MainActivity", "❌ Failed to load invite preview: ${it.message}")
-                    }
-                }
-            } else {
-                Log.d("MainActivity", "⚠️ Could not extract token from URI")
-            }
-        }
-    }
 }
 
 @Composable
 fun JemmyApp(
     authViewModel: AuthViewModel,
     chatViewModel: ChatViewModel,
-    cacheManager: com.bananjemmy.data.cache.CacheManager
+    cacheManager: com.bananjemmy.data.cache.CacheManager,
+    onProcessDeepLink: (String) -> Unit
 ) {
     val authState by authViewModel.authState.collectAsStateWithLifecycle()
-    val pendingInvite by chatViewModel.pendingInvite.collectAsStateWithLifecycle()
     
     when (val state = authState) {
         is AuthState.Loading -> {
@@ -194,9 +269,7 @@ fun JemmyApp(
                 identity = identity,
                 chatViewModel = chatViewModel,
                 authViewModel = authViewModel,
-                cacheManager = cacheManager,
-                showInviteProfile = pendingInvite,
-                onShowInviteProfile = { chatViewModel.setPendingInvite(it?.first, it?.second) }
+                cacheManager = cacheManager
             )
         }
         
@@ -240,9 +313,7 @@ fun MainScreen(
     identity: Identity,
     chatViewModel: ChatViewModel,
     authViewModel: AuthViewModel,
-    cacheManager: com.bananjemmy.data.cache.CacheManager,
-    showInviteProfile: Pair<Identity, String>?,
-    onShowInviteProfile: (Pair<Identity, String>?) -> Unit
+    cacheManager: com.bananjemmy.data.cache.CacheManager
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var showLinkGenerator by remember { mutableStateOf(false) }
@@ -250,6 +321,18 @@ fun MainScreen(
     var showEditProfile by remember { mutableStateOf(false) }
     var showDataStorage by remember { mutableStateOf(false) }
     var selectedChat by remember { mutableStateOf<Chat?>(null) }
+    
+    // Получаем pendingInvite из ViewModel
+    val pendingInvite by chatViewModel.pendingInvite.collectAsStateWithLifecycle()
+    
+    // Логируем изменения pendingInvite
+    LaunchedEffect(pendingInvite) {
+        Log.d("MainScreen", "🔔 pendingInvite changed: ${pendingInvite != null}")
+        if (pendingInvite != null) {
+            Log.d("MainScreen", "   Identity: ${pendingInvite?.first?.username}")
+            Log.d("MainScreen", "   Token: ${pendingInvite?.second}")
+        }
+    }
     
     // Скрываем таббар когда открыт чат или поиск
     val showBottomBar = selectedChat == null && !showSearch
@@ -348,7 +431,7 @@ fun MainScreen(
                                     }
                                 }
                                 
-                                // Polling для списка чатов каждые 0.5 секунды
+                                // Polling для списка чатов каждые 0.5 секунды (теперь с кешем статусов)
                                 LaunchedEffect(selectedTab) {
                                     if (selectedTab == 0) {
                                         while (true) {
@@ -433,7 +516,14 @@ fun MainScreen(
                                 
                                 // Save avatar to cache if updated
                                 if (avatar != null && updatedIdentity.avatarUpdatedAt != null) {
-                                    cacheManager.saveAvatar(identity.id, avatar, updatedIdentity.avatarUpdatedAt)
+                                    try {
+                                        // Parse ISO date string or timestamp
+                                        val timestamp = updatedIdentity.avatarUpdatedAt.toLongOrNull() 
+                                            ?: java.time.Instant.parse(updatedIdentity.avatarUpdatedAt).toEpochMilli()
+                                        cacheManager.saveAvatar(identity.id, avatar, timestamp)
+                                    } catch (e: Exception) {
+                                        Log.e("MainActivity", "Failed to parse avatar timestamp", e)
+                                    }
                                 }
                             }
                             result
@@ -508,9 +598,9 @@ fun MainScreen(
     }
     
     // Invite Profile Dialog
-    showInviteProfile?.let { (inviteIdentity, token) ->
+    pendingInvite?.let { (inviteIdentity, token) ->
         Dialog(
-            onDismissRequest = { onShowInviteProfile(null) },
+            onDismissRequest = { chatViewModel.setPendingInvite(null, null) },
             properties = androidx.compose.ui.window.DialogProperties(
                 usePlatformDefaultWidth = false
             )
@@ -523,11 +613,11 @@ fun MainScreen(
                     repository.startChatByInvite(inviteToken, myId).map { it.chatId }
                 },
                 myIdentityId = identity.id,
-                onDismiss = { onShowInviteProfile(null) },
+                onDismiss = { chatViewModel.setPendingInvite(null, null) },
                 onChatCreated = { chatId ->
                     Log.d("MainActivity", "Chat created from invite: $chatId")
                     chatViewModel.loadChats(identity.id)
-                    onShowInviteProfile(null)
+                    chatViewModel.setPendingInvite(null, null)
                     selectedTab = 0
                 }
             )

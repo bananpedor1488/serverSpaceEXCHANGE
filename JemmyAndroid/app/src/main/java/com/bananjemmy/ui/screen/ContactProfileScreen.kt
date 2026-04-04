@@ -22,21 +22,27 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bananjemmy.data.model.Identity
+import com.bananjemmy.ui.viewmodel.ChatViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactProfileScreen(
     user: Identity,
     onDismiss: () -> Unit,
+    chatViewModel: ChatViewModel,
     isOnline: Boolean = false,
     lastSeen: Long = 0
 ) {
     var selectedMediaTab by remember { mutableIntStateOf(0) }
     
-    val lastSeenText = remember(lastSeen, isOnline) {
-        if (isOnline) {
+    // Get status from centralized cache
+    val userStatuses by chatViewModel.userStatuses.collectAsState()
+    val (currentIsOnline, currentLastSeen) = userStatuses[user.id] ?: Pair(isOnline, lastSeen)
+    
+    val lastSeenText = remember(currentLastSeen, currentIsOnline) {
+        if (currentIsOnline) {
             "в сети"
-        } else if (lastSeen > 0) {
+        } else if (currentLastSeen > 0) {
             val date = java.util.Date(lastSeen)
             val now = java.util.Date()
             val diff = now.time - date.time
@@ -127,7 +133,7 @@ fun ContactProfileScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    if (isOnline) {
+                    if (currentIsOnline) {
                         Surface(
                             modifier = Modifier.size(8.dp),
                             shape = CircleShape,
@@ -138,7 +144,7 @@ fun ContactProfileScreen(
                     Text(
                         text = lastSeenText,
                         fontSize = 14.sp,
-                        color = if (isOnline) androidx.compose.ui.graphics.Color(0xFF34C759) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        color = if (currentIsOnline) androidx.compose.ui.graphics.Color(0xFF34C759) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
                 
