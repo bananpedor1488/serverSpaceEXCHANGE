@@ -665,3 +665,92 @@ class APIService {
         print("✅ Chat marked as read")
     }
 }
+
+    
+    // MARK: - Privacy Settings
+    
+    func updatePrivacySettings(identityId: String, settings: PrivacySettings) async throws -> PrivacySettings {
+        print("📡 Request: PATCH /identity/privacy/update")
+        
+        let url = URL(string: "\(baseURL)/identity/privacy/update")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "identity_id": identityId,
+            "settings": [
+                "who_can_message": settings.whoCanMessage.rawValue,
+                "who_can_see_profile": settings.whoCanSeeProfile.rawValue,
+                "who_can_see_online": settings.whoCanSeeOnline.rawValue,
+                "who_can_see_last_seen": settings.whoCanSeeLastSeen.rawValue,
+                "auto_delete_messages": settings.autoDeleteMessages
+            ]
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
+        let response = try JSONDecoder().decode([String: PrivacySettings].self, from: data)
+        
+        print("✅ Privacy settings updated")
+        return response["privacy_settings"] ?? settings
+    }
+    
+    func getPrivacySettings(identityId: String) async throws -> PrivacySettings {
+        print("📡 Request: GET /identity/privacy/\(identityId)")
+        
+        let url = URL(string: "\(baseURL)/identity/privacy/\(identityId)")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        
+        let response = try JSONDecoder().decode([String: PrivacySettings].self, from: data)
+        print("✅ Privacy settings loaded")
+        return response["privacy_settings"] ?? .default
+    }
+    
+    func blockUser(blockerIdentityId: String, blockedIdentityId: String) async throws {
+        print("📡 Request: POST /identity/block")
+        
+        let url = URL(string: "\(baseURL)/identity/block")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "blocker_identity_id": blockerIdentityId,
+            "blocked_identity_id": blockedIdentityId
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (_, _) = try await URLSession.shared.data(for: request)
+        print("✅ User blocked")
+    }
+    
+    func unblockUser(blockerIdentityId: String, blockedIdentityId: String) async throws {
+        print("📡 Request: POST /identity/unblock")
+        
+        let url = URL(string: "\(baseURL)/identity/unblock")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "blocker_identity_id": blockerIdentityId,
+            "blocked_identity_id": blockedIdentityId
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (_, _) = try await URLSession.shared.data(for: request)
+        print("✅ User unblocked")
+    }
+    
+    func getBlockedUsers(identityId: String) async throws -> [Identity] {
+        print("📡 Request: GET /identity/blocked-list/\(identityId)")
+        
+        let url = URL(string: "\(baseURL)/identity/blocked-list/\(identityId)")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        
+        let response = try JSONDecoder().decode(BlockedUserResponse.self, from: data)
+        print("✅ Blocked users loaded: \(response.blockedUsers.count)")
+        return response.blockedUsers
+    }
+}

@@ -253,3 +253,53 @@ struct Chat: Codable, Identifiable {
         case groupName = "group_name"
     }
 }
+
+// MARK: - Privacy Settings
+
+struct PrivacySettings: Codable {
+    var whoCanMessage: PrivacyOption
+    var whoCanSeeProfile: PrivacyOption
+    var whoCanSeeOnline: PrivacyOption
+    var whoCanSeeLastSeen: PrivacyOption
+    var autoDeleteMessages: Int // hours: 0, 24, 168, 720
+    
+    enum CodingKeys: String, CodingKey {
+        case whoCanMessage = "who_can_message"
+        case whoCanSeeProfile = "who_can_see_profile"
+        case whoCanSeeOnline = "who_can_see_online"
+        case whoCanSeeLastSeen = "who_can_see_last_seen"
+        case autoDeleteMessages = "auto_delete_messages"
+    }
+    
+    static var `default`: PrivacySettings {
+        PrivacySettings(
+            whoCanMessage: .everyone,
+            whoCanSeeProfile: .everyone,
+            whoCanSeeOnline: .everyone,
+            whoCanSeeLastSeen: .everyone,
+            autoDeleteMessages: 0
+        )
+    }
+}
+
+enum PrivacyOption: String, Codable, CaseIterable {
+    case everyone = "everyone"
+    case contacts = "contacts"
+    case nobody = "nobody"
+    
+    var displayName: String {
+        switch self {
+        case .everyone: return "Все"
+        case .contacts: return "Контакты"
+        case .nobody: return "Никто"
+        }
+    }
+}
+
+struct BlockedUserResponse: Codable {
+    let blockedUsers: [Identity]
+    
+    enum CodingKeys: String, CodingKey {
+        case blockedUsers = "blocked_users"
+    }
+}

@@ -408,35 +408,381 @@ struct SettingsRow: View {
 // MARK: - Privacy Settings
 
 struct PrivacySettingsView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @StateObject private var privacyManager = PrivacyManager.shared
+    @State private var privacySettings: PrivacySettings = .default
+    @State private var isLoading = true
+    @State private var showPinSetup = false
+    @State private var showBlockedUsers = false
+    
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             
-            ScrollView {
-                VStack(spacing: 24) {
-                    SettingsSection(title: "Приватность") {
-                        SettingsRow(icon: "eye.slash", title: "Кто может писать", subtitle: "Все", action: {
-                            print("🔒 Who can message")
-                        })
+            if isLoading {
+                ProgressView()
+                    .tint(.white)
+            } else {
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Локальная безопасность
+                        SettingsSection(title: "Локальная безопасность") {
+                            // PIN код
+                            NavigationLink(destination: PinCodeSetupView()) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.white)
+                                        .frame(width: 24)
+                                    
+                                    Text("PIN-код")
+                                        .font(.system(size: 17))
+                                        .foregroundColor(.white)
+                                    
+                                    Spacer()
+                                    
+                                    Text(privacyManager.hasPinCode ? "Включен" : "Выключен")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(.white.opacity(0.5))
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.3))
+                                }
+                                .padding()
+                                .background(Color.white.opacity(0.05))
+                                .cornerRadius(12)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            // Биометрия
+                            if privacyManager.biometricType != .none {
+                                Toggle(isOn: $privacyManager.isBiometricEnabled) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: privacyManager.biometricType.icon)
+                                            .font(.system(size: 18))
+                                            .foregroundColor(.white)
+                                            .frame(width: 24)
+                                        
+                                        Text(privacyManager.biometricType.displayName)
+                                            .font(.system(size: 17))
+                                            .foregroundColor(.white)
+                                    }
+                                }
+                                .tint(.green)
+                                .padding()
+                                .background(Color.white.opacity(0.05))
+                                .cornerRadius(12)
+                            }
+                            
+                            // Автоблокировка
+                            NavigationLink(destination: AutoLockSettingsView()) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "timer")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.white)
+                                        .frame(width: 24)
+                                    
+                                    Text("Автоблокировка")
+                                        .font(.system(size: 17))
+                                        .foregroundColor(.white)
+                                    
+                                    Spacer()
+                                    
+                                    Text("\(privacyManager.autoLockMinutes) мин")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(.white.opacity(0.5))
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.3))
+                                }
+                                .padding()
+                                .background(Color.white.opacity(0.05))
+                                .cornerRadius(12)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            // Скрытие уведомлений
+                            Toggle(isOn: $privacyManager.hideNotificationContent) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "bell.slash")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.white)
+                                        .frame(width: 24)
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Скрыть контент уведомлений")
+                                            .font(.system(size: 17))
+                                            .foregroundColor(.white)
+                                        
+                                        Text("Показывать только \"Новое сообщение\"")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(.white.opacity(0.5))
+                                    }
+                                }
+                            }
+                            .tint(.green)
+                            .padding()
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(12)
+                            
+                            // Защита от скриншотов
+                            Toggle(isOn: $privacyManager.screenshotProtectionEnabled) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "camera.fill")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.white)
+                                        .frame(width: 24)
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Защита от скриншотов")
+                                            .font(.system(size: 17))
+                                            .foregroundColor(.white)
+                                        
+                                        Text("Запретить скриншоты в чатах")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(.white.opacity(0.5))
+                                    }
+                                }
+                            }
+                            .tint(.green)
+                            .padding()
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(12)
+                        }
                         
-                        SettingsRow(icon: "eye", title: "Кто видит профиль", subtitle: "Все", action: {
-                            print("👁️ Who can see profile")
-                        })
+                        // Серверные настройки
+                        SettingsSection(title: "Кто может...") {
+                            PrivacyOptionRow(
+                                icon: "message.fill",
+                                title: "Писать мне",
+                                value: $privacySettings.whoCanMessage,
+                                onChange: saveSettings
+                            )
+                            
+                            PrivacyOptionRow(
+                                icon: "person.fill",
+                                title: "Видеть мой профиль",
+                                value: $privacySettings.whoCanSeeProfile,
+                                onChange: saveSettings
+                            )
+                            
+                            PrivacyOptionRow(
+                                icon: "circle.fill",
+                                title: "Видеть статус \"онлайн\"",
+                                value: $privacySettings.whoCanSeeOnline,
+                                onChange: saveSettings
+                            )
+                            
+                            PrivacyOptionRow(
+                                icon: "clock.fill",
+                                title: "Видеть \"был(а) в сети\"",
+                                value: $privacySettings.whoCanSeeLastSeen,
+                                onChange: saveSettings
+                            )
+                        }
                         
-                        SettingsRow(icon: "person.crop.circle.badge.xmark", title: "Заблокированные", action: {
-                            print("🚫 Blocked users")
-                        })
+                        // Автоудаление сообщений
+                        SettingsSection(title: "Сообщения") {
+                            NavigationLink(destination: AutoDeleteSettingsView(autoDeleteHours: $privacySettings.autoDeleteMessages, onSave: saveSettings)) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "trash.clock")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.white)
+                                        .frame(width: 24)
+                                    
+                                    Text("Автоудаление")
+                                        .font(.system(size: 17))
+                                        .foregroundColor(.white)
+                                    
+                                    Spacer()
+                                    
+                                    Text(autoDeleteText)
+                                        .font(.system(size: 15))
+                                        .foregroundColor(.white.opacity(0.5))
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.3))
+                                }
+                                .padding()
+                                .background(Color.white.opacity(0.05))
+                                .cornerRadius(12)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        
+                        // Заблокированные
+                        SettingsSection(title: "Блокировка") {
+                            NavigationLink(destination: BlockedUsersView()) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "person.crop.circle.badge.xmark")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.white)
+                                        .frame(width: 24)
+                                    
+                                    Text("Заблокированные")
+                                        .font(.system(size: 17))
+                                        .foregroundColor(.white)
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.3))
+                                }
+                                .padding()
+                                .background(Color.white.opacity(0.05))
+                                .cornerRadius(12)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
+                    .padding(16)
                 }
-                .padding(16)
             }
         }
         .navigationTitle("Приватность")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            loadSettings()
+        }
+    }
+    
+    private var autoDeleteText: String {
+        switch privacySettings.autoDeleteMessages {
+        case 0: return "Выключено"
+        case 24: return "24 часа"
+        case 168: return "7 дней"
+        case 720: return "30 дней"
+        default: return "\(privacySettings.autoDeleteMessages)ч"
+        }
+    }
+    
+    private func loadSettings() {
+        guard let identity = authViewModel.identity else { return }
+        
+        Task {
+            do {
+                privacySettings = try await APIService.shared.getPrivacySettings(identityId: identity.id)
+                await MainActor.run {
+                    isLoading = false
+                }
+            } catch {
+                print("❌ Failed to load privacy settings:", error)
+                await MainActor.run {
+                    isLoading = false
+                }
+            }
+        }
+    }
+    
+    private func saveSettings() {
+        guard let identity = authViewModel.identity else { return }
+        
+        Task {
+            do {
+                _ = try await APIService.shared.updatePrivacySettings(identityId: identity.id, settings: privacySettings)
+                print("✅ Privacy settings saved")
+            } catch {
+                print("❌ Failed to save privacy settings:", error)
+            }
+        }
     }
 }
 
-// MARK: - Devices Settings
+// MARK: - Privacy Option Row
+
+struct PrivacyOptionRow: View {
+    let icon: String
+    let title: String
+    @Binding var value: PrivacyOption
+    let onChange: () -> Void
+    
+    @State private var showPicker = false
+    
+    var body: some View {
+        Button(action: { showPicker = true }) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(.white)
+                    .frame(width: 24)
+                
+                Text(title)
+                    .font(.system(size: 17))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Text(value.displayName)
+                    .font(.system(size: 15))
+                    .foregroundColor(.white.opacity(0.5))
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.3))
+            }
+            .padding()
+            .background(Color.white.opacity(0.05))
+            .cornerRadius(12)
+        }
+        .sheet(isPresented: $showPicker) {
+            PrivacyOptionPicker(title: title, selection: $value, onDismiss: {
+                showPicker = false
+                onChange()
+            })
+        }
+    }
+}
+
+struct PrivacyOptionPicker: View {
+    let title: String
+    @Binding var selection: PrivacyOption
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color.black.ignoresSafeArea()
+                
+                List {
+                    ForEach(PrivacyOption.allCases, id: \.self) { option in
+                        Button(action: {
+                            selection = option
+                            onDismiss()
+                        }) {
+                            HStack {
+                                Text(option.displayName)
+                                    .foregroundColor(.white)
+                                Spacer()
+                                if selection == option {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.green)
+                                }
+                            }
+                        }
+                        .listRowBackground(Color.white.opacity(0.05))
+                    }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Готово") {
+                        onDismiss()
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Devices Settings (existing code continues...)
 
 struct DevicesSettingsView: View {
     @State private var devices: [Device] = []
