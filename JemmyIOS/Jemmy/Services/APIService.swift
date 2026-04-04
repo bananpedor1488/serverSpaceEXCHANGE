@@ -616,7 +616,12 @@ class APIService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let body = ["identity_id": identityId, "is_pinned": !isPinned]
+        struct PinRequest: Encodable {
+            let identity_id: String
+            let is_pinned: Bool
+        }
+        
+        let body = PinRequest(identity_id: identityId, is_pinned: !isPinned)
         request.httpBody = try JSONEncoder().encode(body)
         
         let (data, _) = try await URLSession.shared.data(for: request)
@@ -632,7 +637,12 @@ class APIService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let body = ["identity_id": identityId, "is_muted": !isMuted]
+        struct MuteRequest: Encodable {
+            let identity_id: String
+            let is_muted: Bool
+        }
+        
+        let body = MuteRequest(identity_id: identityId, is_muted: !isMuted)
         request.httpBody = try JSONEncoder().encode(body)
         
         let (data, _) = try await URLSession.shared.data(for: request)
