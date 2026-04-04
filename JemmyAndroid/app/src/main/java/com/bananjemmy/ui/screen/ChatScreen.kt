@@ -1,6 +1,7 @@
 package com.bananjemmy.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,16 +34,61 @@ fun ChatScreen(
     otherUser: Identity,
     currentUserId: String,
     chatViewModel: ChatViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    isOnline: Boolean = false,
+    lastSeen: Long = 0
 ) {
     val messagesState by chatViewModel.messagesState.collectAsState()
     val isSending by chatViewModel.isSending.collectAsState()
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    var showContactProfile by remember { mutableStateOf(false) }
+    var showSearch by remember { mutableStateOf(false) }
+    
+    // Format last seen time
+    val lastSeenText = remember(lastSeen, isOnline) {
+        if (isOnline) {
+            "в сети"
+        } else if (lastSeen > 0) {
+            val date = Date(lastSeen)
+            val now = Date()
+            val diff = now.time - date.time
+            val seconds = diff / 1000
+            val minutes = seconds / 60
+            val hours = minutes / 60
+            val days = hours / 24
+            
+            when {
+                seconds < 30 -> "только что"
+                minutes < 1 -> "меньше минуты назад"
+                minutes == 1L -> "минуту назад"
+                minutes < 5 -> "$minutes минуты назад"
+                minutes < 60 -> "$minutes минут назад"
+                hours == 1L -> "час назад"
+                hours < 5 -> "$hours часа назад"
+                hours < 24 -> "$hours часов назад"
+                days == 1L -> "вчера"
+                days < 7 -> "$days дней назад"
+                else -> SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(date)
+            }
+        } else {
+            "был(а) давно"
+        }
+    }
     
     LaunchedEffect(chatId) {
         chatViewModel.loadMessages(chatId)
+        chatViewModel.joinChat(chatId)
+        chatViewModel.requestUserStatus(otherUser.id)
+    }
+    
+    // Polling для обновления сообщений каждые 0.5 секунды
+    LaunchedEffect(chatId) {
+        while (true) {
+            kotlinx.coroutines.delay(500)
+            chatViewModel.refreshMessages(chatId)
+        }
     }
     
     // Auto-scroll to bottom when new messages arrive
@@ -50,156 +97,240 @@ fun ChatScreen(
             val messages = (messagesState as MessagesState.Success).messages
             if (messages.isNotEmpty()) {
                 coroutineScope.launch {
-                    listState.animateScrollToItem(messages.size - 1)
+                    listState.scrollToItem(0) // Скролл к первому элементу (т.к. reverseLayout)
                 }
             }
         }
     }
     
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = otherUser.username.take(2).uppercase(),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.width(12.dp))
-                        
-                        Column {
-                            Text(
-                                text = otherUser.username,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "в сети",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Назад")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* TODO: Search */ }) {
-                        Icon(Icons.Filled.Search, contentDescription = "Поиск")
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                tonalElevation = 3.dp
-            ) {
-                Row(
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding(),
+            topBar = {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.Bottom
+                        .statusBarsPadding()
                 ) {
-                    OutlinedTextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Сообщение") },
-                        shape = RoundedCornerShape(24.dp),
-                        maxLines = 4
-                    )
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    IconButton(
-                        onClick = {
-                            if (messageText.isNotBlank()) {
-                                chatViewModel.sendMessage(chatId, currentUserId, messageText.trim())
-                                messageText = ""
+                TopAppBar(
+                    title = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showContactProfile = true }
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = otherUser.username,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    if (isOnline) {
+                                        Surface(
+                                            modifier = Modifier.size(8.dp),
+                                            shape = CircleShape,
+                                            color = Color(0xFF34C759)
+                                        ) {}
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                    }
+                                    Text(
+                                        text = lastSeenText,
+                                        fontSize = 12.sp,
+                                        color = if (isOnline) Color(0xFF34C759) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
                             }
-                        },
-                        enabled = messageText.isNotBlank() && !isSending,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isSending) Icons.Filled.Send else Icons.Filled.Send,
-                            contentDescription = "Отправить",
-                            tint = if (messageText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Назад")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { showContactProfile = true }) {
+                            Surface(
+                                modifier = Modifier.size(36.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = otherUser.username.take(2).uppercase(),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                    )
+                )
+                Divider(
+                    modifier = Modifier.fillMaxWidth(),
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                )
+            }
+        }
+    ) { paddingValues ->
+        // Messages
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            // Список сообщений
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(top = paddingValues.calculateTopPadding())
+            ) {
+            when (val state = messagesState) {
+                    is MessagesState.Loading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center)
                         )
+                    }
+                    is MessagesState.Success -> {
+                        if (state.messages.isEmpty()) {
+                            Text(
+                                text = "Нет сообщений",
+                                modifier = Modifier.align(Alignment.Center),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 16.dp,
+                                    bottom = 8.dp // Минимальный отступ
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                reverseLayout = true // Сообщения снизу вверх
+                            ) {
+                                items(state.messages.reversed(), key = { it.id }) { message ->
+                                    MessageBubble(
+                                        message = message,
+                                        isFromMe = message.senderId == currentUserId,
+                                        modifier = Modifier.animateItem()
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    is MessagesState.Error -> {
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Ошибка загрузки сообщений",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(onClick = { chatViewModel.loadMessages(chatId) }) {
+                                Text("Повторить")
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Поле ввода сообщения (без imePadding)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+            ) {
+                Divider(
+                    modifier = Modifier.fillMaxWidth(),
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                )
+                
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        OutlinedTextField(
+                            value = messageText,
+                            onValueChange = { messageText = it },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("Сообщение") },
+                            shape = RoundedCornerShape(24.dp),
+                            maxLines = 4
+                        )
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        IconButton(
+                            onClick = {
+                                if (messageText.isNotBlank()) {
+                                    chatViewModel.sendMessage(chatId, currentUserId, messageText.trim())
+                                    messageText = ""
+                                }
+                            },
+                            enabled = messageText.isNotBlank() && !isSending,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Send,
+                                contentDescription = "Отправить",
+                                tint = if (messageText.isNotBlank()) 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            )
+                        }
                     }
                 }
             }
         }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+    }
+    }
+    
+    // Contact Profile Dialog
+    if (showContactProfile) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showContactProfile = false },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            )
         ) {
-            when (val state = messagesState) {
-                is MessagesState.Loading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                is MessagesState.Success -> {
-                    if (state.messages.isEmpty()) {
-                        Text(
-                            text = "Нет сообщений",
-                            modifier = Modifier.align(Alignment.Center),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                    } else {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(state.messages) { message ->
-                                MessageBubble(
-                                    message = message,
-                                    isFromMe = message.senderId == currentUserId
-                                )
-                            }
-                        }
-                    }
-                }
-                is MessagesState.Error -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Ошибка загрузки сообщений",
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = { chatViewModel.loadMessages(chatId) }) {
-                            Text("Повторить")
-                        }
-                    }
-                }
-            }
+            ContactProfileScreen(
+                user = otherUser,
+                onDismiss = { showContactProfile = false },
+                isOnline = isOnline,
+                lastSeen = lastSeen
+            )
         }
     }
 }
@@ -207,43 +338,41 @@ fun ChatScreen(
 @Composable
 fun MessageBubble(
     message: Message,
-    isFromMe: Boolean
+    isFromMe: Boolean,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
     ) {
-        Column(
-            horizontalAlignment = if (isFromMe) Alignment.End else Alignment.Start
+        Box(
+            modifier = Modifier.widthIn(max = 280.dp)
         ) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (isFromMe) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-                modifier = Modifier.widthIn(max = 280.dp)
-            ) {
-                Text(
-                    text = message.content,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    fontSize = 15.sp,
-                    color = if (isFromMe) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
-                )
-            }
+            // Текст сообщения с отступом справа для времени
+            Text(
+                text = message.content + "        ", // Добавляем пробелы для места под время
+                fontSize = 14.sp,
+                color = Color.White,
+                modifier = Modifier
+                    .background(
+                        color = if (isFromMe) {
+                            Color(0xFF4CAF50).copy(alpha = 0.8f)
+                        } else {
+                            Color.White.copy(alpha = 0.1f)
+                        },
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            )
             
-            Spacer(modifier = Modifier.height(4.dp))
-            
+            // Время справа внизу
             Text(
                 text = formatTime(message.createdAt),
                 fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.padding(horizontal = 4.dp)
+                color = Color.White.copy(alpha = 0.5f),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 8.dp, bottom = 4.dp)
             )
         }
     }

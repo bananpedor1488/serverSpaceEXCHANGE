@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -24,6 +25,7 @@ import com.bananjemmy.data.model.Chat
 import com.bananjemmy.ui.viewmodel.ChatListState
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,30 +33,51 @@ fun ChatListScreen(
     chatListState: ChatListState,
     currentUserId: String,
     onChatClick: (Chat) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    isRefreshing: Boolean = false,
+    onSearchClick: () -> Unit = {},
+    cacheManager: com.bananjemmy.data.cache.CacheManager
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    val repository = remember { com.bananjemmy.data.repository.JemmyRepository() }
+    
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
                         Text(
                             "Чаты",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                        if (chatListState is ChatListState.Loading) {
+                        if (isRefreshing) {
                             Spacer(modifier = Modifier.width(12.dp))
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                actions = {
+                    IconButton(onClick = onSearchClick) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = "Поиск"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                windowInsets = WindowInsets(0.dp)
             )
         }
     ) { padding ->
@@ -74,7 +97,20 @@ fun ChatListScreen(
                         ChatList(
                             chats = chatListState.chats,
                             currentUserId = currentUserId,
-                            onChatClick = onChatClick
+                            onChatClick = onChatClick,
+                            onDeleteChat = { chat ->
+                                coroutineScope.launch {
+                                    repository.deleteChat(chat.id)
+                                    cacheManager.clearChatCache(chat.id)
+                                    onRefresh()
+                                }
+                            },
+                            onTogglePin = { chat ->
+                                coroutineScope.launch {
+                                    repository.togglePinChat(chat.id, chat.isPinned)
+                                    onRefresh()
+                                }
+                            }
                         )
                     }
                 }
@@ -86,7 +122,20 @@ fun ChatListScreen(
                         ChatList(
                             chats = chatListState.chats,
                             currentUserId = currentUserId,
-                            onChatClick = onChatClick
+                            onChatClick = onChatClick,
+                            onDeleteChat = { chat ->
+                                coroutineScope.launch {
+                                    repository.deleteChat(chat.id)
+                                    cacheManager.clearChatCache(chat.id)
+                                    onRefresh()
+                                }
+                            },
+                            onTogglePin = { chat ->
+                                coroutineScope.launch {
+                                    repository.togglePinChat(chat.id, chat.isPinned)
+                                    onRefresh()
+                                }
+                            }
                         )
                     }
                 }
@@ -132,17 +181,22 @@ fun ChatListScreen(
 fun ChatList(
     chats: List<Chat>,
     currentUserId: String,
-    onChatClick: (Chat) -> Unit
+    onChatClick: (Chat) -> Unit,
+    onDeleteChat: (Chat) -> Unit,
+    onTogglePin: (Chat) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
-        items(chats) { chat ->
+        items(chats, key = { it.id }) { chat ->
             ChatListItem(
                 chat = chat,
                 currentUserId = currentUserId,
-                onClick = { onChatClick(chat) }
+                onClick = { onChatClick(chat) },
+                onDelete = { onDeleteChat(chat) },
+                onTogglePin = { onTogglePin(chat) },
+                modifier = Modifier.animateItem()
             )
             Divider(
                 modifier = Modifier.padding(start = 88.dp),
@@ -156,21 +210,87 @@ fun ChatList(
 fun ChatListItem(
     chat: Chat,
     currentUserId: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    onTogglePin: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        color = if (chat.isPinned) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) 
-                else MaterialTheme.colorScheme.background
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            when (dismissValue) {
+                SwipeToDismissBoxValue.EndToStart -> {
+                    onDelete()
+                    true
+                }
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    onTogglePin()
+                    false // Не удаляем элемент, только закрепляем
+                }
+                else -> false
+            }
+        }
+    )
+    
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+            when (direction) {
+                // Свайп влево - удаление (красный)
+                SwipeToDismissBoxValue.EndToStart -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.error)
+                            .padding(horizontal = 20.dp),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Удалить",
+                            tint = MaterialTheme.colorScheme.onError,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                // Свайп вправо - закрепление (синий)
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primary)
+                            .padding(horizontal = 20.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Icon(
+                            imageVector = if (chat.isPinned) Icons.Filled.Star else Icons.Outlined.Star,
+                            contentDescription = if (chat.isPinned) "Открепить" else "Закрепить",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                else -> {}
+            }
+        },
+        modifier = modifier,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true
     ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(onClick = onClick),
+            color = if (chat.isPinned) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) 
+                    else MaterialTheme.colorScheme.background
+        ) {
         Row(
             modifier = Modifier
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar with unread badge
+            // Avatar with unread badge and online indicator
             Box {
                 Surface(
                     modifier = Modifier.size(56.dp),
@@ -187,12 +307,25 @@ fun ChatListItem(
                     }
                 }
                 
+                // Online indicator
+                if (chat.isOnline) {
+                    Surface(
+                        modifier = Modifier
+                            .size(14.dp)
+                            .align(Alignment.BottomEnd)
+                            .offset(x = (-2).dp, y = (-2).dp),
+                        shape = CircleShape,
+                        color = Color(0xFF34C759), // Green
+                        border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.surface)
+                    ) {}
+                }
+                
                 // Unread badge
                 if (chat.unreadCount > 0 && !chat.isMuted) {
                     Surface(
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .offset(x = 4.dp, y = 4.dp),
+                            .align(Alignment.TopEnd)
+                            .offset(x = 4.dp, y = (-4).dp),
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primary
                     ) {
@@ -215,42 +348,54 @@ fun ChatListItem(
             
             // Chat info
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (chat.isPinned) {
-                        Icon(
-                            imageVector = Icons.Filled.Star,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-                    
-                    Text(
-                        text = chat.user.username,
-                        fontSize = 17.sp,
-                        fontWeight = if (chat.unreadCount > 0) FontWeight.Bold else FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    if (chat.isMuted) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    // Username with pin icon
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (chat.isPinned) {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                        
                         Text(
-                            text = "🔕",
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(end = 4.dp)
+                            text = chat.user.username,
+                            fontSize = 17.sp,
+                            fontWeight = if (chat.unreadCount > 0) FontWeight.Bold else FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     
-                    Text(
-                        text = formatTime(chat.lastMessageTime),
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                    )
+                    // Time in top right corner
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (chat.isMuted) {
+                            Text(
+                                text = "🔕",
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                        }
+                        
+                        Text(
+                            text = formatTime(chat.lastMessageTime),
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -266,6 +411,7 @@ fun ChatListItem(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+        }
         }
     }
 }

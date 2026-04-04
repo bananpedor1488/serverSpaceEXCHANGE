@@ -22,7 +22,11 @@ data class Chat(
     val unreadCount: Int = 0,
     
     @SerializedName("is_muted")
-    val isMuted: Boolean = false
+    val isMuted: Boolean = false,
+    
+    // Online status (not from API, managed locally)
+    var isOnline: Boolean = false,
+    var lastSeen: Long = 0
 )
 
 data class CreateChatRequest(
@@ -41,6 +45,14 @@ data class StartDirectChatRequest(
     
     @SerializedName("other_identity_id")
     val otherIdentityId: String
+)
+
+data class StartChatByInviteRequest(
+    @SerializedName("token")
+    val token: String,
+    
+    @SerializedName("my_identity_id")
+    val myIdentityId: String
 )
 
 data class ChatStartResponse(

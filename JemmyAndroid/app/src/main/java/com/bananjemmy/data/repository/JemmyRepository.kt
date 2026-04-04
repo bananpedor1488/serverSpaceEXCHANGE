@@ -247,13 +247,13 @@ class JemmyRepository {
     }
     
     // Search operations
-    suspend fun searchByUsername(username: String): Result<List<Identity>> {
+    suspend fun searchByUsername(username: String): Result<Identity> {
         return withContext(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Searching for username: $username")
                 val response = api.searchByUsername(username)
                 if (response.isSuccessful && response.body() != null) {
-                    Log.d(TAG, "Users found: ${response.body()?.size}")
+                    Log.d(TAG, "User found: ${response.body()?.username}")
                     Result.success(response.body()!!)
                 } else {
                     Result.failure(Exception("User not found"))
@@ -281,6 +281,27 @@ class JemmyRepository {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error starting direct chat", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    // Start chat by invite token
+    suspend fun startChatByInvite(token: String, myIdentityId: String): Result<ChatStartResponse> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Starting chat by invite token")
+                val response = api.startChatByInvite(
+                    StartChatByInviteRequest(token, myIdentityId)
+                )
+                if (response.isSuccessful && response.body() != null) {
+                    Log.d(TAG, "Chat created by invite: ${response.body()?.chatId}")
+                    Result.success(response.body()!!)
+                } else {
+                    Result.failure(Exception("Failed to start chat by invite"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting chat by invite", e)
                 Result.failure(e)
             }
         }
@@ -318,6 +339,48 @@ class JemmyRepository {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error consuming invite", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    // Delete chat
+    suspend fun deleteChat(chatId: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Deleting chat: $chatId")
+                val response = api.deleteChat(chatId)
+                if (response.isSuccessful) {
+                    Log.d(TAG, "Chat deleted successfully")
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to delete chat"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting chat", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    // Pin/Unpin chat
+    suspend fun togglePinChat(chatId: String, isPinned: Boolean): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Toggling pin for chat: $chatId, isPinned: $isPinned")
+                val response = if (isPinned) {
+                    api.unpinChat(chatId)
+                } else {
+                    api.pinChat(chatId)
+                }
+                if (response.isSuccessful) {
+                    Log.d(TAG, "Chat pin toggled successfully")
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Failed to toggle pin"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error toggling pin", e)
                 Result.failure(e)
             }
         }

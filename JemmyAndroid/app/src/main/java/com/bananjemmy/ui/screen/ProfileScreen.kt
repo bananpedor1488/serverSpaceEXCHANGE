@@ -27,32 +27,33 @@ fun ProfileScreen(
     authViewModel: AuthViewModel,
     onNavigateToLinkGenerator: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
-    onNavigateToEdit: () -> Unit = {}
+    onNavigateToEdit: () -> Unit = {},
+    onNavigateToDataStorage: () -> Unit = {}
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = { Text("Профиль") },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                windowInsets = WindowInsets(0.dp)
             )
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
             Spacer(modifier = Modifier.height(24.dp))
             
             // Avatar
@@ -142,10 +143,10 @@ fun ProfileScreen(
                 SettingsItem(
                     icon = Icons.Filled.Info,
                     title = "Данные и память",
-                    onClick = { /* TODO */ }
+                    onClick = onNavigateToDataStorage
                 )
                 SettingsItem(
-                    icon = Icons.Filled.Phone,
+                    icon = Icons.Filled.Settings,
                     title = "Устройства",
                     onClick = { /* TODO */ }
                 )
@@ -186,7 +187,6 @@ fun ProfileScreen(
             
             Spacer(modifier = Modifier.height(32.dp))
         }
-    }
     }
     
     // Delete confirmation dialog

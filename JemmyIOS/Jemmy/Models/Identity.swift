@@ -54,6 +54,8 @@ struct ChatListItem: Codable, Identifiable {
     var isPinned: Bool
     var unreadCount: Int
     var isMuted: Bool
+    var isOnline: Bool = false
+    var lastSeen: Int64 = 0
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -74,11 +76,56 @@ struct ChatListItem: Codable, Identifiable {
         isPinned = (try? container.decode(Bool.self, forKey: .isPinned)) ?? false
         unreadCount = (try? container.decode(Int.self, forKey: .unreadCount)) ?? 0
         isMuted = (try? container.decode(Bool.self, forKey: .isMuted)) ?? false
+        isOnline = false
+        lastSeen = 0
     }
     
     var lastMessageDate: Date {
         let formatter = ISO8601DateFormatter()
         return formatter.date(from: lastMessageTime) ?? Date()
+    }
+    
+    func formatLastSeen() -> String {
+        if isOnline {
+            return "в сети"
+        } else if lastSeen > 0 {
+            let date = Date(timeIntervalSince1970: TimeInterval(lastSeen) / 1000)
+            let now = Date()
+            let diff = now.timeIntervalSince(date)
+            let seconds = Int(diff)
+            let minutes = seconds / 60
+            let hours = minutes / 60
+            let days = hours / 24
+            
+            switch true {
+            case seconds < 30:
+                return "только что"
+            case minutes < 1:
+                return "меньше минуты назад"
+            case minutes == 1:
+                return "минуту назад"
+            case minutes < 5:
+                return "\(minutes) минуты назад"
+            case minutes < 60:
+                return "\(minutes) минут назад"
+            case hours == 1:
+                return "час назад"
+            case hours < 5:
+                return "\(hours) часа назад"
+            case hours < 24:
+                return "\(hours) часов назад"
+            case days == 1:
+                return "вчера"
+            case days < 7:
+                return "\(days) дней назад"
+            default:
+                let formatter = DateFormatter()
+                formatter.dateFormat = "dd.MM.yyyy"
+                return formatter.string(from: date)
+            }
+        } else {
+            return "был(а) давно"
+        }
     }
 }
 

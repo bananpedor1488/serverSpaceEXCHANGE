@@ -20,10 +20,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.bananjemmy.data.model.Chat
 import com.bananjemmy.data.model.Identity
+import com.bananjemmy.data.repository.JemmyRepository
 import com.bananjemmy.ui.screen.ChatListScreen
 import com.bananjemmy.ui.screen.ChatScreen
+import com.bananjemmy.ui.screen.DataStorageScreen
+import com.bananjemmy.ui.screen.InviteProfileScreen
 import com.bananjemmy.ui.screen.LinkGeneratorScreen
 import com.bananjemmy.ui.screen.OnboardingScreen
 import com.bananjemmy.ui.screen.ProfileEditScreen
@@ -36,12 +42,20 @@ import com.bananjemmy.ui.viewmodel.ChatViewModel
 
 class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
-    private val chatViewModel: ChatViewModel by viewModels()
+    private lateinit var chatViewModel: ChatViewModel
+    private lateinit var cacheManager: com.bananjemmy.data.cache.CacheManager
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        Log.d("MainActivity", "onCreate")
+        Log.d("MainActivity", "🚀 onCreate started")
+        
+        // Initialize cache manager
+        cacheManager = com.bananjemmy.data.cache.CacheManager(this)
+        Log.d("MainActivity", "✅ CacheManager created: $cacheManager")
+        
+        chatViewModel = ChatViewModel(cacheManager)
+        Log.d("MainActivity", "✅ ChatViewModel created with CacheManager")
         
         // Check auth on start
         authViewModel.checkAuth(this)
@@ -58,7 +72,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     JemmyApp(
                         authViewModel = authViewModel,
-                        chatViewModel = chatViewModel
+                        chatViewModel = chatViewModel,
+                        cacheManager = cacheManager
                     )
                 }
             }
@@ -73,16 +88,36 @@ class MainActivity : ComponentActivity() {
     private fun handleDeepLink(intent: Intent?) {
         val data: Uri? = intent?.data
         data?.let { uri ->
-            Log.d("MainActivity", "Deep link received: $uri")
+            Log.d("MainActivity", "🔗 Deep link received: $uri")
+            Log.d("MainActivity", "🔗 Scheme: ${uri.scheme}, Host: ${uri.host}, Path: ${uri.path}")
             
-            // Extract token from URL: https://weeky-six.vercel.app/api/u/{token}
-            val token = uri.lastPathSegment
-            if (token != null && uri.pathSegments.contains("u")) {
-                Log.d("MainActivity", "Starting chat by token: $token")
-                chatViewModel.startChatByToken(token) { chat ->
-                    Log.d("MainActivity", "Chat started: ${chat.id}")
-                    // Navigate to chat screen
+            val token = when {
+                // jemmy://invite/{token}
+                uri.scheme == "jemmy" && uri.host == "invite" -> {
+                    uri.lastPathSegment
                 }
+                // https://weeky-six.vercel.app/api/u/{token}
+                uri.scheme == "https" && uri.pathSegments.contains("u") -> {
+                    uri.lastPathSegment
+                }
+                else -> null
+            }
+            
+            if (token != null) {
+                Log.d("MainActivity", "✅ Loading invite preview for token: $token")
+                // Load invite preview
+                val repository = JemmyRepository()
+                lifecycleScope.launch {
+                    val result = repository.previewInviteLink(token)
+                    result.onSuccess { identity ->
+                        Log.d("MainActivity", "✅ Invite preview loaded: ${identity.username}")
+                        chatViewModel.setPendingInvite(identity, token)
+                    }.onFailure {
+                        Log.e("MainActivity", "❌ Failed to load invite preview: ${it.message}")
+                    }
+                }
+            } else {
+                Log.d("MainActivity", "⚠️ Could not extract token from URI")
             }
         }
     }
@@ -91,9 +126,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun JemmyApp(
     authViewModel: AuthViewModel,
-    chatViewModel: ChatViewModel
+    chatViewModel: ChatViewModel,
+    cacheManager: com.bananjemmy.data.cache.CacheManager
 ) {
     val authState by authViewModel.authState.collectAsStateWithLifecycle()
+    val pendingInvite by chatViewModel.pendingInvite.collectAsStateWithLifecycle()
     
     when (val state = authState) {
         is AuthState.Loading -> {
@@ -149,7 +186,10 @@ fun JemmyApp(
             MainScreen(
                 identity = identity,
                 chatViewModel = chatViewModel,
-                authViewModel = authViewModel
+                authViewModel = authViewModel,
+                cacheManager = cacheManager,
+                showInviteProfile = pendingInvite,
+                onShowInviteProfile = { chatViewModel.setPendingInvite(it?.first, it?.second) }
             )
         }
         
@@ -192,79 +232,151 @@ fun JemmyApp(
 fun MainScreen(
     identity: Identity,
     chatViewModel: ChatViewModel,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    cacheManager: com.bananjemmy.data.cache.CacheManager,
+    showInviteProfile: Pair<Identity, String>?,
+    onShowInviteProfile: (Pair<Identity, String>?) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var showLinkGenerator by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var showEditProfile by remember { mutableStateOf(false) }
+    var showDataStorage by remember { mutableStateOf(false) }
     var selectedChat by remember { mutableStateOf<Chat?>(null) }
     
+    // Скрываем таббар когда открыт чат или поиск
+    val showBottomBar = selectedChat == null && !showSearch
+    
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.systemBars,
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showBottomBar,
+                enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
+                exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically()
             ) {
-                NavigationBarItem(
-                    icon = {
-                        Icon(
-                            imageVector = if (selectedTab == 0) Icons.Filled.Email else Icons.Outlined.Email,
-                            contentDescription = "Чаты"
-                        )
-                    },
-                    label = { Text("Чаты") },
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 }
-                )
-                
-                NavigationBarItem(
-                    icon = {
-                        Icon(
-                            imageVector = if (selectedTab == 1) Icons.Filled.Person else Icons.Outlined.Person,
-                            contentDescription = "Профиль"
-                        )
-                    },
-                    label = { Text("Профиль") },
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 }
-                )
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 8.dp
+                ) {
+                    NavigationBarItem(
+                        icon = {
+                            Icon(
+                                imageVector = if (selectedTab == 0) Icons.Filled.Email else Icons.Outlined.Email,
+                                contentDescription = "Чаты"
+                            )
+                        },
+                        label = { Text("Чаты") },
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 }
+                    )
+                    
+                    NavigationBarItem(
+                        icon = {
+                            Icon(
+                                imageVector = if (selectedTab == 1) Icons.Filled.Person else Icons.Outlined.Person,
+                                contentDescription = "Профиль"
+                            )
+                        },
+                        label = { Text("Профиль") },
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 }
+                    )
+                }
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
-            if (selectedChat != null) {
-                ChatScreen(
-                    chatId = selectedChat!!.id,
-                    otherUser = selectedChat!!.user,
-                    currentUserId = identity.id,
-                    chatViewModel = chatViewModel,
-                    onBack = { selectedChat = null }
-                )
-            } else {
-                when (selectedTab) {
-                0 -> {
-                    val chatListState by chatViewModel.chatListState.collectAsStateWithLifecycle()
-                    ChatListScreen(
-                        chatListState = chatListState,
+        // Полноэкранный экран поиска
+        if (showSearch) {
+            SearchScreen(
+                onSearch = { username ->
+                    val repository = com.bananjemmy.data.repository.JemmyRepository()
+                    repository.searchByUsername(username)
+                },
+                onStartChat = { foundIdentity ->
+                    val repository = com.bananjemmy.data.repository.JemmyRepository()
+                    val result = repository.startDirectChat(identity.id, foundIdentity.id)
+                    result.map { it.chatId }
+                },
+                onDismiss = { showSearch = false },
+                onChatCreated = { chatId ->
+                    Log.d("MainActivity", "Chat created: $chatId")
+                    chatViewModel.loadChats(identity.id)
+                    showSearch = false
+                    selectedTab = 0
+                }
+            )
+        } else {
+            androidx.compose.animation.Crossfade(
+                targetState = selectedChat,
+                animationSpec = androidx.compose.animation.core.tween(300)
+            ) { chat ->
+                if (chat != null) {
+                    ChatScreen(
+                        chatId = chat.id,
+                        otherUser = chat.user,
                         currentUserId = identity.id,
-                        onChatClick = { chat ->
-                            selectedChat = chat
+                        chatViewModel = chatViewModel,
+                        onBack = { 
+                            selectedChat = null 
                         },
-                        onRefresh = {
-                            chatViewModel.loadChats(identity.id)
+                        isOnline = chat.isOnline,
+                        lastSeen = chat.lastSeen
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                    ) {
+                        when (selectedTab) {
+                            0 -> {
+                                val chatListState by chatViewModel.chatListState.collectAsStateWithLifecycle()
+                                
+                                // Автообновление при возврате на вкладку чатов
+                                LaunchedEffect(selectedTab) {
+                                    if (selectedTab == 0) {
+                                        chatViewModel.loadChats(identity.id)
+                                    }
+                                }
+                                
+                                // Polling для списка чатов каждые 0.5 секунды
+                                LaunchedEffect(selectedTab) {
+                                    if (selectedTab == 0) {
+                                        while (true) {
+                                            kotlinx.coroutines.delay(500)
+                                            chatViewModel.refreshChats(identity.id)
+                                        }
+                                    }
+                                }
+                                
+                                val isRefreshing by chatViewModel.isRefreshing.collectAsStateWithLifecycle()
+                                
+                                ChatListScreen(
+                                    chatListState = chatListState,
+                                    currentUserId = identity.id,
+                                    onChatClick = { selectedChat = it },
+                                    onRefresh = {
+                                        chatViewModel.loadChats(identity.id)
+                                    },
+                                    isRefreshing = isRefreshing,
+                                    onSearchClick = { showSearch = true },
+                                    cacheManager = cacheManager
+                                )
+                            }
+                            1 -> {
+                                ProfileScreen(
+                                    identity = identity,
+                                    authViewModel = authViewModel,
+                                    onNavigateToLinkGenerator = { showLinkGenerator = true },
+                                    onNavigateToSearch = { showSearch = true },
+                                    onNavigateToEdit = { showEditProfile = true },
+                                    onNavigateToDataStorage = { showDataStorage = true }
+                                )
+                            }
                         }
-                    )
-                }
-                1 -> {
-                    ProfileScreen(
-                        identity = identity,
-                        authViewModel = authViewModel,
-                        onNavigateToLinkGenerator = { showLinkGenerator = true },
-                        onNavigateToSearch = { showSearch = true },
-                        onNavigateToEdit = { showEditProfile = true }
-                    )
-                }
+                    }
                 }
             }
         }
@@ -285,34 +397,6 @@ fun MainScreen(
                         result.map { it.url }
                     },
                     onDismiss = { showLinkGenerator = false }
-                )
-            }
-        }
-    }
-    
-    // Search Dialog
-    if (showSearch) {
-        Dialog(onDismissRequest = { showSearch = false }) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                SearchScreen(
-                    onSearch = { username ->
-                        val repository = com.bananjemmy.data.repository.JemmyRepository()
-                        repository.searchByUsername(username)
-                    },
-                    onStartChat = { foundIdentity ->
-                        val repository = com.bananjemmy.data.repository.JemmyRepository()
-                        val result = repository.startDirectChat(identity.id, foundIdentity.id)
-                        result.map { it.chatId }
-                    },
-                    onDismiss = { showSearch = false },
-                    onChatCreated = { chatId ->
-                        Log.d("MainActivity", "Chat created: $chatId")
-                        chatViewModel.loadChats(identity.id)
-                        selectedTab = 0
-                    }
                 )
             }
         }
@@ -342,6 +426,82 @@ fun MainScreen(
                     onDismiss = { showEditProfile = false }
                 )
             }
+        }
+    }
+    
+    // Data Storage Dialog
+    if (showDataStorage) {
+        var cacheStats by remember { mutableStateOf(com.bananjemmy.data.cache.CacheStats(0, 0, 0, 0.0)) }
+        var isClearing by remember { mutableStateOf(false) }
+        val scope = rememberCoroutineScope()
+        
+        // Обновляем статистику при открытии и каждую секунду
+        LaunchedEffect(showDataStorage, isClearing) {
+            if (showDataStorage && !isClearing) {
+                while (true) {
+                    cacheStats = cacheManager.getCacheStats()
+                    kotlinx.coroutines.delay(1000)
+                }
+            }
+        }
+        
+        Dialog(
+            onDismissRequest = { showDataStorage = false },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                DataStorageScreen(
+                    cacheStats = cacheStats,
+                    onClearCache = {
+                        scope.launch {
+                            isClearing = true
+                            try {
+                                cacheManager.clearAllCache()
+                                kotlinx.coroutines.delay(300)
+                                cacheStats = cacheManager.getCacheStats()
+                                chatViewModel.loadChats(identity.id)
+                            } catch (e: Exception) {
+                                Log.e("MainActivity", "Error clearing cache", e)
+                            } finally {
+                                isClearing = false
+                            }
+                        }
+                    },
+                    onDismiss = { showDataStorage = false }
+                )
+            }
+        }
+    }
+    
+    // Invite Profile Dialog
+    showInviteProfile?.let { (inviteIdentity, token) ->
+        Dialog(
+            onDismissRequest = { onShowInviteProfile(null) },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            InviteProfileScreen(
+                identity = inviteIdentity,
+                token = token,
+                onStartChat = { inviteToken, myId ->
+                    val repository = com.bananjemmy.data.repository.JemmyRepository()
+                    repository.startChatByInvite(inviteToken, myId).map { it.chatId }
+                },
+                myIdentityId = identity.id,
+                onDismiss = { onShowInviteProfile(null) },
+                onChatCreated = { chatId ->
+                    Log.d("MainActivity", "Chat created from invite: $chatId")
+                    chatViewModel.loadChats(identity.id)
+                    onShowInviteProfile(null)
+                    selectedTab = 0
+                }
+            )
         }
     }
 }

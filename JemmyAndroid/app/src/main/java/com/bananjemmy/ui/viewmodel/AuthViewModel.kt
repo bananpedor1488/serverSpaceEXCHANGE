@@ -22,6 +22,7 @@ sealed class AuthState {
 class AuthViewModel : ViewModel() {
     private val repository = JemmyRepository()
     private val TAG = "AuthViewModel"
+    private var appContext: Context? = null
     
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
@@ -30,6 +31,7 @@ class AuthViewModel : ViewModel() {
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     
     fun checkAuth(context: Context) {
+        appContext = context.applicationContext
         viewModelScope.launch {
             _isLoading.value = true
             val prefs = context.getSharedPreferences("jemmy_prefs", Context.MODE_PRIVATE)
@@ -37,7 +39,27 @@ class AuthViewModel : ViewModel() {
             
             if (identityId != null) {
                 Log.d(TAG, "Found saved identity: $identityId")
-                loadIdentity(identityId)
+                
+                // Сначала пытаемся загрузить из кеша
+                val cachedUsername = prefs.getString("identity_username", null)
+                val cachedBio = prefs.getString("identity_bio", null)
+                
+                if (cachedUsername != null) {
+                    Log.d(TAG, "📦 Loading identity from cache: $cachedUsername")
+                    val cachedIdentity = Identity(
+                        _id = identityId,
+                        username = cachedUsername,
+                        bio = cachedBio ?: ""
+                    )
+                    _authState.value = AuthState.Authenticated(cachedIdentity)
+                    _isLoading.value = false
+                    
+                    // Пытаемся обновить с сервера в фоне
+                    loadIdentityFromServer(identityId, silent = true)
+                } else {
+                    // Нет кеша, загружаем с сервера
+                    loadIdentityFromServer(identityId, silent = false)
+                }
             } else {
                 Log.d(TAG, "No saved identity found")
                 _authState.value = AuthState.Unauthenticated
@@ -46,19 +68,43 @@ class AuthViewModel : ViewModel() {
         }
     }
     
-    private suspend fun loadIdentity(id: String) {
+    private suspend fun loadIdentityFromServer(id: String, silent: Boolean) {
         repository.getIdentity(id).fold(
             onSuccess = { identity ->
-                Log.d(TAG, "Identity loaded: ${identity.username}")
+                Log.d(TAG, "✅ Identity loaded from server: ${identity.username}")
                 _authState.value = AuthState.Authenticated(identity)
-                _isLoading.value = false
+                if (!silent) {
+                    _isLoading.value = false
+                }
+                
+                // Сохраняем в кеш
+                appContext?.let { ctx ->
+                    val prefs = ctx.getSharedPreferences("jemmy_prefs", Context.MODE_PRIVATE)
+                    prefs.edit().apply {
+                        putString("identity_username", identity.username)
+                        putString("identity_bio", identity.bio)
+                        apply()
+                    }
+                    Log.d(TAG, "💾 Identity cached")
+                }
             },
             onFailure = { error ->
-                Log.e(TAG, "Failed to load identity", error)
-                _authState.value = AuthState.Error(error.message ?: "Unknown error")
-                _isLoading.value = false
+                Log.e(TAG, "❌ Failed to load identity from server: ${error.message}")
+                if (!silent) {
+                    // Если не silent и нет кеша - показываем ошибку
+                    val currentState = _authState.value
+                    if (currentState !is AuthState.Authenticated) {
+                        _authState.value = AuthState.Error(error.message ?: "Unknown error")
+                    }
+                    _isLoading.value = false
+                }
+                // Если silent - игнорируем ошибку, используем кеш
             }
         )
+    }
+    
+    private suspend fun loadIdentity(id: String) {
+        loadIdentityFromServer(id, silent = false)
     }
     
     fun createIdentity(context: Context) {
@@ -76,7 +122,7 @@ class AuthViewModel : ViewModel() {
             repository.createIdentity(deviceId, false).fold(
                 onSuccess = { identity ->
                     Log.d(TAG, "✅ Identity created: ${identity.username} (${identity.id})")
-                    saveIdentityId(context, identity.id)
+                    saveIdentity(context, identity)
                     _authState.value = AuthState.Authenticated(identity)
                     _isLoading.value = false
                 },
@@ -147,6 +193,17 @@ class AuthViewModel : ViewModel() {
         _authState.value = AuthState.Authenticated(identity)
     }
     
+    private fun saveIdentity(context: Context, identity: Identity) {
+        val prefs = context.getSharedPreferences("jemmy_prefs", Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putString("identity_id", identity.id)
+            putString("identity_username", identity.username)
+            putString("identity_bio", identity.bio)
+            apply()
+        }
+        Log.d(TAG, "💾 Identity saved: ${identity.username}")
+    }
+    
     private fun saveIdentityId(context: Context, id: String) {
         val prefs = context.getSharedPreferences("jemmy_prefs", Context.MODE_PRIVATE)
         prefs.edit().putString("identity_id", id).apply()
@@ -155,7 +212,12 @@ class AuthViewModel : ViewModel() {
     
     private fun clearIdentityId(context: Context) {
         val prefs = context.getSharedPreferences("jemmy_prefs", Context.MODE_PRIVATE)
-        prefs.edit().remove("identity_id").apply()
-        Log.d(TAG, "Identity ID cleared")
+        prefs.edit().apply {
+            remove("identity_id")
+            remove("identity_username")
+            remove("identity_bio")
+            apply()
+        }
+        Log.d(TAG, "Identity cleared")
     }
 }

@@ -13,6 +13,7 @@ class WebSocketManager: ObservableObject {
     var onUnreadUpdate: ((String, Int) -> Void)?
     var onPinUpdate: ((String, Bool) -> Void)?
     var onMuteUpdate: ((String, Bool) -> Void)?
+    var onUserStatus: ((String, Bool, Int64) -> Void)? // identity_id, online, last_seen
     
     private init() {}
     
@@ -49,6 +50,10 @@ class WebSocketManager: ObservableObject {
             self?.handleMuteUpdate(data: data)
         }
         
+        socket?.on("user_status") { [weak self] data, ack in
+            self?.handleUserStatus(data: data)
+        }
+        
         socket?.connect()
     }
     
@@ -59,7 +64,11 @@ class WebSocketManager: ObservableObject {
     }
     
     private func register(userId: String, identityId: String) {
-        socket?.emit("register", ["user_id": userId, "identity_id": identityId])
+        socket?.emit("register", ["identity_id": identityId])
+    }
+    
+    func requestUserStatus(identityId: String) {
+        socket?.emit("request_status", ["identity_id": identityId])
     }
     
     func joinChat(chatId: String) {
@@ -132,3 +141,14 @@ class WebSocketManager: ObservableObject {
         }
     }
 }
+
+    private func handleUserStatus(data: [Any]) {
+        guard let statusData = data.first as? [String: Any],
+              let identityId = statusData["identity_id"] as? String,
+              let online = statusData["online"] as? Bool,
+              let lastSeen = statusData["last_seen"] as? Int64 else { return }
+        
+        DispatchQueue.main.async {
+            self.onUserStatus?(identityId, online, lastSeen)
+        }
+    }

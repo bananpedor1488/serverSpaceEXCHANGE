@@ -15,18 +15,48 @@ struct ChatView: View {
     @State private var showSearch = false
     @State private var searchText = ""
     @State private var isOnline = false
-    @State private var lastSeen: Date?
+    @State private var lastSeen: Int64 = 0
     
     var statusText: String {
         if isOnline {
             return "в сети"
-        } else if let lastSeen = lastSeen {
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .full
-            formatter.locale = Locale(identifier: "ru_RU")
-            return formatter.localizedString(for: lastSeen, relativeTo: Date())
+        } else if lastSeen > 0 {
+            let date = Date(timeIntervalSince1970: TimeInterval(lastSeen) / 1000)
+            let now = Date()
+            let diff = now.timeIntervalSince(date)
+            let seconds = Int(diff)
+            let minutes = seconds / 60
+            let hours = minutes / 60
+            let days = hours / 24
+            
+            switch true {
+            case seconds < 30:
+                return "только что"
+            case minutes < 1:
+                return "меньше минуты назад"
+            case minutes == 1:
+                return "минуту назад"
+            case minutes < 5:
+                return "\(minutes) минуты назад"
+            case minutes < 60:
+                return "\(minutes) минут назад"
+            case hours == 1:
+                return "час назад"
+            case hours < 5:
+                return "\(hours) часа назад"
+            case hours < 24:
+                return "\(hours) часов назад"
+            case days == 1:
+                return "вчера"
+            case days < 7:
+                return "\(days) дней назад"
+            default:
+                let formatter = DateFormatter()
+                formatter.dateFormat = "dd.MM.yyyy"
+                return formatter.string(from: date)
+            }
         } else {
-            return "был(а) недавно"
+            return "был(а) давно"
         }
     }
     
@@ -188,10 +218,12 @@ struct ChatView: View {
             loadMessagesFromCache()
             loadMessages()
             startPolling()
+            setupWebSocket()
             updateUserStatus()
         }
         .onDisappear {
             stopPolling()
+            WebSocketManager.shared.onUserStatus = nil
         }
         .onChange(of: networkMonitor.isConnected) { isConnected in
             if isConnected {
@@ -205,11 +237,25 @@ struct ChatView: View {
     
     private func updateUserStatus() {
         isOnline = otherUser.isOnline ?? false
-        lastSeen = otherUser.lastSeenDate
+        if let lastSeenDate = otherUser.lastSeenDate {
+            lastSeen = Int64(lastSeenDate.timeIntervalSince1970 * 1000)
+        }
+    }
+    
+    private func setupWebSocket() {
+        WebSocketManager.shared.onUserStatus = { identityId, online, lastSeenTimestamp in
+            if identityId == self.otherUser.id {
+                self.isOnline = online
+                self.lastSeen = lastSeenTimestamp
+            }
+        }
+        
+        // Request initial status
+        WebSocketManager.shared.requestUserStatus(identityId: otherUser.id)
     }
     
     private func startPolling() {
-        pollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
             Task {
                 await refreshMessages()
             }

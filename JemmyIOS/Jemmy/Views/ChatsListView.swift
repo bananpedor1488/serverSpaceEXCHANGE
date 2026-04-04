@@ -189,11 +189,13 @@ struct ChatsListView: View {
                 NotificationManager.shared.requestPermission()
                 updateBadgeCount()
                 setupWebSocket()
+                startPolling()
             }
             .onDisappear {
                 WebSocketManager.shared.onUnreadUpdate = nil
                 WebSocketManager.shared.onPinUpdate = nil
                 WebSocketManager.shared.onMuteUpdate = nil
+                stopPolling()
             }
             .onChange(of: networkMonitor.isConnected) { isConnected in
                 if isConnected {
@@ -321,6 +323,48 @@ struct ChatsListView: View {
                 self.updateBadgeCount()
             }
         }
+        
+        // Обработка обновлений статуса пользователя
+        WebSocketManager.shared.onUserStatus = { identityId, online, lastSeen in
+            for index in self.chats.indices {
+                if self.chats[index].user.id == identityId {
+                    self.chats[index].isOnline = online
+                    self.chats[index].lastSeen = lastSeen
+                }
+            }
+        }
+    }
+    
+    @State private var pollingTimer: Timer?
+    
+    private func startPolling() {
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            Task {
+                await refreshChats()
+            }
+        }
+    }
+    
+    private func stopPolling() {
+        pollingTimer?.invalidate()
+        pollingTimer = nil
+    }
+    
+    private func refreshChats() async {
+        guard let identityId = authViewModel.identity?.id else { return }
+        guard networkMonitor.isConnected else { return }
+        
+        do {
+            let loadedChats = try await APIService.shared.getChats(identityId: identityId)
+            
+            await MainActor.run {
+                chats = loadedChats
+                CacheManager.shared.saveChats(loadedChats)
+                updateBadgeCount()
+            }
+        } catch {
+            // Silently fail for polling
+        }
     }
     
     private func deleteChat(_ chat: ChatListItem) {
@@ -406,7 +450,7 @@ struct ChatListRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // Avatar
+            // Avatar with online indicator
             ZStack(alignment: .bottomTrailing) {
                 Circle()
                     .fill(Color.white.opacity(0.1))
@@ -416,6 +460,18 @@ struct ChatListRow: View {
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(.white)
                     )
+                
+                // Online indicator
+                if chat.isOnline {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 14, height: 14)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.black, lineWidth: 2)
+                        )
+                        .offset(x: -2, y: -2)
+                }
                 
                 // Unread badge
                 if chat.unreadCount > 0 && !chat.isMuted {
@@ -427,7 +483,7 @@ struct ChatListRow: View {
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundColor(.white)
                         )
-                        .offset(x: 4, y: 4)
+                        .offset(x: 4, y: -4)
                 }
             }
             

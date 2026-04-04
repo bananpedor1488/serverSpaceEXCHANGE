@@ -24,10 +24,36 @@ sealed class MessagesState {
     data class Error(val message: String) : MessagesState()
 }
 
-class ChatViewModel : ViewModel() {
+class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheManager? = null) : ViewModel() {
     private val repository = JemmyRepository()
     private val webSocket = WebSocketManager.getInstance()
     private val TAG = "ChatViewModel"
+    
+    init {
+        Log.d(TAG, "🚀 ChatViewModel initialized")
+        Log.d(TAG, "📦 CacheManager: ${if (cacheManager != null) "AVAILABLE ✅" else "NULL ❌"}")
+        setupWebSocketListeners()
+        
+        // Setup online status listener
+        webSocket.onUserStatus = { identityId, online, lastSeen ->
+            Log.d(TAG, "👤 Status update: $identityId, online=$online")
+            updateUserStatus(identityId, online, lastSeen)
+        }
+    }
+    
+    private fun updateUserStatus(identityId: String, online: Boolean, lastSeen: Long) {
+        val currentState = _chatListState.value
+        if (currentState is ChatListState.Success) {
+            val updatedChats = currentState.chats.map { chat ->
+                if (chat.user.id == identityId) {
+                    chat.copy(isOnline = online, lastSeen = lastSeen)
+                } else {
+                    chat
+                }
+            }
+            _chatListState.value = ChatListState.Success(updatedChats)
+        }
+    }
     
     private val _chatListState = MutableStateFlow<ChatListState>(ChatListState.Loading())
     val chatListState: StateFlow<ChatListState> = _chatListState.asStateFlow()
@@ -38,8 +64,14 @@ class ChatViewModel : ViewModel() {
     private val _isSending = MutableStateFlow(false)
     val isSending: StateFlow<Boolean> = _isSending.asStateFlow()
     
-    init {
-        setupWebSocketListeners()
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+    
+    private val _pendingInvite = MutableStateFlow<Pair<com.bananjemmy.data.model.Identity, String>?>(null)
+    val pendingInvite: StateFlow<Pair<com.bananjemmy.data.model.Identity, String>?> = _pendingInvite.asStateFlow()
+    
+    fun setPendingInvite(identity: com.bananjemmy.data.model.Identity?, token: String?) {
+        _pendingInvite.value = if (identity != null && token != null) Pair(identity, token) else null
     }
     
     private fun setupWebSocketListeners() {
@@ -62,6 +94,17 @@ class ChatViewModel : ViewModel() {
     
     fun connectWebSocket(userId: String, identityId: String) {
         webSocket.connect(userId, identityId)
+        Log.d(TAG, "🔌 Connecting WebSocket for user: $userId, identity: $identityId")
+    }
+    
+    fun joinChat(chatId: String) {
+        webSocket.joinChat(chatId)
+        Log.d(TAG, "🚪 Joined chat: $chatId")
+    }
+    
+    fun requestUserStatus(identityId: String) {
+        webSocket.requestUserStatus(identityId)
+        Log.d(TAG, "🔍 Requested status for: $identityId")
     }
     
     fun disconnectWebSocket() {
@@ -114,45 +157,115 @@ class ChatViewModel : ViewModel() {
     }
     
     private fun addMessageToChat(message: Message) {
+        Log.d(TAG, "💬 New message received: ${message.id} for chat ${message.chatId}")
+        
+        // Update messages ONLY if we're viewing this chat
         val currentState = _messagesState.value
         if (currentState is MessagesState.Success) {
-            val updatedMessages = currentState.messages + message
+            val updatedMessages = currentState.messages.toMutableList()
+            updatedMessages.add(message)
             _messagesState.value = MessagesState.Success(updatedMessages)
+            Log.d(TAG, "✅ Added message to chat view, total: ${updatedMessages.size}")
         }
         
-        // Also update the chat list with the new message
-        val chatListState = _chatListState.value
-        if (chatListState is ChatListState.Success) {
-            val updatedChats = chatListState.chats.map { chat ->
-                if (chat.id == message.chatId) {
-                    chat.copy(
-                        lastMessage = message.content,
-                        lastMessageTime = message.createdAt
-                    )
-                } else {
-                    chat
-                }
-            }
-            _chatListState.value = ChatListState.Success(updatedChats)
-        }
+        // Для списка чатов - просто перезагружаем чаты
+        // (как в iOS - там тоже нет обновления lastMessage через WebSocket)
+        Log.d(TAG, "📝 Message received, chat list will update on next refresh")
     }
     
     fun loadChats(identityId: String) {
         viewModelScope.launch {
-            // Keep existing chats while loading
-            val currentChats = (_chatListState.value as? ChatListState.Success)?.chats ?: emptyList()
-            _chatListState.value = ChatListState.Loading(currentChats)
+            Log.d(TAG, "🔄 loadChats called for: $identityId")
+            _isRefreshing.value = true
             
-            Log.d(TAG, "📡 Loading chats for: $identityId")
+            // Показываем Loading состояние без кешированных данных
+            _chatListState.value = ChatListState.Loading()
+            
+            Log.d(TAG, "📡 Loading chats from server for: $identityId")
             
             repository.getChats(identityId).fold(
                 onSuccess = { chats ->
-                    Log.d(TAG, "✅ Chats loaded: ${chats.size}")
+                    Log.d(TAG, "✅ Chats loaded from server: ${chats.size}")
                     _chatListState.value = ChatListState.Success(chats)
+                    _isRefreshing.value = false
+                    
+                    // Сохраняем в кеш или очищаем если пусто
+                    cacheManager?.let { cache ->
+                        viewModelScope.launch {
+                            if (chats.isEmpty()) {
+                                Log.d(TAG, "🗑️ Server returned empty list, clearing cache...")
+                                cache.clearAllCache()
+                                Log.d(TAG, "✅ Cache cleared")
+                            } else {
+                                Log.d(TAG, "💾 Saving ${chats.size} chats to cache...")
+                                cache.cacheChats(chats)
+                                Log.d(TAG, "✅ Chats saved to cache successfully")
+                            }
+                        }
+                    } ?: Log.d(TAG, "❌ Cannot save to cache - CacheManager is NULL!")
                 },
                 onFailure = { error ->
-                    Log.e(TAG, "❌ Failed to load chats", error)
-                    _chatListState.value = ChatListState.Error(error.message ?: "Failed to load chats")
+                    Log.e(TAG, "❌ Failed to load chats from server: ${error.message}", error)
+                    _isRefreshing.value = false
+                    
+                    // Только при ошибке загружаем из кеша как fallback
+                    cacheManager?.let { cache ->
+                        viewModelScope.launch {
+                            val cachedChats = cache.getCachedChats()
+                            if (cachedChats.isNotEmpty()) {
+                                Log.d(TAG, "📦 Using ${cachedChats.size} cached chats as fallback")
+                                _chatListState.value = ChatListState.Success(cachedChats)
+                            } else {
+                                Log.d(TAG, "⚠️ No cached data available, showing error")
+                                _chatListState.value = ChatListState.Error(error.message ?: "Failed to load chats")
+                            }
+                        }
+                    } ?: run {
+                        _chatListState.value = ChatListState.Error(error.message ?: "Failed to load chats")
+                    }
+                }
+            )
+        }
+    }
+    
+    fun refreshChats(identityId: String) {
+        // Не запускаем новый запрос если уже идет обновление
+        if (_isRefreshing.value) {
+            Log.d(TAG, "⏭️ Skipping refresh - already refreshing")
+            return
+        }
+        
+        viewModelScope.launch {
+            // НЕ показываем индикатор при обычном polling
+            // _isRefreshing.value = true
+            
+            Log.d(TAG, "🔄 Refreshing chats...")
+            
+            // Тихое обновление без показа Loading
+            repository.getChats(identityId).fold(
+                onSuccess = { chats ->
+                    Log.d(TAG, "✅ Chats refreshed: ${chats.size}")
+                    _chatListState.value = ChatListState.Success(chats)
+                    
+                    // Сохраняем в кеш или очищаем если пусто
+                    cacheManager?.let { cache ->
+                        viewModelScope.launch {
+                            if (chats.isEmpty()) {
+                                Log.d(TAG, "🗑️ Server returned empty list, clearing cache...")
+                                cache.clearAllCache()
+                            } else {
+                                cache.cacheChats(chats)
+                            }
+                        }
+                    }
+                    
+                    // Сбрасываем индикатор если он был (после ошибки)
+                    _isRefreshing.value = false
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "❌ Failed to refresh chats: ${error.message}")
+                    // Показываем индикатор только при ошибке (нет связи)
+                    _isRefreshing.value = true
                 }
             )
         }
@@ -176,17 +289,66 @@ class ChatViewModel : ViewModel() {
     
     fun loadMessages(chatId: String) {
         viewModelScope.launch {
-            _messagesState.value = MessagesState.Loading
-            Log.d(TAG, "Loading messages for chat: $chatId")
+            Log.d(TAG, "🔄 loadMessages called for chat: $chatId")
+            
+            // Сначала загружаем из кеша
+            cacheManager?.let { cache ->
+                Log.d(TAG, "📦 CacheManager is available, loading messages from cache...")
+                val cachedMessages = cache.getCachedMessages(chatId)
+                if (cachedMessages.isNotEmpty()) {
+                    Log.d(TAG, "✅ Loaded ${cachedMessages.size} messages from cache")
+                    _messagesState.value = MessagesState.Success(cachedMessages)
+                } else {
+                    Log.d(TAG, "⚠️ No cached messages for this chat")
+                }
+            } ?: Log.d(TAG, "❌ CacheManager is NULL!")
+            
+            Log.d(TAG, "📡 Loading messages from server for chat: $chatId")
             
             repository.getMessages(chatId).fold(
                 onSuccess = { messages ->
-                    Log.d(TAG, "Messages loaded: ${messages.size}")
+                    Log.d(TAG, "✅ Messages loaded from server: ${messages.size}")
                     _messagesState.value = MessagesState.Success(messages)
+                    
+                    // Сохраняем в кеш
+                    cacheManager?.let { cache ->
+                        viewModelScope.launch {
+                            Log.d(TAG, "💾 Saving ${messages.size} messages to cache...")
+                            cache.cacheMessages(chatId, messages)
+                            Log.d(TAG, "✅ Messages saved to cache successfully")
+                        }
+                    } ?: Log.d(TAG, "❌ Cannot save to cache - CacheManager is NULL!")
                 },
                 onFailure = { error ->
-                    Log.e(TAG, "Failed to load messages", error)
-                    _messagesState.value = MessagesState.Error(error.message ?: "Failed to load messages")
+                    Log.e(TAG, "❌ Failed to load messages from server: ${error.message}", error)
+                    // Если есть кешированные данные, оставляем их
+                    val currentState = _messagesState.value
+                    if (currentState !is MessagesState.Success || currentState.messages.isEmpty()) {
+                        Log.d(TAG, "⚠️ No cached messages available, showing error")
+                        _messagesState.value = MessagesState.Error(error.message ?: "Failed to load messages")
+                    } else {
+                        Log.d(TAG, "📦 Using cached messages due to server error")
+                    }
+                }
+            )
+        }
+    }
+    
+    fun refreshMessages(chatId: String) {
+        viewModelScope.launch {
+            // Тихое обновление без показа Loading
+            repository.getMessages(chatId).fold(
+                onSuccess = { messages ->
+                    val currentState = _messagesState.value
+                    if (currentState is MessagesState.Success) {
+                        // Обновляем только если количество сообщений изменилось
+                        if (messages.size > currentState.messages.size) {
+                            _messagesState.value = MessagesState.Success(messages)
+                        }
+                    }
+                },
+                onFailure = { 
+                    // Игнорируем ошибки при polling
                 }
             )
         }

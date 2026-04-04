@@ -19,6 +19,7 @@ class WebSocketManager private constructor() {
     var onUnreadUpdate: ((String, Int) -> Unit)? = null
     var onPinUpdate: ((String, Boolean) -> Unit)? = null
     var onMuteUpdate: ((String, Boolean) -> Unit)? = null
+    var onUserStatus: ((String, Boolean, Long) -> Unit)? = null // identity_id, online, last_seen
     
     companion object {
         @Volatile
@@ -37,9 +38,12 @@ class WebSocketManager private constructor() {
                 reconnection = true
                 reconnectionDelay = 1000
                 reconnectionDelayMax = 5000
+                forceNew = false
+                multiplex = true
             }
             
-            socket = IO.socket("https://weeky-six.vercel.app", opts)
+            // Подключаемся к реальному серверу с WebSocket
+            socket = IO.socket("http://178.104.40.37:25593", opts)
             
             socket?.on(Socket.EVENT_CONNECT) {
                 Log.d(TAG, "✅ WebSocket connected")
@@ -53,7 +57,14 @@ class WebSocketManager private constructor() {
             }
             
             socket?.on(Socket.EVENT_CONNECT_ERROR) { args ->
-                Log.e(TAG, "❌ WebSocket connection error: ${args.firstOrNull()}")
+                val error = args.firstOrNull()
+                Log.e(TAG, "❌ WebSocket connection error")
+                Log.e(TAG, "   Error: $error")
+                
+                // Vercel не поддерживает WebSocket
+                if (error.toString().contains("server error")) {
+                    Log.w(TAG, "⚠️ Vercel не поддерживает WebSocket")
+                }
             }
             
             socket?.on("receive_message") { args ->
@@ -72,8 +83,12 @@ class WebSocketManager private constructor() {
                 handleMuteUpdate(args)
             }
             
+            socket?.on("user_status") { args ->
+                handleUserStatus(args)
+            }
+            
             socket?.connect()
-            Log.d(TAG, "📡 Connecting to WebSocket...")
+            Log.d(TAG, "📡 Connecting to WebSocket at https://weeky-six.vercel.app/api/")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error connecting to WebSocket", e)
         }
@@ -90,13 +105,24 @@ class WebSocketManager private constructor() {
     private fun register(userId: String, identityId: String) {
         try {
             val data = JSONObject().apply {
-                put("user_id", userId)
                 put("identity_id", identityId)
             }
             socket?.emit("register", data)
-            Log.d(TAG, "📝 Registered with user_id: $userId, identity_id: $identityId")
+            Log.d(TAG, "📝 Registered with identity_id: $identityId")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error registering", e)
+        }
+    }
+    
+    fun requestUserStatus(identityId: String) {
+        try {
+            val data = JSONObject().apply {
+                put("identity_id", identityId)
+            }
+            socket?.emit("request_status", data)
+            Log.d(TAG, "🔍 Requested status for: $identityId")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error requesting status", e)
         }
     }
     
@@ -210,6 +236,19 @@ class WebSocketManager private constructor() {
             Log.d(TAG, "🔕 Mute update: chat=$chatId, muted=$isMuted")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error handling mute update", e)
+        }
+    }
+    
+    private fun handleUserStatus(args: Array<Any>) {
+        try {
+            val data = args.firstOrNull() as? JSONObject ?: return
+            val identityId = data.getString("identity_id")
+            val online = data.getBoolean("online")
+            val lastSeen = data.getLong("last_seen")
+            onUserStatus?.invoke(identityId, online, lastSeen)
+            Log.d(TAG, "👤 User status: $identityId, online=$online")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling user status", e)
         }
     }
 }

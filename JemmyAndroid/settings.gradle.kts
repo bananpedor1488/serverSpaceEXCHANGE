@@ -19,6 +19,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+        maven { url = uri("https://raw.githubusercontent.com/dev7dev/V2ray-Android/main/repo") }
     }
 }
 

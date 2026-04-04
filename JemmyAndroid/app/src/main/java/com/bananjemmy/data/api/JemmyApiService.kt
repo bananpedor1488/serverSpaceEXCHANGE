@@ -60,10 +60,25 @@ interface JemmyApiService {
     suspend fun consumeInviteLink(@Path("token") token: String): Response<InviteLinkPreview>
     
     // Search endpoints
-    @GET("api/identity/search")
-    suspend fun searchByUsername(@Query("tag") tag: String): Response<List<Identity>>
+    @GET("api/identity/search/{username}")
+    suspend fun searchByUsername(@Path("username") username: String): Response<Identity>
     
     // Direct chat
     @POST("api/chat/direct")
     suspend fun startDirectChat(@Body request: StartDirectChatRequest): Response<ChatStartResponse>
+    
+    // Start chat by invite token
+    @POST("api/chat/start")
+    suspend fun startChatByInvite(@Body request: StartChatByInviteRequest): Response<ChatStartResponse>
+    
+    // Delete chat
+    @DELETE("api/chat/{id}")
+    suspend fun deleteChat(@Path("id") chatId: String): Response<Unit>
+    
+    // Pin chat
+    @POST("api/chat/{id}/pin")
+    suspend fun pinChat(@Path("id") chatId: String): Response<Unit>
+    
+    @DELETE("api/chat/{id}/pin")
+    suspend fun unpinChat(@Path("id") chatId: String): Response<Unit>
 }

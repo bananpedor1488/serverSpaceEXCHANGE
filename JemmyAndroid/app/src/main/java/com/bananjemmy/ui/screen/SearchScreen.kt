@@ -1,7 +1,10 @@
 package com.bananjemmy.ui.screen
 
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -18,27 +21,36 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    onSearch: suspend (String) -> Result<List<Identity>>,
+    onSearch: suspend (String) -> Result<Identity>,
     onStartChat: suspend (Identity) -> Result<String>,
     onDismiss: () -> Unit,
     onChatCreated: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var foundIdentities by remember { mutableStateOf<List<Identity>>(emptyList()) }
+    var foundIdentity by remember { mutableStateOf<Identity?>(null) }
     var isSearching by remember { mutableStateOf(false) }
     var isCreatingChat by remember { mutableStateOf(false) }
-    var showError by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    val coroutineScope = rememberCoroutineScope()
     
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Найти пользователя") },
+                title = { 
+                    Text(
+                        "Поиск пользователей",
+                        fontWeight = FontWeight.SemiBold
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Filled.Close, contentDescription = "Закрыть")
+                        Icon(Icons.Filled.ArrowBack, "Назад")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { padding ->
@@ -46,160 +58,206 @@ fun SearchScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
+            Spacer(modifier = Modifier.height(16.dp))
+            
             // Search field
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = { 
+                    searchQuery = it
+                    errorMessage = null
+                    if (it.isEmpty()) foundIdentity = null
+                },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Введи username") },
+                placeholder = { Text("Введите username") },
                 leadingIcon = {
-                    Icon(Icons.Filled.Search, contentDescription = null)
+                    Icon(Icons.Filled.Search, null)
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Filled.Clear, contentDescription = "Очистить")
+                        IconButton(onClick = { 
+                            searchQuery = ""
+                            foundIdentity = null
+                            errorMessage = null
+                        }) {
+                            Icon(Icons.Filled.Clear, "Очистить")
                         }
                     }
                 },
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(28.dp)
             )
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             
             // Search button
-            val coroutineScope = rememberCoroutineScope()
             Button(
                 onClick = {
-                    isSearching = true
-                    coroutineScope.launch {
-                        val result = onSearch(searchQuery)
-                        result.onSuccess { identities ->
-                            foundIdentities = identities
-                            if (identities.isEmpty()) {
-                                errorMessage = "Пользователь $searchQuery не найден"
-                                showError = true
+                    if (searchQuery.isNotBlank()) {
+                        isSearching = true
+                        errorMessage = null
+                        foundIdentity = null
+                        coroutineScope.launch {
+                            val result = onSearch(searchQuery.trim())
+                            result.onSuccess { identity ->
+                                foundIdentity = identity
+                            }.onFailure {
+                                errorMessage = "Пользователь не найден"
                             }
-                        }.onFailure {
-                            errorMessage = "Пользователь $searchQuery не найден"
-                            showError = true
-                            foundIdentities = emptyList()
+                            isSearching = false
                         }
-                        isSearching = false
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = searchQuery.isNotEmpty() && !isSearching
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                enabled = searchQuery.isNotBlank() && !isSearching,
+                shape = RoundedCornerShape(24.dp)
             ) {
                 if (isSearching) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Найти")
+                    Text("Найти", fontSize = 16.sp)
                 }
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
-            // Found users
-            foundIdentities.forEach { identity ->
+            // Error message
+            AnimatedVisibility(
+                visible = errorMessage != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
                 Card(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Avatar
-                        Surface(
-                            modifier = Modifier.size(80.dp),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer
+                        Icon(
+                            Icons.Filled.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            text = errorMessage ?: "",
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+            
+            // Found user card
+            AnimatedVisibility(
+                visible = foundIdentity != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                foundIdentity?.let { identity ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
+                            // Avatar
+                            Surface(
+                                modifier = Modifier.size(72.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = identity.username.take(2).uppercase(),
+                                        fontSize = 28.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                            }
+                            
+                            // Username
+                            Text(
+                                text = "@${identity.username}",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            
+                            // Bio
+                            if (identity.bio.isNotEmpty()) {
                                 Text(
-                                    text = identity.username.take(2).uppercase(),
-                                    fontSize = 32.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    text = identity.bio,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 20.sp
                                 )
                             }
-                        }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        Text(
-                            text = identity.username,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        
-                        if (identity.bio.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = identity.bio,
-                                fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(24.dp))
-                        
-                        val chatCoroutineScope = rememberCoroutineScope()
-                        Button(
-                            onClick = {
-                                isCreatingChat = true
-                                chatCoroutineScope.launch {
-                                    val result = onStartChat(identity)
-                                    result.onSuccess { chatId ->
-                                        onChatCreated(chatId)
-                                        onDismiss()
-                                    }.onFailure {
-                                        errorMessage = "Не удалось создать чат"
-                                        showError = true
+                            
+                            Spacer(modifier = Modifier.height(4.dp))
+                            
+                            // Start chat button
+                            Button(
+                                onClick = {
+                                    isCreatingChat = true
+                                    coroutineScope.launch {
+                                        val result = onStartChat(identity)
+                                        result.onSuccess { chatId ->
+                                            onChatCreated(chatId)
+                                            onDismiss()
+                                        }.onFailure {
+                                            errorMessage = "Не удалось создать чат"
+                                        }
+                                        isCreatingChat = false
                                     }
-                                    isCreatingChat = false
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                enabled = !isCreatingChat,
+                                shape = RoundedCornerShape(24.dp)
+                            ) {
+                                if (isCreatingChat) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Filled.Send,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Начать чат", fontSize = 16.sp)
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isCreatingChat
-                        ) {
-                            if (isCreatingChat) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else {
-                                Text("Начать чат")
                             }
                         }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
-    }
-    
-    if (showError) {
-        AlertDialog(
-            onDismissRequest = { showError = false },
-            title = { Text("Ошибка") },
-            text = { Text(errorMessage) },
-            confirmButton = {
-                TextButton(onClick = { showError = false }) {
-                    Text("OK")
-                }
-            }
-        )
     }
 }
