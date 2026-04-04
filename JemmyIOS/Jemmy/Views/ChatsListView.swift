@@ -195,6 +195,7 @@ struct ChatsListView: View {
                 WebSocketManager.shared.onUnreadUpdate = nil
                 WebSocketManager.shared.onPinUpdate = nil
                 WebSocketManager.shared.onMuteUpdate = nil
+                WebSocketManager.shared.onUserStatus = nil
                 stopPolling()
             }
             .onChange(of: networkMonitor.isConnected) { isConnected in
@@ -332,12 +333,22 @@ struct ChatsListView: View {
         
         // Обработка обновлений статуса пользователя
         WebSocketManager.shared.onUserStatus = { identityId, online, lastSeen in
-            for index in self.chats.indices {
-                if self.chats[index].user.id == identityId {
-                    self.chats[index].isOnline = online
-                    self.chats[index].lastSeen = lastSeen
+            print("📊 iOS ChatsListView: Received status update")
+            print("   Identity: \(identityId)")
+            print("   Online: \(online)")
+            print("   Last seen: \(lastSeen)")
+            
+            // ВАЖНО: Создаем НОВЫЙ массив чтобы SwiftUI обновился
+            var updatedChats = self.chats
+            for index in updatedChats.indices {
+                if updatedChats[index].user.id == identityId {
+                    print("   ✅ Updating chat: \(updatedChats[index].user.username)")
+                    updatedChats[index].isOnline = online
+                    updatedChats[index].lastSeen = lastSeen
                 }
             }
+            self.chats = updatedChats
+            print("   ✅ Chats array updated")
         }
     }
     

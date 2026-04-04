@@ -85,17 +85,23 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
     }
     
     private fun updateMessageStatus(messageId: String, delivered: Boolean, read: Boolean) {
+        Log.d(TAG, "📬 updateMessageStatus called")
+        Log.d(TAG, "   Message ID: $messageId")
+        Log.d(TAG, "   Delivered: $delivered")
+        Log.d(TAG, "   Read: $read")
+        
         val currentState = _messagesState.value
         if (currentState is MessagesState.Success) {
             val updatedMessages = currentState.messages.map { message ->
                 if (message.id == messageId) {
+                    Log.d(TAG, "   ✅ Found message, updating status")
                     message.copy(delivered = delivered, read = read)
                 } else {
                     message
                 }
             }
             _messagesState.value = MessagesState.Success(updatedMessages)
-            Log.d(TAG, "✅ Updated message status: $messageId")
+            Log.d(TAG, "✅ Updated message status in UI")
             
             // Сохраняем обновленные сообщения в кеш
             val chatId = updatedMessages.firstOrNull()?.chatId
@@ -107,6 +113,8 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                     }
                 }
             }
+        } else {
+            Log.d(TAG, "⚠️ Cannot update - state is not Success")
         }
     }
     
