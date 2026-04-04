@@ -460,7 +460,7 @@ struct ChatsListView: View {
             
             Task {
                 do {
-                    let isMuted = try await APIService.shared.toggleChatMute(chatId: chat.id, identityId: identityId)
+                    let isMuted = try await APIService.shared.toggleChatMute(chatId: chat.id, identityId: identityId, isMuted: chat.isMuted)
                     await MainActor.run {
                         if let idx = chats.firstIndex(where: { $0.id == chat.id }) {
                             chats[idx].isMuted = isMuted
