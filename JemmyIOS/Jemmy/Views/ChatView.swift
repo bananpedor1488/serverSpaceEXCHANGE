@@ -236,6 +236,7 @@ struct ChatView: View {
             stopPolling()
             WebSocketManager.shared.onUserStatus = nil
             WebSocketManager.shared.onMessageStatusUpdate = nil
+            WebSocketManager.shared.onMessagesRead = nil
         }
         .onChange(of: networkMonitor.isConnected) { isConnected in
             if isConnected {
@@ -270,6 +271,25 @@ struct ChatView: View {
             }
         }
         
+        WebSocketManager.shared.onMessagesRead = { messageIds in
+            print("📖 Messages read event received: \(messageIds.count) messages")
+            
+            // Update messages in local array
+            var updated = false
+            for i in self.messages.indices {
+                if messageIds.contains(self.messages[i].id) {
+                    updated = true
+                    // Since ChatMessage is immutable, we need to reload
+                    break
+                }
+            }
+            
+            if updated {
+                print("✅ Reloading messages to reflect read status")
+                self.loadMessages()
+            }
+        }
+        
         // Request initial status
         WebSocketManager.shared.requestUserStatus(identityId: otherUser.id)
     }
@@ -277,12 +297,16 @@ struct ChatView: View {
     private func markMessagesAsRead() {
         guard let myIdentityId = authViewModel.identity?.id else { return }
         
-        // Mark all messages from other user as read
-        messages
-            .filter { $0.senderIdentityId != myIdentityId && !$0.read }
-            .forEach { message in
-                WebSocketManager.shared.markMessageRead(messageId: message.id, chatId: chatId)
-            }
+        // Collect all unread messages from other user
+        let unreadMessages = messages.filter { $0.senderIdentityId != myIdentityId && !$0.read }
+        
+        if !unreadMessages.isEmpty {
+            let messageIds = unreadMessages.map { $0.id }
+            print("📖 Marking \(messageIds.count) messages as read")
+            WebSocketManager.shared.markMessagesRead(messageIds: messageIds, chatId: chatId)
+        } else {
+            print("✅ No unread messages to mark")
+        }
     }
     
     private func startPolling() {

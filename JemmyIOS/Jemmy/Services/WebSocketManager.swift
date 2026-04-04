@@ -15,6 +15,7 @@ class WebSocketManager: ObservableObject {
     var onMuteUpdate: ((String, Bool) -> Void)?
     var onUserStatus: ((String, Bool, Int64) -> Void)? // identity_id, online, last_seen
     var onMessageStatusUpdate: ((String, Bool, Bool) -> Void)? // message_id, delivered, read
+    var onMessagesRead: (([String]) -> Void)? // message_ids
     
     private init() {}
     
@@ -70,6 +71,11 @@ class WebSocketManager: ObservableObject {
         socket?.on("message_status_update") { [weak self] data, ack in
             print("📬 Received message_status_update event")
             self?.handleMessageStatusUpdate(data: data)
+        }
+        
+        socket?.on("messages_read") { [weak self] data, ack in
+            print("📖 Received messages_read event")
+            self?.handleMessagesRead(data: data)
         }
         
         socket?.connect()
@@ -129,6 +135,11 @@ class WebSocketManager: ObservableObject {
     func markMessageRead(messageId: String, chatId: String) {
         socket?.emit("message_read", ["message_id": messageId, "chat_id": chatId])
         print("✅ Marked message as read: \(messageId)")
+    }
+    
+    func markMessagesRead(messageIds: [String], chatId: String) {
+        socket?.emit("messages_read", ["message_ids": messageIds, "chat_id": chatId])
+        print("📖 Marked \(messageIds.count) messages as read in chat \(chatId)")
     }
     
     private func handleMessageReceived(data: [Any]) {
@@ -224,6 +235,20 @@ class WebSocketManager: ObservableObject {
         
         DispatchQueue.main.async {
             self.onMessageStatusUpdate?(messageId, delivered, read)
+        }
+    }
+    
+    private func handleMessagesRead(data: [Any]) {
+        guard let updateData = data.first as? [String: Any],
+              let messageIds = updateData["message_ids"] as? [String] else { 
+            print("❌ Failed to parse messages read event")
+            return 
+        }
+        
+        print("✅ Messages read event parsed: \(messageIds.count) messages")
+        
+        DispatchQueue.main.async {
+            self.onMessagesRead?(messageIds)
         }
     }
 }

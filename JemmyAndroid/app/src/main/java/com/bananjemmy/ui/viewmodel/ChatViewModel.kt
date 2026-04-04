@@ -44,6 +44,12 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
             Log.d(TAG, "📬 Message status update: $messageId, delivered=$delivered, read=$read")
             updateMessageStatus(messageId, delivered, read)
         }
+        
+        // Setup messages read listener (batch)
+        webSocket.onMessagesRead = { messageIds ->
+            Log.d(TAG, "📖 Messages read event: ${messageIds.size} messages")
+            updateMessagesRead(messageIds)
+        }
     }
     
     private fun updateUserStatus(identityId: String, online: Boolean, lastSeen: Long) {
@@ -104,15 +110,50 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
         }
     }
     
+    private fun updateMessagesRead(messageIds: List<String>) {
+        Log.d(TAG, "🔄 updateMessagesRead: ${messageIds.size} messages")
+        val currentState = _messagesState.value
+        if (currentState is MessagesState.Success) {
+            val updatedMessages = currentState.messages.map { message ->
+                if (messageIds.contains(message.id)) {
+                    Log.d(TAG, "   ✅ Marking message as read: ${message.id}")
+                    message.copy(delivered = true, read = true)
+                } else {
+                    message
+                }
+            }
+            _messagesState.value = MessagesState.Success(updatedMessages)
+            Log.d(TAG, "✅ Updated ${messageIds.size} messages as read in UI")
+            
+            // Сохраняем в кеш
+            val chatId = updatedMessages.firstOrNull()?.chatId
+            if (chatId != null) {
+                cacheManager?.let { cache ->
+                    viewModelScope.launch {
+                        cache.cacheMessages(chatId, updatedMessages)
+                        Log.d(TAG, "💾 Saved read messages to cache")
+                    }
+                }
+            }
+        } else {
+            Log.d(TAG, "⚠️ Cannot update messages - state is not Success")
+        }
+    }
+    
     fun markChatMessagesAsRead(chatId: String, currentUserId: String) {
         viewModelScope.launch {
             val currentState = _messagesState.value
             if (currentState is MessagesState.Success) {
-                currentState.messages
+                val unreadMessages = currentState.messages
                     .filter { it.senderId != currentUserId && !it.read }
-                    .forEach { message ->
-                        webSocket.markMessageRead(message.id, chatId)
-                    }
+                
+                if (unreadMessages.isNotEmpty()) {
+                    val messageIds = unreadMessages.map { it.id }
+                    Log.d(TAG, "📖 Marking ${messageIds.size} messages as read")
+                    webSocket.markMessagesRead(messageIds, chatId)
+                } else {
+                    Log.d(TAG, "✅ No unread messages to mark")
+                }
             }
         }
     }

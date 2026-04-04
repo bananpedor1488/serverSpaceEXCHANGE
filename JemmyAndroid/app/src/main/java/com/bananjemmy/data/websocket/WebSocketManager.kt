@@ -21,6 +21,7 @@ class WebSocketManager private constructor() {
     var onMuteUpdate: ((String, Boolean) -> Unit)? = null
     var onUserStatus: ((String, Boolean, Long) -> Unit)? = null // identity_id, online, last_seen
     var onMessageStatusUpdate: ((String, Boolean, Boolean) -> Unit)? = null // message_id, delivered, read
+    var onMessagesRead: ((List<String>) -> Unit)? = null // message_ids
     
     companion object {
         @Volatile
@@ -90,6 +91,10 @@ class WebSocketManager private constructor() {
             
             socket?.on("message_status_update") { args ->
                 handleMessageStatusUpdate(args)
+            }
+            
+            socket?.on("messages_read") { args ->
+                handleMessagesRead(args)
             }
             
             socket?.connect()
@@ -223,6 +228,19 @@ class WebSocketManager private constructor() {
         }
     }
     
+    fun markMessagesRead(messageIds: List<String>, chatId: String) {
+        try {
+            val data = JSONObject().apply {
+                put("message_ids", org.json.JSONArray(messageIds))
+                put("chat_id", chatId)
+            }
+            socket?.emit("messages_read", data)
+            Log.d(TAG, "📖 Marked ${messageIds.size} messages as read in chat $chatId")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error marking messages as read", e)
+        }
+    }
+    
     private fun handleMessageReceived(args: Array<Any>) {
         try {
             val data = args.firstOrNull() as? JSONObject ?: return
@@ -303,6 +321,23 @@ class WebSocketManager private constructor() {
             Log.d(TAG, "📬 Message status update: id=$messageId, delivered=$delivered, read=$read")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error handling message status update", e)
+        }
+    }
+    
+    private fun handleMessagesRead(args: Array<Any>) {
+        try {
+            val data = args.firstOrNull() as? JSONObject ?: return
+            val messageIdsArray = data.getJSONArray("message_ids")
+            val messageIds = mutableListOf<String>()
+            
+            for (i in 0 until messageIdsArray.length()) {
+                messageIds.add(messageIdsArray.getString(i))
+            }
+            
+            Log.d(TAG, "📖 Messages read event: ${messageIds.size} messages")
+            onMessagesRead?.invoke(messageIds)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling messages read", e)
         }
     }
 }
