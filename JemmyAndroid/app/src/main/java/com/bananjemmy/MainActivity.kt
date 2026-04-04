@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
     private lateinit var chatViewModel: ChatViewModel
     private lateinit var cacheManager: com.bananjemmy.data.cache.CacheManager
+    private lateinit var pinnedChatsManager: com.bananjemmy.data.cache.PinnedChatsManager
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,8 +56,12 @@ class MainActivity : ComponentActivity() {
         cacheManager = com.bananjemmy.data.cache.CacheManager(this)
         Log.d("MainActivity", "✅ CacheManager created: $cacheManager")
         
-        chatViewModel = ChatViewModel(cacheManager)
-        Log.d("MainActivity", "✅ ChatViewModel created with CacheManager")
+        // Initialize pinned chats manager
+        pinnedChatsManager = com.bananjemmy.data.cache.PinnedChatsManager(this)
+        Log.d("MainActivity", "✅ PinnedChatsManager created")
+        
+        chatViewModel = ChatViewModel(cacheManager, pinnedChatsManager)
+        Log.d("MainActivity", "✅ ChatViewModel created with CacheManager and PinnedChatsManager")
         
         // Check auth on start
         authViewModel.checkAuth(this)
@@ -467,7 +472,8 @@ fun MainScreen(
                                     },
                                     isRefreshing = isRefreshing,
                                     onSearchClick = { showSearch = true },
-                                    cacheManager = cacheManager
+                                    cacheManager = cacheManager,
+                                    chatViewModel = chatViewModel
                                 )
                             }
                             1 -> {

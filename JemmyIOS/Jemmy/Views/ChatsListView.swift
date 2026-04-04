@@ -241,7 +241,13 @@ struct ChatsListView: View {
         
         Task {
             do {
-                let loadedChats = try await APIService.shared.getChats(identityId: identityId)
+                var loadedChats = try await APIService.shared.getChats(identityId: identityId)
+                
+                // Применяем локальные закрепления
+                for index in loadedChats.indices {
+                    let locallyPinned = PinnedChatsManager.shared.isPinned(loadedChats[index].id)
+                    loadedChats[index].isPinned = locallyPinned
+                }
                 
                 await MainActor.run {
                     let oldChats = chats
@@ -423,27 +429,21 @@ struct ChatsListView: View {
     private func togglePin(_ chat: ChatListItem) {
         print("📌 Pin chat:", chat.id)
         
-        guard let identityId = authViewModel.identity?.id else { return }
-        
         if let index = chats.firstIndex(where: { $0.id == chat.id }) {
+            // Мгновенно обновляем UI и сохраняем локально
             chats[index].isPinned.toggle()
+            PinnedChatsManager.shared.togglePin(chat.id)
+            
+            // Пытаемся синхронизировать с сервером (но не критично)
+            guard let identityId = authViewModel.identity?.id else { return }
             
             Task {
                 do {
-                    let isPinned = try await APIService.shared.toggleChatPin(chatId: chat.id, identityId: identityId)
-                    await MainActor.run {
-                        if let idx = chats.firstIndex(where: { $0.id == chat.id }) {
-                            chats[idx].isPinned = isPinned
-                        }
-                    }
+                    let isPinned = try await APIService.shared.toggleChatPin(chatId: chat.id, identityId: identityId, isPinned: chat.isPinned)
+                    print("✅ Pin synced with server")
                 } catch {
-                    print("❌ Pin error:", error.localizedDescription)
-                    // Откатываем изменение при ошибке
-                    await MainActor.run {
-                        if let idx = chats.firstIndex(where: { $0.id == chat.id }) {
-                            chats[idx].isPinned.toggle()
-                        }
-                    }
+                    print("⚠️ Pin sync failed (working offline):", error.localizedDescription)
+                    // Не откатываем - работаем локально
                 }
             }
         }

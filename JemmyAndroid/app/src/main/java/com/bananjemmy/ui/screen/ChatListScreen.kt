@@ -37,7 +37,8 @@ fun ChatListScreen(
     onRefresh: () -> Unit,
     isRefreshing: Boolean = false,
     onSearchClick: () -> Unit = {},
-    cacheManager: com.bananjemmy.data.cache.CacheManager
+    cacheManager: com.bananjemmy.data.cache.CacheManager,
+    chatViewModel: com.bananjemmy.ui.viewmodel.ChatViewModel
 ) {
     val coroutineScope = rememberCoroutineScope()
     val repository = remember { com.bananjemmy.data.repository.JemmyRepository() }
@@ -107,10 +108,7 @@ fun ChatListScreen(
                                 }
                             },
                             onTogglePin = { chat ->
-                                coroutineScope.launch {
-                                    repository.togglePinChat(chat.id, chat.isPinned)
-                                    onRefresh()
-                                }
+                                chatViewModel.togglePinChat(chat.id, currentUserId, chat.isPinned)
                             },
                             cacheManager = cacheManager
                         )
@@ -133,10 +131,7 @@ fun ChatListScreen(
                                 }
                             },
                             onTogglePin = { chat ->
-                                coroutineScope.launch {
-                                    repository.togglePinChat(chat.id, chat.isPinned)
-                                    onRefresh()
-                                }
+                                chatViewModel.togglePinChat(chat.id, currentUserId, chat.isPinned)
                             },
                             cacheManager = cacheManager
                         )
@@ -189,11 +184,19 @@ fun ChatList(
     onTogglePin: (Chat) -> Unit,
     cacheManager: com.bananjemmy.data.cache.CacheManager
 ) {
+    // Сортируем: закрепленные сверху, потом по времени
+    val sortedChats = remember(chats) {
+        chats.sortedWith(
+            compareByDescending<Chat> { it.isPinned }
+                .thenByDescending { it.lastMessageTime }
+        )
+    }
+    
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
-        items(chats, key = { it.id }) { chat ->
+        items(sortedChats, key = { it.id }) { chat ->
             ChatListItem(
                 chat = chat,
                 currentUserId = currentUserId,
@@ -221,6 +224,9 @@ fun ChatListItem(
     modifier: Modifier = Modifier,
     cacheManager: com.bananjemmy.data.cache.CacheManager
 ) {
+    // Локальное состояние для мгновенного отображения
+    var localIsPinned by remember(chat.id) { mutableStateOf(chat.isPinned) }
+    
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
             when (dismissValue) {
@@ -229,6 +235,8 @@ fun ChatListItem(
                     true
                 }
                 SwipeToDismissBoxValue.StartToEnd -> {
+                    // Мгновенно обновляем UI
+                    localIsPinned = !localIsPinned
                     onTogglePin()
                     false // Не удаляем элемент, только закрепляем
                 }
@@ -236,6 +244,11 @@ fun ChatListItem(
             }
         }
     )
+    
+    // Синхронизируем с внешним состоянием
+    LaunchedEffect(chat.isPinned) {
+        localIsPinned = chat.isPinned
+    }
     
     SwipeToDismissBox(
         state = dismissState,
@@ -269,8 +282,8 @@ fun ChatListItem(
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Icon(
-                            imageVector = if (chat.isPinned) Icons.Filled.Star else Icons.Outlined.Star,
-                            contentDescription = if (chat.isPinned) "Открепить" else "Закрепить",
+                            imageVector = if (localIsPinned) Icons.Filled.Star else Icons.Outlined.Star,
+                            contentDescription = if (localIsPinned) "Открепить" else "Закрепить",
                             tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(24.dp)
                         )
@@ -288,8 +301,7 @@ fun ChatListItem(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .clickable(onClick = onClick),
-            color = if (chat.isPinned) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) 
-                    else MaterialTheme.colorScheme.background
+            color = MaterialTheme.colorScheme.background
         ) {
         Row(
             modifier = Modifier
@@ -355,7 +367,7 @@ fun ChatListItem(
                         modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (chat.isPinned) {
+                        if (localIsPinned) {
                             Icon(
                                 imageVector = Icons.Filled.Star,
                                 contentDescription = null,

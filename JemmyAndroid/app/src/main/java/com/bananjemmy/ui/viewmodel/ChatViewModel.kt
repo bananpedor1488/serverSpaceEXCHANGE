@@ -24,7 +24,10 @@ sealed class MessagesState {
     data class Error(val message: String) : MessagesState()
 }
 
-class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheManager? = null) : ViewModel() {
+class ChatViewModel(
+    private val cacheManager: com.bananjemmy.data.cache.CacheManager? = null,
+    private val pinnedChatsManager: com.bananjemmy.data.cache.PinnedChatsManager? = null
+) : ViewModel() {
     private val repository = JemmyRepository()
     private val webSocket = WebSocketManager.getInstance()
     private val TAG = "ChatViewModel"
@@ -277,6 +280,9 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
     }
     
     private fun updateChatPinStatus(chatId: String, isPinned: Boolean) {
+        // Сохраняем локально
+        pinnedChatsManager?.setPinned(chatId, isPinned)
+        
         val currentState = _chatListState.value
         if (currentState is ChatListState.Success) {
             val updatedChats = currentState.chats.map { chat ->
@@ -287,7 +293,32 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                 }
             }
             _chatListState.value = ChatListState.Success(updatedChats)
-            Log.d(TAG, "📌 Updated pin status for chat $chatId: $isPinned")
+            Log.d(TAG, "📌 Updated pin status for chat $chatId: $isPinned (saved locally)")
+        }
+    }
+    
+    fun togglePinChat(chatId: String, currentUserId: String, currentIsPinned: Boolean) {
+        viewModelScope.launch {
+            val newPinState = !currentIsPinned
+            
+            // Обновляем UI локально
+            updateChatPinStatus(chatId, newPinState)
+            
+            // Пытаемся отправить на сервер (но не критично если не получится)
+            try {
+                repository.togglePinChat(chatId, currentUserId, currentIsPinned).fold(
+                    onSuccess = {
+                        Log.d(TAG, "✅ Pin status synced with server")
+                    },
+                    onFailure = { error ->
+                        Log.w(TAG, "⚠️ Failed to sync pin status with server (working offline): ${error.message}")
+                        // Не откатываем - работаем локально
+                    }
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ Server sync failed (working offline): ${e.message}")
+                // Не критично - локальное состояние уже сохранено
+            }
         }
     }
     
@@ -330,23 +361,29 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
             
             repository.getChats(identityId).fold(
                 onSuccess = { chats ->
-                    _chatListState.value = ChatListState.Success(chats)
+                    // Применяем локальные закрепления
+                    val chatsWithLocalPin = chats.map { chat ->
+                        val locallyPinned = pinnedChatsManager?.isPinned(chat.id) ?: chat.isPinned
+                        chat.copy(isPinned = locallyPinned)
+                    }
+                    
+                    _chatListState.value = ChatListState.Success(chatsWithLocalPin)
                     _isRefreshing.value = false
                     
                     // Сохраняем в кеш
                     cacheManager?.let { cache ->
                         viewModelScope.launch {
-                            if (chats.isEmpty()) {
+                            if (chatsWithLocalPin.isEmpty()) {
                                 cache.clearAllCache()
                             } else {
-                                cache.cacheChats(chats)
+                                cache.cacheChats(chatsWithLocalPin)
                             }
                         }
                     }
                     
                     // Запрашиваем статусы через WebSocket
-                    Log.d(TAG, "🔍 Requesting status for ${chats.size} users via WebSocket")
-                    chats.forEach { chat ->
+                    Log.d(TAG, "🔍 Requesting status for ${chatsWithLocalPin.size} users via WebSocket")
+                    chatsWithLocalPin.forEach { chat ->
                         webSocket.requestUserStatus(chat.user.id)
                     }
                 },
@@ -358,7 +395,12 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                         viewModelScope.launch {
                             val cachedChats = cache.getCachedChats()
                             if (cachedChats.isNotEmpty()) {
-                                _chatListState.value = ChatListState.Success(cachedChats)
+                                // Применяем локальные закрепления к кешу
+                                val chatsWithLocalPin = cachedChats.map { chat ->
+                                    val locallyPinned = pinnedChatsManager?.isPinned(chat.id) ?: chat.isPinned
+                                    chat.copy(isPinned = locallyPinned)
+                                }
+                                _chatListState.value = ChatListState.Success(chatsWithLocalPin)
                             } else {
                                 _chatListState.value = ChatListState.Error(error.message ?: "Failed to load chats")
                             }
@@ -380,7 +422,8 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                     // Используем кешированные статусы из _userStatuses
                     val chatsWithStatus = chats.map { chat ->
                         val (isOnline, lastSeen) = _userStatuses.value[chat.user.id] ?: Pair(false, 0L)
-                        chat.copy(isOnline = isOnline, lastSeen = lastSeen)
+                        val locallyPinned = pinnedChatsManager?.isPinned(chat.id) ?: chat.isPinned
+                        chat.copy(isOnline = isOnline, lastSeen = lastSeen, isPinned = locallyPinned)
                     }
                     
                     _chatListState.value = ChatListState.Success(chatsWithStatus)

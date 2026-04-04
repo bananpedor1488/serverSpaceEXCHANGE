@@ -1,6 +1,7 @@
 package com.bananjemmy.data.repository
 
 import android.util.Log
+import com.bananjemmy.data.api.PinChatRequest
 import com.bananjemmy.data.api.RetrofitClient
 import com.bananjemmy.data.model.*
 import kotlinx.coroutines.Dispatchers
@@ -401,15 +402,14 @@ class JemmyRepository {
     }
     
     // Pin/Unpin chat
-    suspend fun togglePinChat(chatId: String, isPinned: Boolean): Result<Unit> {
+    suspend fun togglePinChat(chatId: String, currentUserId: String, isPinned: Boolean): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Toggling pin for chat: $chatId, isPinned: $isPinned")
-                val response = if (isPinned) {
-                    api.unpinChat(chatId)
-                } else {
-                    api.pinChat(chatId)
-                }
+                val response = api.togglePinChat(
+                    chatId,
+                    PinChatRequest(currentUserId, !isPinned)
+                )
                 if (response.isSuccessful) {
                     Log.d(TAG, "Chat pin toggled successfully")
                     Result.success(Unit)

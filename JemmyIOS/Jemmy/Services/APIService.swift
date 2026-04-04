@@ -608,15 +608,15 @@ class APIService {
         }
     }
     
-    func toggleChatPin(chatId: String, identityId: String) async throws -> Bool {
-        print("📡 Request: PATCH /chat/\(chatId)/pin")
+    func toggleChatPin(chatId: String, identityId: String, isPinned: Bool) async throws -> Bool {
+        print("📡 Request: POST /chats/\(chatId)/pin")
         
-        let url = URL(string: "\(baseURL)/chat/\(chatId)/pin")!
+        let url = URL(string: "\(baseURL)/chats/\(chatId)/pin")!
         var request = URLRequest(url: url)
-        request.httpMethod = "PATCH"
+        request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let body = ["identity_id": identityId]
+        let body = ["identity_id": identityId, "is_pinned": !isPinned]
         request.httpBody = try JSONEncoder().encode(body)
         
         let (data, _) = try await URLSession.shared.data(for: request)
@@ -624,15 +624,15 @@ class APIService {
         return response["is_pinned"] ?? false
     }
     
-    func toggleChatMute(chatId: String, identityId: String) async throws -> Bool {
-        print("📡 Request: PATCH /chat/\(chatId)/mute")
+    func toggleChatMute(chatId: String, identityId: String, isMuted: Bool) async throws -> Bool {
+        print("📡 Request: POST /chats/\(chatId)/mute")
         
-        let url = URL(string: "\(baseURL)/chat/\(chatId)/mute")!
+        let url = URL(string: "\(baseURL)/chats/\(chatId)/mute")!
         var request = URLRequest(url: url)
-        request.httpMethod = "PATCH"
+        request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let body = ["identity_id": identityId]
+        let body = ["identity_id": identityId, "is_muted": !isMuted]
         request.httpBody = try JSONEncoder().encode(body)
         
         let (data, _) = try await URLSession.shared.data(for: request)

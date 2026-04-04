@@ -79,11 +79,18 @@ interface JemmyApiService {
     suspend fun deleteChat(@Path("id") chatId: String): Response<Unit>
     
     // Pin chat
-    @POST("api/chat/{id}/pin")
-    suspend fun pinChat(@Path("id") chatId: String): Response<Unit>
+    @PATCH("api/chat/{id}/pin")
+    suspend fun togglePinChat(
+        @Path("id") chatId: String,
+        @Body request: PinChatRequest
+    ): Response<PinChatResponse>
     
-    @DELETE("api/chat/{id}/pin")
-    suspend fun unpinChat(@Path("id") chatId: String): Response<Unit>
+    // Mute chat
+    @PATCH("api/chat/{id}/mute")
+    suspend fun toggleMuteChat(
+        @Path("id") chatId: String,
+        @Body request: MuteChatRequest
+    ): Response<MuteChatResponse>
     
     // User status
     @GET("api/user/status/{identity_id}")
@@ -94,4 +101,22 @@ data class UserStatusResponse(
     val identity_id: String,
     val online: Boolean,
     val last_seen: Long
+)
+
+data class PinChatRequest(
+    val identity_id: String,
+    val is_pinned: Boolean
+)
+
+data class PinChatResponse(
+    val is_pinned: Boolean
+)
+
+data class MuteChatRequest(
+    val identity_id: String,
+    val is_muted: Boolean
+)
+
+data class MuteChatResponse(
+    val is_muted: Boolean
 )
