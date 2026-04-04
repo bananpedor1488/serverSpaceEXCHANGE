@@ -19,22 +19,24 @@ class AuthViewModel: ObservableObject {
     init() {
         print("🔧 AuthViewModel initialized")
         
-        // Используем реальный UUID устройства (identifierForVendor)
-        // Он уникален для каждого устройства и не меняется при переустановке
-        if let vendorId = UIDevice.current.identifierForVendor?.uuidString {
-            self.deviceId = vendorId
-            print("📱 Device ID from identifierForVendor: \(vendorId)")
+        // Сначала пытаемся загрузить device_id из Keychain
+        if let savedDeviceId = KeychainHelper.load(key: deviceIdKey) {
+            self.deviceId = savedDeviceId
+            print("📱 Device ID loaded from Keychain: \(savedDeviceId)")
         } else {
-            // Fallback: пытаемся загрузить из Keychain
-            if let savedDeviceId = KeychainHelper.load(key: deviceIdKey) {
-                self.deviceId = savedDeviceId
-                print("📱 Device ID loaded from Keychain: \(savedDeviceId)")
+            // Если нет в Keychain, используем identifierForVendor или создаем новый
+            if let vendorId = UIDevice.current.identifierForVendor?.uuidString {
+                self.deviceId = vendorId
+                print("📱 Device ID from identifierForVendor: \(vendorId)")
             } else {
-                // Если и там нет, создаем новый и сохраняем
+                // Если и identifierForVendor нет, создаем новый UUID
                 self.deviceId = UUID().uuidString
-                KeychainHelper.save(key: deviceIdKey, value: self.deviceId)
-                print("📱 New Device ID created and saved to Keychain: \(self.deviceId)")
+                print("📱 New Device ID created: \(self.deviceId)")
             }
+            
+            // ВАЖНО: Сохраняем в Keychain чтобы он не менялся при переустановке
+            KeychainHelper.save(key: deviceIdKey, value: self.deviceId)
+            print("💾 Device ID saved to Keychain")
         }
         
         // Загружаем сохраненные данные
@@ -75,6 +77,7 @@ class AuthViewModel: ObservableObject {
         }
         
         print("🚀 Creating new account...")
+        print("📱 Device ID: \(deviceId)")
         isLoading = true
         
         do {
@@ -90,6 +93,7 @@ class AuthViewModel: ObservableObject {
                 print("✅ Registration complete")
                 print("   User ID: \(response.userId)")
                 print("   Username: \(response.identity.username)")
+                print("   Device ID saved: \(self.deviceId)")
                 
                 if let userId = userId, let identityId = identity?.id {
                     WebSocketManager.shared.connect(userId: userId, identityId: identityId)
@@ -112,9 +116,15 @@ class AuthViewModel: ObservableObject {
     
     func checkDevice() async {
         print("🔍 Checking device...")
+        print("📱 Device ID: \(deviceId)")
         
         do {
             let checkResponse = try await APIService.shared.checkDevice(deviceId: deviceId)
+            
+            print("📥 Check response: exists=\(checkResponse.exists)")
+            if let identity = checkResponse.identity {
+                print("   Found identity: \(identity.username)")
+            }
             
             if checkResponse.exists, let existingIdentity = checkResponse.identity {
                 print("✅ Found existing account: \(existingIdentity.username)")

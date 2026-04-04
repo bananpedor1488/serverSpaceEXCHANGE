@@ -19,26 +19,17 @@ struct OnboardingView: View {
                 VStack(spacing: 0) {
                 Spacer()
                 
-                // Logo - App Icon
-                if let appIcon = UIImage(named: "AppIcon") {
-                    Image(uiImage: appIcon)
-                        .resizable()
+                // Logo
+                ZStack {
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(Color.blue.opacity(0.15))
                         .frame(width: 100, height: 100)
-                        .cornerRadius(24)
-                        .padding(.bottom, 32)
-                } else {
-                    // Fallback if AppIcon not found
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 24)
-                            .fill(Color.blue.opacity(0.15))
-                            .frame(width: 100, height: 100)
-                        
-                        Text("J")
-                            .font(.system(size: 48, weight: .bold))
-                            .foregroundColor(.blue)
-                    }
-                    .padding(.bottom, 32)
+                    
+                    Image(systemName: "message.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(.blue)
                 }
+                .padding(.bottom, 32)
                 
                 // Title
                 Text("Добро пожаловать в Jemmy")
