@@ -7,6 +7,51 @@ struct UserProfileView: View {
     
     @State private var selectedTab = 0
     @State private var showDevices = false
+    @State private var isOnline = false
+    @State private var lastSeen: Int64 = 0
+    
+    var statusText: String {
+        if isOnline {
+            return "в сети"
+        } else if lastSeen > 0 {
+            let date = Date(timeIntervalSince1970: TimeInterval(lastSeen) / 1000)
+            let now = Date()
+            let diff = now.timeIntervalSince(date)
+            let seconds = Int(diff)
+            let minutes = seconds / 60
+            let hours = minutes / 60
+            let days = hours / 24
+            
+            switch true {
+            case seconds < 30:
+                return "только что"
+            case minutes < 1:
+                return "меньше минуты назад"
+            case minutes == 1:
+                return "минуту назад"
+            case minutes < 5:
+                return "\(minutes) минуты назад"
+            case minutes < 60:
+                return "\(minutes) минут назад"
+            case hours == 1:
+                return "час назад"
+            case hours < 5:
+                return "\(hours) часа назад"
+            case hours < 24:
+                return "\(hours) часов назад"
+            case days == 1:
+                return "вчера"
+            case days < 7:
+                return "\(days) дней назад"
+            default:
+                let formatter = DateFormatter()
+                formatter.dateFormat = "dd.MM.yyyy"
+                return formatter.string(from: date)
+            }
+        } else {
+            return "был(а) давно"
+        }
+    }
     
     var body: some View {
         ZStack {
@@ -16,21 +61,34 @@ struct UserProfileView: View {
                 VStack(spacing: 24) {
                     // Avatar & Info
                     VStack(spacing: 12) {
-                        Circle()
-                            .fill(Color.white.opacity(0.1))
-                            .frame(width: 100, height: 100)
-                            .overlay(
-                                Text(String(user.username.prefix(2)).uppercased())
-                                    .font(.system(size: 40, weight: .bold))
-                                    .foregroundColor(.white)
-                            )
+                        ZStack(alignment: .bottomTrailing) {
+                            Circle()
+                                .fill(Color.white.opacity(0.1))
+                                .frame(width: 100, height: 100)
+                                .overlay(
+                                    Text(String(user.username.prefix(2)).uppercased())
+                                        .font(.system(size: 40, weight: .bold))
+                                        .foregroundColor(.white)
+                                )
+                            
+                            if isOnline {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 20, height: 20)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.black, lineWidth: 3)
+                                    )
+                                    .offset(x: -5, y: -5)
+                            }
+                        }
                         
                         Text(user.username)
                             .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.white)
                         
-                        Text("@\(user.username)")
-                            .font(.system(size: 17))
+                        Text(statusText)
+                            .font(.system(size: 15))
                             .foregroundColor(.white.opacity(0.6))
                         
                         if !user.bio.isEmpty {
@@ -166,6 +224,32 @@ struct UserProfileView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: showDevices)
+        .onAppear {
+            setupWebSocket()
+            updateUserStatus()
+        }
+        .onDisappear {
+            WebSocketManager.shared.onUserStatus = nil
+        }
+    }
+    
+    private func updateUserStatus() {
+        isOnline = user.isOnline ?? false
+        if let lastSeenDate = user.lastSeenDate {
+            lastSeen = Int64(lastSeenDate.timeIntervalSince1970 * 1000)
+        }
+    }
+    
+    private func setupWebSocket() {
+        WebSocketManager.shared.onUserStatus = { identityId, online, lastSeenTimestamp in
+            if identityId == self.user.id {
+                self.isOnline = online
+                self.lastSeen = lastSeenTimestamp
+            }
+        }
+        
+        // Request initial status
+        WebSocketManager.shared.requestUserStatus(identityId: user.id)
     }
 }
 
