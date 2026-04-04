@@ -104,10 +104,20 @@ struct ChatView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 8) {
-                            ForEach(filteredMessages) { message in
+                            ForEach(Array(filteredMessages.enumerated()), id: \.element.id) { index, message in
+                                let isFromMe = message.senderIdentityId == authViewModel.identity?.id
+                                
+                                // Проверяем, последнее ли это сообщение в блоке от меня
+                                let isLastInBlock: Bool = {
+                                    if !isFromMe { return false }
+                                    if index == filteredMessages.count - 1 { return true }
+                                    return filteredMessages[index + 1].senderIdentityId != message.senderIdentityId
+                                }()
+                                
                                 MessageBubble(
                                     message: message,
-                                    isFromMe: message.senderIdentityId == authViewModel.identity?.id
+                                    isFromMe: isFromMe,
+                                    showStatus: isLastInBlock
                                 )
                                 .id(message.id)
                             }
@@ -381,6 +391,7 @@ struct ChatView: View {
 struct MessageBubble: View {
     let message: ChatMessage
     let isFromMe: Bool
+    let showStatus: Bool
     
     var body: some View {
         HStack(alignment: .bottom, spacing: 0) {
@@ -405,8 +416,8 @@ struct MessageBubble: View {
                 .background(isFromMe ? Color.green.opacity(0.8) : Color.white.opacity(0.1))
                 .cornerRadius(16)
                 
-                // Статус доставки/прочтения (только для своих сообщений)
-                if isFromMe {
+                // Статус доставки/прочтения (только для последнего сообщения в блоке)
+                if isFromMe && showStatus {
                     Text(message.read ? "прочитано" : (message.delivered ? "доставлено" : "отправлено"))
                         .font(.system(size: 10))
                         .foregroundColor(.white.opacity(0.4))

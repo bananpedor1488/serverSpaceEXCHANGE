@@ -249,15 +249,27 @@ fun ChatScreen(
                                     start = 16.dp,
                                     end = 16.dp,
                                     top = 16.dp,
-                                    bottom = 8.dp // Минимальный отступ
+                                    bottom = 8.dp
                                 ),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                                reverseLayout = true // Сообщения снизу вверх
+                                reverseLayout = true
                             ) {
-                                items(state.messages.reversed(), key = { it.id }) { message ->
+                                val reversedMessages = state.messages.reversed()
+                                items(reversedMessages.size, key = { reversedMessages[it].id }) { index ->
+                                    val message = reversedMessages[index]
+                                    val isFromMe = message.senderId == currentUserId
+                                    
+                                    // Проверяем, последнее ли это сообщение в блоке от меня
+                                    val isLastInBlock = if (isFromMe) {
+                                        index == 0 || reversedMessages[index - 1].senderId != currentUserId
+                                    } else {
+                                        false
+                                    }
+                                    
                                     MessageBubble(
                                         message = message,
-                                        isFromMe = message.senderId == currentUserId,
+                                        isFromMe = isFromMe,
+                                        showStatus = isLastInBlock,
                                         modifier = Modifier.animateItem()
                                     )
                                 }
@@ -363,6 +375,7 @@ fun ChatScreen(
 fun MessageBubble(
     message: Message,
     isFromMe: Boolean,
+    showStatus: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -376,7 +389,7 @@ fun MessageBubble(
             Box {
                 // Текст сообщения с отступом справа для времени
                 Text(
-                    text = message.content + "        ", // Добавляем пробелы для места под время
+                    text = message.content + "        ",
                     fontSize = 14.sp,
                     color = Color.White,
                     modifier = Modifier
@@ -402,8 +415,8 @@ fun MessageBubble(
                 )
             }
             
-            // Статус доставки/прочтения (только для своих сообщений)
-            if (isFromMe) {
+            // Статус доставки/прочтения (только для последнего сообщения в блоке)
+            if (isFromMe && showStatus) {
                 Text(
                     text = when {
                         message.read -> "прочитано"
