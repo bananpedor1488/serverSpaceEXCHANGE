@@ -36,6 +36,10 @@ class AuthViewModel: ObservableObject {
             self.identity = savedIdentity
             self.isAuthenticated = true
             print("📦 Loaded cached auth: \(savedIdentity.username)")
+            
+            // Connect WebSocket with cached credentials
+            WebSocketManager.shared.connect(userId: savedUserId, identityId: savedIdentity.id)
+            print("🔌 WebSocket connected with cached auth")
         }
     }
     

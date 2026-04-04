@@ -18,7 +18,14 @@ class WebSocketManager: ObservableObject {
     private init() {}
     
     func connect(userId: String, identityId: String) {
-        guard let url = URL(string: APIService.shared.baseURL) else { return }
+        guard let url = URL(string: "http://178.104.40.37:25593") else { 
+            print("❌ Invalid WebSocket URL")
+            return 
+        }
+        
+        print("🔌 Connecting to WebSocket: http://178.104.40.37:25593")
+        print("   User ID: \(userId)")
+        print("   Identity ID: \(identityId)")
         
         manager = SocketManager(socketURL: url, config: [.log(false), .compress])
         socket = manager?.defaultSocket
@@ -32,6 +39,10 @@ class WebSocketManager: ObservableObject {
         socket?.on(clientEvent: .disconnect) { [weak self] data, ack in
             print("❌ WebSocket disconnected")
             self?.isConnected = false
+        }
+        
+        socket?.on(clientEvent: .error) { data, ack in
+            print("❌ WebSocket error: \(data)")
         }
         
         socket?.on("receive_message") { [weak self] data, ack in
@@ -51,10 +62,12 @@ class WebSocketManager: ObservableObject {
         }
         
         socket?.on("user_status") { [weak self] data, ack in
+            print("📊 Received user_status event")
             self?.handleUserStatus(data: data)
         }
         
         socket?.connect()
+        print("🔄 WebSocket connecting...")
     }
     
     func disconnect() {
@@ -64,10 +77,13 @@ class WebSocketManager: ObservableObject {
     }
     
     private func register(userId: String, identityId: String) {
+        print("📝 Registering with server:")
+        print("   Identity ID: \(identityId)")
         socket?.emit("register", ["identity_id": identityId])
     }
     
     func requestUserStatus(identityId: String) {
+        print("🔍 Requesting status for: \(identityId)")
         socket?.emit("request_status", ["identity_id": identityId])
     }
     
@@ -142,12 +158,33 @@ class WebSocketManager: ObservableObject {
     }
     
     private func handleUserStatus(data: [Any]) {
-        guard let statusData = data.first as? [String: Any],
-              let identityId = statusData["identity_id"] as? String,
+        print("📊 handleUserStatus called")
+        print("   Raw data: \(data)")
+        
+        guard let statusData = data.first as? [String: Any] else { 
+            print("❌ Failed to parse status data")
+            return 
+        }
+        
+        print("   Parsed data: \(statusData)")
+        
+        guard let identityId = statusData["identity_id"] as? String,
               let online = statusData["online"] as? Bool,
-              let lastSeen = statusData["last_seen"] as? Int64 else { return }
+              let lastSeen = statusData["last_seen"] as? Int64 else { 
+            print("❌ Missing required fields")
+            print("   identity_id: \(statusData["identity_id"] ?? "nil")")
+            print("   online: \(statusData["online"] ?? "nil")")
+            print("   last_seen: \(statusData["last_seen"] ?? "nil")")
+            return 
+        }
+        
+        print("✅ Status parsed successfully:")
+        print("   Identity: \(identityId)")
+        print("   Online: \(online)")
+        print("   Last seen: \(lastSeen)")
         
         DispatchQueue.main.async {
+            print("📤 Calling onUserStatus callback")
             self.onUserStatus?(identityId, online, lastSeen)
         }
     }

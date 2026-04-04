@@ -242,13 +242,21 @@ class WebSocketManager private constructor() {
     private fun handleUserStatus(args: Array<Any>) {
         try {
             val data = args.firstOrNull() as? JSONObject ?: return
+            Log.d(TAG, "📊 Raw user_status data: $data")
+            
             val identityId = data.getString("identity_id")
             val online = data.getBoolean("online")
             val lastSeen = data.getLong("last_seen")
+            
+            Log.d(TAG, "👤 User status update:")
+            Log.d(TAG, "   Identity: $identityId")
+            Log.d(TAG, "   Online: $online")
+            Log.d(TAG, "   Last seen: $lastSeen")
+            
             onUserStatus?.invoke(identityId, online, lastSeen)
-            Log.d(TAG, "👤 User status: $identityId, online=$online")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error handling user status", e)
+            Log.e(TAG, "   Raw args: ${args.contentToString()}")
         }
     }
 }

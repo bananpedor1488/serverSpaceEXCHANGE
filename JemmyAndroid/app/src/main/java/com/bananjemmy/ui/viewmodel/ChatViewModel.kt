@@ -42,16 +42,32 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
     }
     
     private fun updateUserStatus(identityId: String, online: Boolean, lastSeen: Long) {
+        Log.d(TAG, "🔄 updateUserStatus called:")
+        Log.d(TAG, "   Identity: $identityId")
+        Log.d(TAG, "   Online: $online")
+        Log.d(TAG, "   Last seen: $lastSeen")
+        
         val currentState = _chatListState.value
+        Log.d(TAG, "   Current state: ${currentState::class.simpleName}")
+        
         if (currentState is ChatListState.Success) {
+            Log.d(TAG, "   Chats in state: ${currentState.chats.size}")
+            
             val updatedChats = currentState.chats.map { chat ->
                 if (chat.user.id == identityId) {
+                    Log.d(TAG, "   ✅ Found matching chat for user: ${chat.user.username}")
+                    Log.d(TAG, "      Old status: online=${chat.isOnline}, lastSeen=${chat.lastSeen}")
+                    Log.d(TAG, "      New status: online=$online, lastSeen=$lastSeen")
                     chat.copy(isOnline = online, lastSeen = lastSeen)
                 } else {
                     chat
                 }
             }
+            
             _chatListState.value = ChatListState.Success(updatedChats)
+            Log.d(TAG, "   ✅ Chat list state updated")
+        } else {
+            Log.d(TAG, "   ⚠️ Cannot update - state is not Success")
         }
     }
     
@@ -188,6 +204,12 @@ class ChatViewModel(private val cacheManager: com.bananjemmy.data.cache.CacheMan
                     Log.d(TAG, "✅ Chats loaded from server: ${chats.size}")
                     _chatListState.value = ChatListState.Success(chats)
                     _isRefreshing.value = false
+                    
+                    // Запрашиваем статусы для всех пользователей в чатах
+                    chats.forEach { chat ->
+                        Log.d(TAG, "🔍 Requesting status for user: ${chat.user.id}")
+                        webSocket.requestUserStatus(chat.user.id)
+                    }
                     
                     // Сохраняем в кеш или очищаем если пусто
                     cacheManager?.let { cache ->
