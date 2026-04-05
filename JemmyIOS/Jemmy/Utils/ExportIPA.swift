@@ -22,9 +22,8 @@ func exportIPA() async throws -> String {
     // Copy app bundle to Payload/
     try FileManager.default.copyItem(at: bundleURL, to: appURL)
     
-    // Remove occurrences of "swift-playgrounds-" from bundle identifier.
-    let bundleID = Bundle.main.bundleIdentifier!
-    let updatedBundleID = bundleID.replacingOccurrences(of: "swift-playgrounds-", with: "")
+    // Set bundle identifier to com.banan.Weeky
+    let updatedBundleID = "com.banan.Weeky"
     
     // Update bundle identifier
     let plistURL = appURL.appendingPathComponent("Info.plist")
