@@ -573,15 +573,11 @@ struct StorageBreakdownSheet: View {
                 
                 ScrollView {
                     VStack(spacing: 12) {
-                        if categoryData.avatars > 0 {
-                            StorageItem(
-                                icon: "person.crop.circle.fill",
-                                title: "Аватарки",
-                                size: categoryData.avatars,
-                                color: .cyan,
-                                totalSize: cacheSize
-                            )
-                        }
+                        // Аватарки - показываем всегда с количеством
+                        AvatarStorageItem(
+                            size: categoryData.avatars,
+                            totalSize: cacheSize
+                        )
                         
                         if categoryData.photos > 0 {
                             StorageItem(
@@ -722,6 +718,75 @@ struct StorageItem: View {
                 }
             }
             .frame(height: 8)
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(16)
+    }
+    
+    private func formatBytes(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
+    }
+}
+
+struct AvatarStorageItem: View {
+    let size: Int64
+    let totalSize: Int64
+    
+    var avatarCount: Int {
+        CacheManager.shared.getAvatarCount()
+    }
+    
+    var percentage: Double {
+        totalSize > 0 ? Double(size) / Double(totalSize) : 0
+    }
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.cyan.opacity(0.15))
+                        .frame(width: 52, height: 52)
+                    
+                    Image(systemName: "person.crop.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.cyan)
+                }
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Аватарки")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                    Text("\(avatarCount) шт. • \(Int(percentage * 100))% от общего")
+                        .font(.system(size: 15))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+                
+                Spacer()
+                
+                Text(formatBytes(size))
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.cyan)
+            }
+            
+            if size > 0 {
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.white.opacity(0.1))
+                            .frame(height: 8)
+                        
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.cyan)
+                            .frame(width: geometry.size.width * percentage, height: 8)
+                            .animation(.spring(response: 0.7, dampingFraction: 0.75), value: size)
+                    }
+                }
+                .frame(height: 8)
+            }
         }
         .padding(18)
         .background(Color.white.opacity(0.05))
