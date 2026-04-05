@@ -15,6 +15,9 @@ class PrivacyManager: ObservableObject {
     private let hideNotificationContentKey = "hide_notification_content"
     private let screenshotProtectionKey = "screenshot_protection"
     
+    private var lastActiveTime: Date?
+    private var autoLockTimer: Timer?
+    
     private init() {
         loadSettings()
     }
@@ -152,16 +155,62 @@ class PrivacyManager: ObservableObject {
     func lockApp() {
         isAppLocked = true
         requiresAuthentication = true
+        stopAutoLockTimer()
     }
     
     func unlockApp() {
         isAppLocked = false
         requiresAuthentication = false
+        startAutoLockTimer()
     }
     
     func checkShouldLock() {
         if hasPinCode || isBiometricEnabled {
             lockApp()
+        }
+    }
+    
+    // MARK: - Auto Lock Timer
+    
+    func startAutoLockTimer() {
+        guard hasPinCode || isBiometricEnabled else { return }
+        
+        lastActiveTime = Date()
+        autoLockTimer?.invalidate()
+        
+        print("🔒 Starting auto-lock timer (\(autoLockMinutes) minutes)")
+        
+        // Check every 30 seconds
+        autoLockTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            self?.checkAutoLock()
+        }
+    }
+    
+    func stopAutoLockTimer() {
+        autoLockTimer?.invalidate()
+        autoLockTimer = nil
+        lastActiveTime = nil
+        print("🔓 Stopped auto-lock timer")
+    }
+    
+    func resetAutoLockTimer() {
+        lastActiveTime = Date()
+    }
+    
+    private func checkAutoLock() {
+        guard let lastActive = lastActiveTime else { return }
+        guard hasPinCode || isBiometricEnabled else { return }
+        
+        let elapsed = Date().timeIntervalSince(lastActive)
+        let lockInterval = TimeInterval(autoLockMinutes * 60)
+        
+        print("⏱️ Auto-lock check: \(Int(elapsed))s elapsed, \(Int(lockInterval))s required")
+        
+        if elapsed >= lockInterval {
+            print("🔒 Auto-locking app")
+            DispatchQueue.main.async {
+                self.lockApp()
+            }
         }
     }
     

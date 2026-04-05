@@ -3,6 +3,7 @@ import SwiftUI
 struct ChatsListView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var networkMonitor = NetworkMonitor.shared
+    @StateObject private var privacyManager = PrivacyManager.shared
     @State private var chats: [ChatListItem] = []
     @State private var isLoading = false
     @State private var searchText = ""
@@ -172,6 +173,19 @@ struct ChatsListView: View {
                             ProgressView()
                                 .tint(.white)
                                 .scaleEffect(0.7)
+                        }
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if privacyManager.hasPinCode || privacyManager.isBiometricEnabled {
+                        Button(action: {
+                            print("🔒 Manual lock triggered")
+                            privacyManager.lockApp()
+                        }) {
+                            Image(systemName: "lock.fill")
+                                .foregroundColor(.white)
+                                .font(.system(size: 16))
                         }
                     }
                 }
