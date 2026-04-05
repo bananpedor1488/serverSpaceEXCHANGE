@@ -281,6 +281,9 @@ struct UserProfileView: View {
                     isBlocked = true
                     showBlockDialog = false
                     print("✅ UI updated: isBlocked = true")
+                    
+                    // Refresh blocked users list in WebSocket
+                    WebSocketManager.shared.refreshBlockedUsers()
                 }
             } catch {
                 print("❌ Failed to block user: \(error)")
@@ -305,6 +308,9 @@ struct UserProfileView: View {
                     isBlocked = false
                     showUnblockDialog = false
                     print("✅ UI updated: isBlocked = false")
+                    
+                    // Refresh blocked users list in WebSocket
+                    WebSocketManager.shared.refreshBlockedUsers()
                 }
             } catch {
                 print("❌ Failed to unblock user: \(error)")

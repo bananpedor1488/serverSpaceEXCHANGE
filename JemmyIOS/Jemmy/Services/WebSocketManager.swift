@@ -9,6 +9,10 @@ class WebSocketManager: ObservableObject {
     
     @Published var isConnected = false
     
+    // Blocked users cache
+    private var blockedUserIds: Set<String> = []
+    private var currentUserId: String?
+    
     var onMessageReceived: ((ChatMessage) -> Void)?
     var onUnreadUpdate: ((String, Int) -> Void)?
     var onPinUpdate: ((String, Bool) -> Void)?
@@ -35,6 +39,9 @@ class WebSocketManager: ObservableObject {
         print("🔌 Connecting to WebSocket: http://178.104.40.37:25593")
         print("   User ID: \(userId)")
         print("   Identity ID: \(identityId)")
+        
+        currentUserId = identityId
+        loadBlockedUsers(identityId: identityId)
         
         manager = SocketManager(socketURL: url, config: [.log(false), .compress])
         socket = manager?.defaultSocket
@@ -199,6 +206,12 @@ class WebSocketManager: ObservableObject {
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: messageData)
             let message = try JSONDecoder().decode(ChatMessage.self, from: jsonData)
+            
+            // Check if sender is blocked
+            if blockedUserIds.contains(message.senderIdentityId) {
+                print("🚫 Message from blocked user \(message.senderIdentityId) - IGNORING")
+                return
+            }
             
             DispatchQueue.main.async {
                 self.onMessageReceived?(message)
@@ -418,5 +431,24 @@ class WebSocketManager: ObservableObject {
         DispatchQueue.main.async {
             self.onMessageBlocked?(reason, message)
         }
+    }
+    
+    private func loadBlockedUsers(identityId: String) {
+        Task {
+            do {
+                let blockedUsers = try await APIService.shared.getBlockedUsers(identityId: identityId)
+                await MainActor.run {
+                    self.blockedUserIds = Set(blockedUsers.map { $0.id })
+                    print("📋 Loaded \(self.blockedUserIds.count) blocked users")
+                }
+            } catch {
+                print("❌ Failed to load blocked users: \(error)")
+            }
+        }
+    }
+    
+    func refreshBlockedUsers() {
+        guard let userId = currentUserId else { return }
+        loadBlockedUsers(identityId: userId)
     }
 }
