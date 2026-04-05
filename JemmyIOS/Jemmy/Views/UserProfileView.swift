@@ -236,12 +236,28 @@ struct UserProfileView: View {
     }
     
     private func checkIfBlocked() {
-        guard let currentUserId = authViewModel.userId else { return }
+        guard let currentUserId = authViewModel.userId else {
+            print("❌ No current user ID")
+            return
+        }
+        
+        print("🔍 Checking if user \(user.username) (ID: \(user.id)) is blocked by \(currentUserId)")
         
         Task {
             do {
                 let blockedUsers = try await APIService.shared.getBlockedUsers(identityId: currentUserId)
+                print("📋 Got \(blockedUsers.count) blocked users")
+                
+                let wasBlocked = isBlocked
                 isBlocked = blockedUsers.contains { $0.id == user.id }
+                
+                print("✅ User \(user.username) blocked status: \(isBlocked) (was: \(wasBlocked))")
+                
+                if isBlocked {
+                    print("🚫 User IS BLOCKED")
+                } else {
+                    print("✅ User IS NOT BLOCKED")
+                }
             } catch {
                 print("❌ Failed to check blocked status: \(error)")
             }
@@ -249,13 +265,23 @@ struct UserProfileView: View {
     }
     
     private func performBlock() {
-        guard let currentUserId = authViewModel.userId else { return }
+        guard let currentUserId = authViewModel.userId else {
+            print("❌ No current user ID for blocking")
+            return
+        }
+        
+        print("🚫 Attempting to block user \(user.username) (ID: \(user.id))")
         
         Task {
             do {
                 try await APIService.shared.blockUser(blockerIdentityId: currentUserId, blockedIdentityId: user.id)
-                isBlocked = true
-                showBlockDialog = false
+                print("✅ Block API call successful")
+                
+                await MainActor.run {
+                    isBlocked = true
+                    showBlockDialog = false
+                    print("✅ UI updated: isBlocked = true")
+                }
             } catch {
                 print("❌ Failed to block user: \(error)")
             }
@@ -263,13 +289,23 @@ struct UserProfileView: View {
     }
     
     private func performUnblock() {
-        guard let currentUserId = authViewModel.userId else { return }
+        guard let currentUserId = authViewModel.userId else {
+            print("❌ No current user ID for unblocking")
+            return
+        }
+        
+        print("✅ Attempting to unblock user \(user.username) (ID: \(user.id))")
         
         Task {
             do {
                 try await APIService.shared.unblockUser(blockerIdentityId: currentUserId, blockedIdentityId: user.id)
-                isBlocked = false
-                showUnblockDialog = false
+                print("✅ Unblock API call successful")
+                
+                await MainActor.run {
+                    isBlocked = false
+                    showUnblockDialog = false
+                    print("✅ UI updated: isBlocked = false")
+                }
             } catch {
                 print("❌ Failed to unblock user: \(error)")
             }
