@@ -8,7 +8,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -16,8 +18,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -254,6 +258,81 @@ fun JemmyApp(
             )
         }
         
+        is AuthState.Error -> {
+            // Custom styled error dialog
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.7f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    modifier = Modifier
+                        .padding(32.dp)
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Warning icon
+                        Icon(
+                            imageVector = Icons.Filled.Warning,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = Color(0xFFFF9800)
+                        )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Title
+                        Text(
+                            text = "Подозрение",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        // Message
+                        Text(
+                            text = "Незарегистрированный аккаунт.\n\nАккаунт был удален или не существует.\n\nВыполняем выход из системы.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 24.sp
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        // OK button
+                        Button(
+                            onClick = { authViewModel.dismissError() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text(
+                                text = "Понятно",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
         is AuthState.AccountFound -> {
             val context = androidx.compose.ui.platform.LocalContext.current
             OnboardingScreen(
@@ -275,11 +354,15 @@ fun JemmyApp(
                 Log.d("MainActivity", "📡 Loading chats for identity: ${identity.id}")
                 chatViewModel.loadChats(identity.id)
                 chatViewModel.connectWebSocket(identity.id, identity.id)
+                
+                // Start periodic account check
+                authViewModel.startPeriodicAccountCheck()
             }
             
             DisposableEffect(Unit) {
                 onDispose {
                     chatViewModel.disconnectWebSocket()
+                    authViewModel.stopPeriodicAccountCheck()
                 }
             }
             
@@ -333,6 +416,7 @@ fun MainScreen(
     authViewModel: AuthViewModel,
     cacheManager: com.bananjemmy.data.cache.CacheManager
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
     var showLinkGenerator by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
@@ -516,6 +600,7 @@ fun MainScreen(
     
     // Edit Profile Dialog
     if (showEditProfile) {
+        val activityContext = context as? android.app.Activity
         Dialog(onDismissRequest = { showEditProfile = false }) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
@@ -546,6 +631,26 @@ fun MainScreen(
                                     } catch (e: Exception) {
                                         Log.e("MainActivity", "Failed to parse avatar timestamp", e)
                                     }
+                                }
+                            }.onFailure { error ->
+                                // Check if identity not found - logout user
+                                if (error is com.bananjemmy.data.repository.JemmyRepository.IdentityNotFoundException) {
+                                    Log.e("MainActivity", "🚨 Identity not found - logging out user")
+                                    
+                                    // Show toast on main thread
+                                    activityContext?.runOnUiThread {
+                                        android.widget.Toast.makeText(
+                                            activityContext,
+                                            "Аккаунт не найден. Выход из системы...",
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                    
+                                    // Logout and clear all data
+                                    activityContext?.let { authViewModel.logout(it) }
+                                    chatViewModel.disconnectWebSocket()
+                                    cacheManager.clearAllCache()
+                                    showEditProfile = false
                                 }
                             }
                             result

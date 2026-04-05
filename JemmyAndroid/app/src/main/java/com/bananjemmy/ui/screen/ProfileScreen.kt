@@ -21,6 +21,8 @@ import com.bananjemmy.data.model.Identity
 import com.bananjemmy.ui.viewmodel.AuthViewModel
 import com.bananjemmy.ui.components.AvatarImage
 import com.bananjemmy.data.cache.CacheManager
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +35,10 @@ fun ProfileScreen(
     onNavigateToDataStorage: () -> Unit = {},
     cacheManager: CacheManager
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
     
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -186,22 +191,63 @@ fun ProfileScreen(
     // Delete confirmation dialog
     if (showDeleteDialog) {
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
+            onDismissRequest = { 
+                if (!isDeleting) {
+                    showDeleteDialog = false
+                }
+            },
             title = { Text("Удалить аккаунт?") },
-            text = { Text("Все ваши данные будут удалены безвозвратно") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        // TODO: Delete account
+            text = { 
+                if (isDeleting) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Удаление аккаунта...")
                     }
-                ) {
-                    Text("Удалить", color = MaterialTheme.colorScheme.error)
+                } else {
+                    Text("Все ваши данные будут удалены безвозвратно. Это действие нельзя отменить.")
+                }
+            },
+            confirmButton = {
+                if (!isDeleting) {
+                    TextButton(
+                        onClick = {
+                            isDeleting = true
+                            android.util.Log.d("ProfileScreen", "🗑️ Deleting account: ${identity.id}")
+                            
+                            // Clear cache in background
+                            scope.launch {
+                                try {
+                                    cacheManager.clearAllCache()
+                                    android.util.Log.d("ProfileScreen", "✅ Cache cleared")
+                                } catch (e: Exception) {
+                                    android.util.Log.e("ProfileScreen", "❌ Error clearing cache", e)
+                                }
+                            }
+                            
+                            // Delete account
+                            authViewModel.deleteIdentity(context)
+                            
+                            // Close dialog after a delay
+                            scope.launch {
+                                delay(1000)
+                                showDeleteDialog = false
+                                isDeleting = false
+                            }
+                        }
+                    ) {
+                        Text("Удалить", color = MaterialTheme.colorScheme.error)
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Отмена")
+                if (!isDeleting) {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Отмена")
+                    }
                 }
             }
         )

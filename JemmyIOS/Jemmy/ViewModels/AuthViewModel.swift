@@ -11,10 +11,12 @@ class AuthViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isAuthenticated = false
     @Published var existingAccount: Identity?
+    @Published var accountError: String?
     
     private let identityKey = "cached_identity"
     private let userIdKey = "cached_user_id"
     private let deviceIdKey = "deviceId"
+    private var periodicCheckTask: Task<Void, Never>?
     
     init() {
         print("🔧 AuthViewModel initialized")
@@ -175,6 +177,54 @@ class AuthViewModel: ObservableObject {
         }
     }
     
+    func startPeriodicAccountCheck() {
+        print("🔄 Starting periodic account check (every 3 seconds)")
+        
+        // Cancel existing task if any
+        periodicCheckTask?.cancel()
+        
+        periodicCheckTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                
+                if isAuthenticated, let identityId = identity?.id {
+                    print("🔄 Periodic account check...")
+                    await loadProfileSilently(identityId: identityId)
+                }
+            }
+        }
+    }
+    
+    func stopPeriodicAccountCheck() {
+        print("⏹️ Stopping periodic account check")
+        periodicCheckTask?.cancel()
+        periodicCheckTask = nil
+    }
+    
+    private func loadProfileSilently(identityId: String) async {
+        do {
+            let updatedIdentity = try await APIService.shared.getProfile(identityId: identityId)
+            self.identity = updatedIdentity
+            saveAuth()
+        } catch {
+            // Check if identity not found - account was deleted
+            let errorMessage = error.localizedDescription.lowercased()
+            if errorMessage.contains("identity not found") || errorMessage.contains("404") {
+                print("🚨 ПОДОЗРЕНИЕ: Незарегистрированный аккаунт - выполняем выход")
+                
+                // Clear data
+                KeychainHelper.delete(key: deviceIdKey)
+                UserDefaults.standard.removeObject(forKey: userIdKey)
+                UserDefaults.standard.removeObject(forKey: identityKey)
+                
+                // Show error alert
+                self.accountError = "⚠️ ПОДОЗРЕНИЕ\n\nНезарегистрированный аккаунт. Аккаунт был удален или не существует.\n\nВыполняем выход."
+                self.isAuthenticated = false
+                self.identity = nil
+            }
+        }
+    }
+    
     func loadProfile() async {
         guard let identityId = identity?.id else {
             print("⚠️ Cannot load profile: no identity ID")
@@ -190,7 +240,28 @@ class AuthViewModel: ObservableObject {
             print("✅ Profile loaded successfully")
         } catch {
             print("❌ Failed to load profile: \(error.localizedDescription)")
+            
+            // Check if identity not found - account was deleted
+            let errorMessage = error.localizedDescription.lowercased()
+            if errorMessage.contains("identity not found") || errorMessage.contains("404") {
+                print("🚨 ПОДОЗРЕНИЕ: Незарегистрированный аккаунт - выполняем выход")
+                
+                // Clear data
+                KeychainHelper.delete(key: deviceIdKey)
+                UserDefaults.standard.removeObject(forKey: userIdKey)
+                UserDefaults.standard.removeObject(forKey: identityKey)
+                
+                // Show error alert
+                self.accountError = "⚠️ ПОДОЗРЕНИЕ\n\nНезарегистрированный аккаунт. Аккаунт был удален или не существует.\n\nВыполняем выход."
+                self.isAuthenticated = false
+                self.identity = nil
+            }
         }
+    }
+    
+    func dismissError() {
+        print("Dismissing error")
+        accountError = nil
     }
     
     func updateProfile(username: String?, bio: String?, avatar: String? = nil) async throws {

@@ -1,6 +1,7 @@
 package com.bananjemmy.data.repository
 
 import android.util.Log
+import com.bananjemmy.data.api.DeleteAccountRequest
 import com.bananjemmy.data.api.PinChatRequest
 import com.bananjemmy.data.api.RetrofitClient
 import com.bananjemmy.data.model.*
@@ -75,7 +76,13 @@ class JemmyRepository {
                 if (response.isSuccessful && response.body() != null) {
                     Result.success(response.body()!!)
                 } else {
-                    Result.failure(Exception("Failed to get identity"))
+                    val errorBody = response.errorBody()?.string() ?: ""
+                    if (response.code() == 404 || errorBody.contains("Identity not found", ignoreCase = true)) {
+                        Log.e(TAG, "❌ Identity not found: $id")
+                        Result.failure(IdentityNotFoundException("Identity not found: $id"))
+                    } else {
+                        Result.failure(Exception("Failed to get identity: ${response.code()}"))
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting identity", e)
@@ -87,16 +94,27 @@ class JemmyRepository {
     suspend fun updateIdentity(id: String, username: String? = null, bio: String? = null, avatar: String? = null): Result<Identity> {
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Updating identity: $id")
+                Log.d(TAG, "📡 PUT /api/identity/$id")
+                Log.d(TAG, "📦 Body: { username: '$username', bio: '$bio' }")
                 val response = api.updateIdentity(id, UpdateIdentityRequest(username, bio, avatar))
                 if (response.isSuccessful && response.body() != null) {
-                    Log.d(TAG, "Identity updated")
+                    Log.d(TAG, "✅ Identity updated")
                     Result.success(response.body()!!)
                 } else {
-                    Result.failure(Exception("Failed to update identity"))
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                    Log.e(TAG, "❌ Failed to update identity: ${response.code()}")
+                    Log.e(TAG, "Error body: $errorBody")
+                    
+                    // Check if identity not found
+                    if (response.code() == 404 || errorBody.contains("Identity not found", ignoreCase = true)) {
+                        Log.e(TAG, "❌ Identity not found: $id")
+                        Result.failure(IdentityNotFoundException("Identity not found: $id"))
+                    } else {
+                        Result.failure(Exception("Failed to update identity: ${response.code()}"))
+                    }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error updating identity", e)
+                Log.e(TAG, "❌ Error updating identity", e)
                 Result.failure(e)
             }
         }
@@ -123,40 +141,77 @@ class JemmyRepository {
     suspend fun updateProfile(identityId: String, username: String? = null, bio: String? = null, avatar: String? = null): Result<Identity> {
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Updating profile for: $identityId")
+                Log.d(TAG, "📡 POST /api/identity/update")
+                Log.d(TAG, "📦 Body: { bio: '$bio', identity_id: '$identityId', username: '$username' }")
                 if (avatar != null) {
                     Log.d(TAG, "Avatar included, size: ${avatar.length} chars")
                 }
                 val response = api.updateProfile(UpdateProfileRequest(identityId, username, bio, avatar))
                 if (response.isSuccessful && response.body() != null) {
-                    Log.d(TAG, "Profile updated: ${response.body()?.username}")
+                    Log.d(TAG, "✅ Profile updated: ${response.body()?.username}")
                     Result.success(response.body()!!)
                 } else {
-                    Result.failure(Exception("Failed to update profile"))
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                    Log.e(TAG, "❌ Failed to update profile: ${response.code()}")
+                    Log.e(TAG, "Error body: $errorBody")
+                    
+                    // Check if identity not found
+                    if (response.code() == 404 || errorBody.contains("Identity not found", ignoreCase = true)) {
+                        Log.e(TAG, "❌ Identity not found: $identityId")
+                        Result.failure(IdentityNotFoundException("Identity not found: $identityId"))
+                    } else {
+                        Result.failure(Exception("Failed to update profile: ${response.code()}"))
+                    }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error updating profile", e)
+                Log.e(TAG, "❌ Error updating profile", e)
                 Result.failure(e)
             }
         }
     }
     
+    class IdentityNotFoundException(message: String) : Exception(message)
+    
     suspend fun deleteIdentity(id: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Deleting identity: $id")
-                val response = api.deleteIdentity(id)
+                Log.d(TAG, "🗑️ Deleting account via /api/account/delete")
+                
+                // Get device ID from SharedPreferences
+                val context = appContext ?: return@withContext Result.failure(Exception("Context not available"))
+                val androidId = android.provider.Settings.Secure.getString(
+                    context.contentResolver,
+                    android.provider.Settings.Secure.ANDROID_ID
+                )
+                
+                if (androidId.isNullOrEmpty()) {
+                    Log.e(TAG, "❌ Device ID not available")
+                    return@withContext Result.failure(Exception("Device ID not available"))
+                }
+                
+                Log.d(TAG, "📦 Device ID: $androidId")
+                
+                val response = api.deleteAccount(DeleteAccountRequest(androidId))
                 if (response.isSuccessful) {
-                    Log.d(TAG, "Identity deleted")
+                    Log.d(TAG, "✅ Account deleted successfully")
                     Result.success(Unit)
                 } else {
-                    Result.failure(Exception("Failed to delete identity"))
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                    Log.e(TAG, "❌ Failed to delete account: ${response.code()}")
+                    Log.e(TAG, "Error body: $errorBody")
+                    Result.failure(Exception("Failed to delete account: ${response.code()}"))
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error deleting identity", e)
+                Log.e(TAG, "❌ Error deleting account", e)
                 Result.failure(e)
             }
         }
+    }
+    
+    private var appContext: android.content.Context? = null
+    
+    fun setContext(context: android.content.Context) {
+        appContext = context.applicationContext
     }
     
     suspend fun getChats(identityId: String): Result<List<Chat>> {

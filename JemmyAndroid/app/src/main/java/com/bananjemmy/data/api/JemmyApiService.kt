@@ -32,6 +32,10 @@ interface JemmyApiService {
     @DELETE("api/identity/{id}")
     suspend fun deleteIdentity(@Path("id") id: String): Response<Unit>
     
+    // Account deletion
+    @POST("api/account/delete")
+    suspend fun deleteAccount(@Body request: DeleteAccountRequest): Response<DeleteAccountResponse>
+    
     // Chat endpoints
     @GET("api/chats")
     suspend fun getChats(@Query("identity_id") identityId: String): Response<List<Chat>>
@@ -119,4 +123,13 @@ data class MuteChatRequest(
 
 data class MuteChatResponse(
     val is_muted: Boolean
+)
+
+data class DeleteAccountRequest(
+    val device_id: String
+)
+
+data class DeleteAccountResponse(
+    val success: Boolean,
+    val message: String
 )

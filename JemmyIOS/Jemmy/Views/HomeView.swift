@@ -49,6 +49,63 @@ struct HomeView: View {
                     .tag(1)
             }
             .accentColor(.white)
+            .onAppear {
+                // Start periodic account check when authenticated
+                authViewModel.startPeriodicAccountCheck()
+            }
+            .onDisappear {
+                // Stop periodic check when view disappears
+                authViewModel.stopPeriodicAccountCheck()
+            }
+            
+            // Beautiful error alert overlay
+            if let errorMessage = authViewModel.accountError {
+                Color.black.opacity(0.7)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // Warning icon
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 64))
+                        .foregroundColor(.orange)
+                        .padding(.top, 24)
+                    
+                    // Title
+                    Text("Подозрение")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.top, 16)
+                    
+                    // Message
+                    Text("Незарегистрированный аккаунт.\n\nАккаунт был удален или не существует.\n\nВыполняем выход из системы.")
+                        .font(.system(size: 17))
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(6)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 12)
+                    
+                    // OK button
+                    Button(action: {
+                        authViewModel.dismissError()
+                    }) {
+                        Text("Понятно")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color.blue)
+                            .cornerRadius(16)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
+                    .padding(.bottom, 24)
+                }
+                .frame(maxWidth: 340)
+                .background(Color(white: 0.15))
+                .cornerRadius(24)
+                .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+            }
         }
     }
 }

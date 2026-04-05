@@ -25,12 +25,40 @@ class AuthViewModel : ViewModel() {
     private val repository = JemmyRepository()
     private val TAG = "AuthViewModel"
     private var appContext: Context? = null
+    private var periodicCheckJob: kotlinx.coroutines.Job? = null
     
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
     
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    
+    fun startPeriodicAccountCheck() {
+        // Cancel existing job if any
+        periodicCheckJob?.cancel()
+        
+        periodicCheckJob = viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(3000) // 3 seconds
+                
+                val currentState = _authState.value
+                if (currentState is AuthState.Authenticated) {
+                    Log.d(TAG, "🔄 Periodic account check...")
+                    loadIdentityFromServer(currentState.identity.id, silent = true)
+                }
+            }
+        }
+    }
+    
+    fun stopPeriodicAccountCheck() {
+        periodicCheckJob?.cancel()
+        periodicCheckJob = null
+    }
+    
+    override fun onCleared() {
+        super.onCleared()
+        stopPeriodicAccountCheck()
+    }
     
     fun checkAuth(context: Context) {
         appContext = context.applicationContext
@@ -119,6 +147,24 @@ class AuthViewModel : ViewModel() {
             },
             onFailure = { error ->
                 Log.e(TAG, "❌ Failed to load identity from server: ${error.message}")
+                
+                // Проверяем если это ошибка "Identity not found" - аккаунт был удален
+                val isIdentityNotFound = error.message?.contains("Identity not found", ignoreCase = true) == true ||
+                                        error.message?.contains("404", ignoreCase = true) == true
+                
+                if (isIdentityNotFound) {
+                    Log.e(TAG, "🚨 ПОДОЗРЕНИЕ: Незарегистрированный аккаунт - выполняем выход")
+                    
+                    // Очищаем данные и разлогиниваем
+                    appContext?.let { ctx ->
+                        clearIdentityId(ctx)
+                    }
+                    
+                    _authState.value = AuthState.Error("⚠️ ПОДОЗРЕНИЕ\n\nНезарегистрированный аккаунт. Аккаунт был удален или не существует.\n\nВыполняем выход.")
+                    _isLoading.value = false
+                    return
+                }
+                
                 if (!silent) {
                     // Если не silent и нет кеша - показываем ошибку
                     val currentState = _authState.value
@@ -197,7 +243,15 @@ class AuthViewModel : ViewModel() {
                     },
                     onFailure = { error ->
                         Log.e(TAG, "Failed to update identity", error)
-                        _authState.value = AuthState.Error(error.message ?: "Failed to update identity")
+                        
+                        // Check if identity not found - logout user
+                        if (error is com.bananjemmy.data.repository.JemmyRepository.IdentityNotFoundException) {
+                            Log.e(TAG, "🚨 Identity not found - logging out user")
+                            logout(context)
+                            _authState.value = AuthState.Error("Аккаунт не найден. Выполнен выход из системы.")
+                        } else {
+                            _authState.value = AuthState.Error(error.message ?: "Failed to update identity")
+                        }
                         _isLoading.value = false
                     }
                 )
@@ -210,18 +264,21 @@ class AuthViewModel : ViewModel() {
             val currentState = _authState.value
             if (currentState is AuthState.Authenticated) {
                 _isLoading.value = true
-                Log.d(TAG, "Deleting identity: ${currentState.identity.id}")
+                Log.d(TAG, "🗑️ Deleting account: ${currentState.identity.id}")
+                
+                // Set context in repository
+                repository.setContext(context)
                 
                 repository.deleteIdentity(currentState.identity.id).fold(
                     onSuccess = {
-                        Log.d(TAG, "Identity deleted successfully")
+                        Log.d(TAG, "✅ Account deleted successfully")
                         clearIdentityId(context)
                         _authState.value = AuthState.Unauthenticated
                         _isLoading.value = false
                     },
                     onFailure = { error ->
-                        Log.e(TAG, "Failed to delete identity", error)
-                        _authState.value = AuthState.Error(error.message ?: "Failed to delete identity")
+                        Log.e(TAG, "❌ Failed to delete account", error)
+                        _authState.value = AuthState.Error(error.message ?: "Failed to delete account")
                         _isLoading.value = false
                     }
                 )
@@ -232,6 +289,11 @@ class AuthViewModel : ViewModel() {
     fun logout(context: Context) {
         Log.d(TAG, "Logging out")
         clearIdentityId(context)
+        _authState.value = AuthState.Unauthenticated
+    }
+    
+    fun dismissError() {
+        Log.d(TAG, "Dismissing error, transitioning to Unauthenticated")
         _authState.value = AuthState.Unauthenticated
     }
     
