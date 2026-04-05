@@ -13,7 +13,7 @@ struct JemmyApp: App {
                 if !hasSeenOnboarding {
                     OnboardingView()
                         .environmentObject(authViewModel)
-                } else if authViewModel.identity != nil {
+                } else if authViewModel.isAuthenticated && authViewModel.identity != nil {
                     HomeView(openChat: $createdChat)
                         .environmentObject(authViewModel)
                         .sheet(item: Binding(
@@ -27,6 +27,14 @@ struct JemmyApp: App {
                             )
                             .environmentObject(authViewModel)
                         }
+                } else if authViewModel.existingAccount != nil {
+                    // Show restore account screen
+                    OnboardingView()
+                        .environmentObject(authViewModel)
+                } else if !authViewModel.isAuthenticated {
+                    // Not authenticated - show onboarding
+                    OnboardingView()
+                        .environmentObject(authViewModel)
                 } else {
                     // Loading state - registering user
                     ZStack {

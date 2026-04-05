@@ -258,8 +258,22 @@ class AuthViewModel: ObservableObject {
     }
     
     func dismissError() {
-        print("Dismissing error")
+        print("Dismissing error and logging out")
         accountError = nil
+        
+        // Полностью очищаем все данные
+        KeychainHelper.delete(key: deviceIdKey)
+        UserDefaults.standard.removeObject(forKey: userIdKey)
+        UserDefaults.standard.removeObject(forKey: identityKey)
+        
+        self.identity = nil
+        self.userId = nil
+        self.isAuthenticated = false
+        
+        // Отключаем WebSocket
+        WebSocketManager.shared.disconnect()
+        
+        print("✅ Logged out, returning to onboarding")
     }
     
     func updateProfile(username: String?, bio: String?, avatar: String? = nil) async throws {
