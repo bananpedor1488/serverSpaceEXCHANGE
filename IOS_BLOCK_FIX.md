@@ -4,22 +4,49 @@
 На iOS не работала блокировка пользователей, выдавая ошибку:
 ```
 ❌ Failed to check blocked status: keyNotFound(CodingKeys(stringValue: "blocked_users", intValue: nil))
+📥 Response: 404
+📥 Raw response: {"error":"Identity not found"}
 ```
 
 ## Причины
 
-### 1. Несоответствие структуры Identity
+### 1. Использование неправильного ID
+**ГЛАВНАЯ ПРОБЛЕМА:** В `UserProfileView` использовался `authViewModel.userId` (user_id) вместо `authViewModel.identity?.id` (identity_id). 
+
+API endpoint `/identity/blocked-list/:identity_id` ожидает identity_id, а не user_id, поэтому сервер возвращал 404 "Identity not found".
+
+### 2. Несоответствие структуры Identity
 iOS модель `Identity` ожидала только поле `_id`, но Mongoose populate мог возвращать объекты с полем `id` вместо `_id`.
 
-### 2. Проблема с сериализацией на сервере
+### 3. Проблема с сериализацией на сервере
 Метод `getBlockedUsers` возвращал Mongoose документы напрямую, что могло приводить к проблемам с сериализацией.
 
-### 3. Отсутствие поля avatar
+### 4. Отсутствие поля avatar
 В схеме Identity на сервере есть `avatar_seed`, но не `avatar`, что могло вызывать проблемы при декодировании.
 
 ## Решение
 
-### 1. Обновлена модель Identity (iOS)
+### 1. КРИТИЧЕСКОЕ: Исправлено использование ID
+**Файл:** `serverSpaceEXCHANGE/JemmyIOS/Jemmy/Views/UserProfileView.swift`
+
+Заменено использование `authViewModel.userId` на `authViewModel.identity?.id`:
+
+```swift
+// ❌ БЫЛО (неправильно):
+guard let currentUserId = authViewModel.userId else { return }
+APIService.shared.getBlockedUsers(identityId: currentUserId)
+
+// ✅ СТАЛО (правильно):
+guard let currentIdentityId = authViewModel.identity?.id else { return }
+APIService.shared.getBlockedUsers(identityId: currentIdentityId)
+```
+
+Это изменение применено в трех методах:
+- `checkIfBlocked()` - проверка статуса блокировки
+- `performBlock()` - блокировка пользователя
+- `performUnblock()` - разблокировка пользователя
+
+### 2. Обновлена модель Identity (iOS)
 **Файл:** `serverSpaceEXCHANGE/JemmyIOS/Jemmy/Models/Identity.swift`
 
 Добавлена поддержка обоих полей `_id` и `id`:
@@ -42,7 +69,7 @@ init(from decoder: Decoder) throws {
 }
 ```
 
-### 2. Улучшен метод getBlockedUsers на сервере
+### 3. Улучшен метод getBlockedUsers на сервере
 **Файл:** `JEMMY-SERVER/src/identity/identity.service.ts`
 
 - Добавлен `.lean()` для конвертации в plain objects

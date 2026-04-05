@@ -236,16 +236,16 @@ struct UserProfileView: View {
     }
     
     private func checkIfBlocked() {
-        guard let currentUserId = authViewModel.userId else {
-            print("❌ No current user ID")
+        guard let currentIdentityId = authViewModel.identity?.id else {
+            print("❌ No current identity ID")
             return
         }
         
-        print("🔍 Checking if user \(user.username) (ID: \(user.id)) is blocked by \(currentUserId)")
+        print("🔍 Checking if user \(user.username) (ID: \(user.id)) is blocked by identity \(currentIdentityId)")
         
         Task {
             do {
-                let blockedUsers = try await APIService.shared.getBlockedUsers(identityId: currentUserId)
+                let blockedUsers = try await APIService.shared.getBlockedUsers(identityId: currentIdentityId)
                 print("📋 Got \(blockedUsers.count) blocked users")
                 
                 await MainActor.run {
@@ -263,33 +263,17 @@ struct UserProfileView: View {
             } catch {
                 print("❌ Failed to check blocked status: \(error)")
                 
-                // More detailed error logging
-                if let decodingError = error as? DecodingError {
-                    switch decodingError {
-                    case .keyNotFound(let key, let context):
-                        print("❌ Missing key: \(key.stringValue)")
-                        print("   Context: \(context.debugDescription)")
-                        print("   CodingPath: \(context.codingPath)")
-                    case .typeMismatch(let type, let context):
-                        print("❌ Type mismatch: expected \(type)")
-                        print("   Context: \(context.debugDescription)")
-                    case .valueNotFound(let type, let context):
-                        print("❌ Value not found: \(type)")
-                        print("   Context: \(context.debugDescription)")
-                    case .dataCorrupted(let context):
-                        print("❌ Data corrupted")
-                        print("   Context: \(context.debugDescription)")
-                    @unknown default:
-                        print("❌ Unknown decoding error")
-                    }
+                // Set to not blocked on error to avoid UI issues
+                await MainActor.run {
+                    isBlocked = false
                 }
             }
         }
     }
     
     private func performBlock() {
-        guard let currentUserId = authViewModel.userId else {
-            print("❌ No current user ID for blocking")
+        guard let currentIdentityId = authViewModel.identity?.id else {
+            print("❌ No current identity ID for blocking")
             return
         }
         
@@ -297,7 +281,7 @@ struct UserProfileView: View {
         
         Task {
             do {
-                try await APIService.shared.blockUser(blockerIdentityId: currentUserId, blockedIdentityId: user.id)
+                try await APIService.shared.blockUser(blockerIdentityId: currentIdentityId, blockedIdentityId: user.id)
                 print("✅ Block API call successful")
                 
                 await MainActor.run {
@@ -315,8 +299,8 @@ struct UserProfileView: View {
     }
     
     private func performUnblock() {
-        guard let currentUserId = authViewModel.userId else {
-            print("❌ No current user ID for unblocking")
+        guard let currentIdentityId = authViewModel.identity?.id else {
+            print("❌ No current identity ID for unblocking")
             return
         }
         
@@ -324,7 +308,7 @@ struct UserProfileView: View {
         
         Task {
             do {
-                try await APIService.shared.unblockUser(blockerIdentityId: currentUserId, blockedIdentityId: user.id)
+                try await APIService.shared.unblockUser(blockerIdentityId: currentIdentityId, blockedIdentityId: user.id)
                 print("✅ Unblock API call successful")
                 
                 await MainActor.run {

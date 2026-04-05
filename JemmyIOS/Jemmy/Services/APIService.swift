@@ -768,6 +768,16 @@ class APIService {
         
         if let httpResponse = response as? HTTPURLResponse {
             print("📥 Response: \(httpResponse.statusCode)")
+            
+            // Handle 404 - Identity not found
+            if httpResponse.statusCode == 404 {
+                print("⚠️ Identity not found: \(identityId)")
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("📥 Error response: \(jsonString)")
+                }
+                // Return empty array instead of throwing error
+                return []
+            }
         }
         
         // Log raw response
