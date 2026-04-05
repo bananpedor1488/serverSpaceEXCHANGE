@@ -206,10 +206,9 @@ class AuthViewModel: ObservableObject {
             let updatedIdentity = try await APIService.shared.getProfile(identityId: identityId)
             self.identity = updatedIdentity
             saveAuth()
-        } catch {
+        } catch let error as NSError {
             // Check if identity not found - account was deleted
-            let errorMessage = error.localizedDescription.lowercased()
-            if errorMessage.contains("identity not found") || errorMessage.contains("404") {
+            if error.code == 404 || error.localizedDescription.lowercased().contains("identity not found") {
                 print("🚨 ПОДОЗРЕНИЕ: Незарегистрированный аккаунт - выполняем выход")
                 
                 // Clear data
@@ -238,12 +237,11 @@ class AuthViewModel: ObservableObject {
             self.identity = updatedIdentity
             saveAuth()
             print("✅ Profile loaded successfully")
-        } catch {
+        } catch let error as NSError {
             print("❌ Failed to load profile: \(error.localizedDescription)")
             
             // Check if identity not found - account was deleted
-            let errorMessage = error.localizedDescription.lowercased()
-            if errorMessage.contains("identity not found") || errorMessage.contains("404") {
+            if error.code == 404 || error.localizedDescription.lowercased().contains("identity not found") {
                 print("🚨 ПОДОЗРЕНИЕ: Незарегистрированный аккаунт - выполняем выход")
                 
                 // Clear data

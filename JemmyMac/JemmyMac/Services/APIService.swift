@@ -357,6 +357,161 @@ class APIService {
         }
     }
     
+    // MARK: - Profile
+    
+    func getProfile(identityId: String) async throws -> Identity {
+        print("📡 Request: GET /identity/\(identityId)")
+        
+        let url = URL(string: "\(baseURL)/identity/\(identityId)")!
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 404 {
+                    print("❌ Identity not found (404)")
+                    throw NSError(domain: "", code: 404, userInfo: [NSLocalizedDescriptionKey: "Identity not found"])
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    print("❌ Server error: \(errorText)")
+                    throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorText])
+                }
+            }
+            
+            let identity = try JSONDecoder().decode(Identity.self, from: data)
+            print("✅ Profile loaded: \(identity.username)")
+            return identity
+        } catch {
+            print("❌ Get profile error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    func updateProfile(identityId: String, username: String?, bio: String?, avatar: String?) async throws -> Identity {
+        print("📡 Request: PUT /identity/\(identityId)")
+        
+        let url = URL(string: "\(baseURL)/identity/\(identityId)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        var body: [String: Any] = [:]
+        if let username = username { body["username"] = username }
+        if let bio = bio { body["bio"] = bio }
+        if let avatar = avatar { body["avatar"] = avatar }
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 404 {
+                    print("❌ Identity not found (404)")
+                    throw NSError(domain: "", code: 404, userInfo: [NSLocalizedDescriptionKey: "Identity not found"])
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    print("❌ Server error: \(errorText)")
+                    throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorText])
+                }
+            }
+            
+            let identity = try JSONDecoder().decode(Identity.self, from: data)
+            print("✅ Profile updated")
+            return identity
+        } catch {
+            print("❌ Update profile error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    func checkDevice(deviceId: String) async throws -> DeviceCheckResponse {
+        print("📡 Request: GET /auth/check-device/\(deviceId)")
+        
+        let url = URL(string: "\(baseURL)/auth/check-device/\(deviceId)")!
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            let checkResponse = try JSONDecoder().decode(DeviceCheckResponse.self, from: data)
+            print("✅ Device check complete: exists=\(checkResponse.exists)")
+            return checkResponse
+        } catch {
+            print("❌ Check device error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    func toggleEphemeral(deviceId: String, enabled: Bool) async throws {
+        print("📡 Request: POST /auth/toggle-ephemeral")
+        
+        let url = URL(string: "\(baseURL)/auth/toggle-ephemeral")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "device_id": deviceId,
+            "enabled": enabled
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            print("✅ Ephemeral toggled")
+        } catch {
+            print("❌ Toggle ephemeral error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    func deleteAccount(deviceId: String) async throws {
+        print("📡 Request: POST /account/delete")
+        
+        let url = URL(string: "\(baseURL)/account/delete")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = ["device_id": deviceId]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode != 200 {
+                    print("❌ Failed to delete account: \(httpResponse.statusCode)")
+                    throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to delete account"])
+                }
+            }
+            
+            print("✅ Account deleted")
+        } catch {
+            print("❌ Delete account error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
     func deleteChat(chatId: String) async throws {
         let url = URL(string: "\(baseURL)/api/chat/\(chatId)")!
         var request = URLRequest(url: url)

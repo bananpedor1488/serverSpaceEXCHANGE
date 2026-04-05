@@ -132,6 +132,17 @@ class APIService {
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📥 Response: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 404 {
+                    print("❌ Identity not found (404)")
+                    throw NSError(domain: "", code: 404, userInfo: [NSLocalizedDescriptionKey: "Identity not found"])
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    print("❌ Server error: \(errorText)")
+                    throw NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorText])
+                }
             }
             
             let identity = try JSONDecoder().decode(Identity.self, from: data)
