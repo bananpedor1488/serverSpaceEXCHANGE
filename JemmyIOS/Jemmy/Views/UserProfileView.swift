@@ -118,7 +118,7 @@ struct UserProfileView: View {
                             icon: "hand.raised.fill",
                             title: "Заблокировать пользователя",
                             action: {
-                                blockUser()
+                                showBlockAlert = true
                             }
                         )
                     }
@@ -186,6 +186,14 @@ struct UserProfileView: View {
                 }
             }
         }
+        .alert("Заблокировать пользователя?", isPresented: $showBlockAlert) {
+            Button("Отмена", role: .cancel) {}
+            Button("Заблокировать", role: .destructive) {
+                performBlock()
+            }
+        } message: {
+            Text("Вы больше не будете получать сообщения от \(user.username)")
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -209,18 +217,6 @@ struct UserProfileView: View {
         .onDisappear {
             WebSocketManager.shared.onUserStatus = nil
         }
-        .alert("Заблокировать пользователя?", isPresented: $showBlockAlert) {
-            Button("Отмена", role: .cancel) {}
-            Button("Заблокировать", role: .destructive) {
-                performBlock()
-            }
-        } message: {
-            Text("Вы больше не будете получать сообщения от \(user.username)")
-        }
-    }
-    
-    private func blockUser() {
-        showBlockAlert = true
     }
     
     private func performBlock() {
