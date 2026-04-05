@@ -226,7 +226,7 @@ struct UserProfileView: View {
     private func performBlock() {
         Task {
             do {
-                guard let currentUserId = authViewModel.currentUser?.id else { return }
+                guard let currentUserId = authViewModel.userId else { return }
                 try await APIService.shared.blockUser(blockerIdentityId: currentUserId, blockedIdentityId: user.id)
                 dismiss()
             } catch {

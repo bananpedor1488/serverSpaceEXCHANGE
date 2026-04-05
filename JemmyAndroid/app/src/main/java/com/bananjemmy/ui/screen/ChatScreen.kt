@@ -530,7 +530,8 @@ fun ChatScreen(
                 chatViewModel = chatViewModel,
                 isOnline = currentIsOnline,
                 lastSeen = currentLastSeen,
-                cacheManager = cacheManager
+                cacheManager = cacheManager,
+                currentUserId = currentUserId
             )
         }
     }
