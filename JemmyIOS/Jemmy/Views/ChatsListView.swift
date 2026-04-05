@@ -224,9 +224,19 @@ struct ChatsListView: View {
             }
             .onChange(of: openChat) { newValue in
                 if let chat = newValue {
-                    print("🔔 Chat created from invite:", chat.chatId)
+                    print("🔔 Chat created from search:", chat.chatId)
                     openChat = nil
+                    // Reload chats first
                     loadChats()
+                    // Then open the chat after a short delay to ensure it's loaded
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if let chatItem = chats.first(where: { $0.id == chat.chatId }) {
+                            selectedChat = chatItem
+                            print("✅ Opened chat with \(chatItem.user.username)")
+                        } else {
+                            print("⚠️ Chat not found in list after reload")
+                        }
+                    }
                 }
             }
             .sheet(isPresented: $showSearchByTag) {

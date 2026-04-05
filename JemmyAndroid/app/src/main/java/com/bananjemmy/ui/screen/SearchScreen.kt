@@ -190,7 +190,7 @@ fun SearchScreen(
                                     val result = onStartChat(identity)
                                     result.onSuccess { chatId ->
                                         onChatCreated(chatId)
-                                        onDismiss()
+                                        // Don't call onDismiss here - let MainActivity handle it
                                     }.onFailure {
                                         errorMessage = "Не удалось создать чат"
                                         creatingChatForId = null

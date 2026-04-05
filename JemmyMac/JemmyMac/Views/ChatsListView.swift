@@ -167,10 +167,15 @@ struct ChatsListView: View {
         .onReceive(Just(createdChat)) { newValue in
             if let chat = newValue {
                 print("🔔 Opening chat from search:", chat.chatId)
-                selectedChatId = chat.chatId
-                selectedOtherUser = chat.otherUser
                 createdChat = nil
+                // Reload chats first
                 loadChats()
+                // Then open the chat after a short delay to ensure it's loaded
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    selectedChatId = chat.chatId
+                    selectedOtherUser = chat.otherUser
+                    print("✅ Opened chat with \(chat.otherUser.username)")
+                }
             }
         }
     }

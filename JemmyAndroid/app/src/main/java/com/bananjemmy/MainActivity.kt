@@ -28,6 +28,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import com.bananjemmy.data.model.Chat
 import com.bananjemmy.data.model.Identity
 import com.bananjemmy.data.repository.JemmyRepository
@@ -503,10 +504,29 @@ fun MainScreen(
                 },
                 onDismiss = { showSearch = false },
                 onChatCreated = { chatId ->
-                    Log.d("MainActivity", "Chat created: $chatId")
-                    chatViewModel.loadChats(identity.id)
+                    Log.d("MainActivity", "Chat created: $chatId, opening chat...")
+                    // Закрываем поиск
                     showSearch = false
+                    // Переключаемся на вкладку чатов
                     selectedTab = 0
+                    // Загружаем чаты и открываем созданный
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                        // Загружаем чаты
+                        chatViewModel.loadChats(identity.id)
+                        
+                        // Ждем пока состояние обновится до Success
+                        val state = chatViewModel.chatListState.first { it is com.bananjemmy.ui.viewmodel.ChatListState.Success }
+                        if (state is com.bananjemmy.ui.viewmodel.ChatListState.Success) {
+                            // Находим созданный чат
+                            val chat = state.chats.find { it.id == chatId }
+                            if (chat != null) {
+                                selectedChat = chat
+                                Log.d("MainActivity", "Opened chat with ${chat.user.username}")
+                            } else {
+                                Log.w("MainActivity", "Chat $chatId not found in loaded chats")
+                            }
+                        }
+                    }
                 },
                 cacheManager = cacheManager
             )
