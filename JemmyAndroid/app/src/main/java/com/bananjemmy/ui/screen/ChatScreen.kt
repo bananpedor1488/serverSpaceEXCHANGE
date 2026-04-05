@@ -112,6 +112,24 @@ fun ChatScreen(
         } catch (e: Exception) {
             Log.e("ChatScreen", "❌ Failed to load privacy settings: ${e.message}")
         }
+        
+        // Setup WebSocket listeners for real-time updates
+        val webSocketManager = com.bananjemmy.data.websocket.WebSocketManager.getInstance()
+        
+        webSocketManager.onPrivacySettingsChanged = { identityId, username, settings ->
+            if (identityId == otherUser.id) {
+                Log.d("ChatScreen", "🔒 Privacy settings changed for $username: screenshot_protection = ${settings.screenshotProtection}")
+                otherUserPrivacySettings = settings
+            }
+        }
+        
+        webSocketManager.onScreenshotNotification = { chatId, takerIdentityId, takerUsername ->
+            if (chatId == chatId) {
+                Log.d("ChatScreen", "📸 Screenshot notification: $takerUsername took screenshot")
+                // Message is already sent, just refresh
+                chatViewModel.refreshMessages(chatId)
+            }
+        }
     }
     
     // Apply screenshot protection
@@ -133,11 +151,59 @@ fun ChatScreen(
         }
     }
     
+    // Screenshot detection (for when protection is NOT enabled)
+    DisposableEffect(Unit) {
+        val contentObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                super.onChange(selfChange)
+                
+                // Only send notification if protection is NOT enabled (FLAG_SECURE blocks screenshots)
+                if (otherUserPrivacySettings?.screenshotProtection != true) {
+                    Log.d("ChatScreen", "📸 Screenshot detected!")
+                    
+                    // Send notification via WebSocket
+                    val webSocketManager = com.bananjemmy.data.websocket.WebSocketManager.getInstance()
+                    webSocketManager.sendScreenshotNotification(
+                        chatId = chatId,
+                        takerIdentityId = currentUserId,
+                        takerUsername = "You" // Will be replaced by server with actual username
+                    )
+                }
+            }
+        }
+        
+        // Register observer for screenshot detection
+        try {
+            context.contentResolver.registerContentObserver(
+                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                true,
+                contentObserver
+            )
+            Log.d("ChatScreen", "📸 Screenshot observer registered")
+        } catch (e: Exception) {
+            Log.e("ChatScreen", "❌ Failed to register screenshot observer: ${e.message}")
+        }
+        
+        onDispose {
+            try {
+                context.contentResolver.unregisterContentObserver(contentObserver)
+                Log.d("ChatScreen", "📸 Screenshot observer unregistered")
+            } catch (e: Exception) {
+                Log.e("ChatScreen", "❌ Failed to unregister screenshot observer: ${e.message}")
+            }
+        }
+    }
+    
     // Clear FLAG_SECURE when leaving chat
     DisposableEffect(Unit) {
         onDispose {
             activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             Log.d("ChatScreen", "🔓 FLAG_SECURE cleared on dispose")
+            
+            // Clear WebSocket listeners
+            val webSocketManager = com.bananjemmy.data.websocket.WebSocketManager.getInstance()
+            webSocketManager.onPrivacySettingsChanged = null
+            webSocketManager.onScreenshotNotification = null
         }
     }
     

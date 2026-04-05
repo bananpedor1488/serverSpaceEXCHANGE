@@ -540,4 +540,85 @@ class JemmyRepository {
             }
         }
     }
+    
+    // Block user
+    suspend fun blockUser(blockerIdentityId: String, blockedIdentityId: String): Result<BlockUserResponse> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "📡 Request: POST /api/identity/block")
+                Log.d(TAG, "📦 Blocker: $blockerIdentityId, Blocked: $blockedIdentityId")
+                
+                val request = BlockUserRequest(
+                    blockerIdentityId = blockerIdentityId,
+                    blockedIdentityId = blockedIdentityId
+                )
+                
+                val response = api.blockUser(request)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val result = response.body()!!
+                    Log.d(TAG, "✅ User blocked successfully")
+                    Result.success(result)
+                } else {
+                    Log.e(TAG, "❌ Failed to block user: ${response.code()}")
+                    Result.failure(Exception("Failed to block user"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error blocking user", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    // Unblock user
+    suspend fun unblockUser(blockerIdentityId: String, blockedIdentityId: String): Result<UnblockUserResponse> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "📡 Request: POST /api/identity/unblock")
+                Log.d(TAG, "📦 Blocker: $blockerIdentityId, Unblocking: $blockedIdentityId")
+                
+                val request = UnblockUserRequest(
+                    blockerIdentityId = blockerIdentityId,
+                    blockedIdentityId = blockedIdentityId
+                )
+                
+                val response = api.unblockUser(request)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val result = response.body()!!
+                    Log.d(TAG, "✅ User unblocked successfully")
+                    Result.success(result)
+                } else {
+                    Log.e(TAG, "❌ Failed to unblock user: ${response.code()}")
+                    Result.failure(Exception("Failed to unblock user"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error unblocking user", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    // Get blocked users list
+    suspend fun getBlockedUsers(identityId: String): Result<List<Identity>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "📡 Request: GET /api/identity/blocked-list/$identityId")
+                
+                val response = api.getBlockedUsers(identityId)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val users = response.body()!!.blockedUsers
+                    Log.d(TAG, "✅ Blocked users loaded: ${users.size}")
+                    Result.success(users)
+                } else {
+                    Log.e(TAG, "❌ Failed to load blocked users: ${response.code()}")
+                    Result.failure(Exception("Failed to load blocked users"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error loading blocked users", e)
+                Result.failure(e)
+            }
+        }
+    }
 }

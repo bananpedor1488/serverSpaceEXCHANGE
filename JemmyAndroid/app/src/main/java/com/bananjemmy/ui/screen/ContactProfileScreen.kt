@@ -22,9 +22,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bananjemmy.data.model.Identity
+import com.bananjemmy.data.repository.JemmyRepository
 import com.bananjemmy.ui.viewmodel.ChatViewModel
 import com.bananjemmy.ui.components.AvatarImage
 import com.bananjemmy.data.cache.CacheManager
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,9 +36,22 @@ fun ContactProfileScreen(
     chatViewModel: ChatViewModel,
     isOnline: Boolean = false,
     lastSeen: Long = 0,
-    cacheManager: CacheManager
+    cacheManager: CacheManager,
+    currentUserId: String
 ) {
+    val repository = remember { JemmyRepository() }
     var selectedMediaTab by remember { mutableIntStateOf(0) }
+    var isBlocked by remember { mutableStateOf(false) }
+    var showBlockDialog by remember { mutableStateOf(false) }
+    var showUnblockDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    
+    // Check if user is blocked
+    LaunchedEffect(Unit) {
+        repository.getBlockedUsers(currentUserId).onSuccess { blockedUsers ->
+            isBlocked = blockedUsers.any { it.id == user.id }
+        }
+    }
     
     // Get status from centralized cache
     val userStatuses by chatViewModel.userStatuses.collectAsState()
@@ -203,11 +218,32 @@ fun ContactProfileScreen(
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             ) {
-                SettingsItem(
-                    icon = Icons.Filled.Notifications,
-                    title = "Уведомления",
-                    onClick = { /* TODO */ }
-                )
+                Column {
+                    SettingsItem(
+                        icon = Icons.Filled.Notifications,
+                        title = "Уведомления",
+                        onClick = { /* TODO */ }
+                    )
+                    
+                    Divider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                    )
+                    
+                    SettingsItem(
+                        icon = if (isBlocked) Icons.Filled.Check else Icons.Filled.Block,
+                        title = if (isBlocked) "Разблокировать" else "Заблокировать",
+                        onClick = {
+                            if (isBlocked) {
+                                showUnblockDialog = true
+                            } else {
+                                showBlockDialog = true
+                            }
+                        },
+                        textColor = if (isBlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -290,6 +326,62 @@ fun ContactProfileScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+    
+    // Block dialog
+    if (showBlockDialog) {
+        AlertDialog(
+            onDismissRequest = { showBlockDialog = false },
+            title = { Text("Заблокировать пользователя?") },
+            text = { Text("Вы не сможете получать сообщения от @${user.username}") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            repository.blockUser(currentUserId, user.id).onSuccess {
+                                isBlocked = true
+                                showBlockDialog = false
+                            }
+                        }
+                    }
+                ) {
+                    Text("Заблокировать", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBlockDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+    
+    // Unblock dialog
+    if (showUnblockDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnblockDialog = false },
+            title = { Text("Разблокировать пользователя?") },
+            text = { Text("Вы сможете снова получать сообщения от @${user.username}") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            repository.unblockUser(currentUserId, user.id).onSuccess {
+                                isBlocked = false
+                                showUnblockDialog = false
+                            }
+                        }
+                    }
+                ) {
+                    Text("Разблокировать")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnblockDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -332,7 +424,8 @@ fun ActionButton(
 fun SettingsItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    textColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface
 ) {
     Surface(
         onClick = onClick,
@@ -348,7 +441,7 @@ fun SettingsItem(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.primary
+                tint = if (textColor == MaterialTheme.colorScheme.error) textColor else MaterialTheme.colorScheme.primary
             )
             
             Spacer(modifier = Modifier.width(16.dp))
@@ -356,7 +449,7 @@ fun SettingsItem(
             Text(
                 text = title,
                 fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = textColor,
                 modifier = Modifier.weight(1f)
             )
             

@@ -106,6 +106,16 @@ interface JemmyApiService {
     
     @PATCH("api/identity/privacy/update")
     suspend fun updatePrivacySettings(@Body request: UpdatePrivacySettingsRequest): Response<UpdatePrivacySettingsResponse>
+    
+    // Block/Unblock endpoints
+    @POST("api/identity/block")
+    suspend fun blockUser(@Body request: BlockUserRequest): Response<BlockUserResponse>
+    
+    @POST("api/identity/unblock")
+    suspend fun unblockUser(@Body request: UnblockUserRequest): Response<UnblockUserResponse>
+    
+    @GET("api/identity/blocked-list/{identity_id}")
+    suspend fun getBlockedUsers(@Path("identity_id") identityId: String): Response<BlockedUsersResponse>
 }
 
 data class UserStatusResponse(

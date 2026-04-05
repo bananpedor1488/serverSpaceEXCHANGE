@@ -2,6 +2,7 @@ package com.bananjemmy.data.websocket
 
 import android.util.Log
 import com.bananjemmy.data.model.Message
+import com.bananjemmy.data.model.PrivacySettings
 import com.google.gson.Gson
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -24,6 +25,11 @@ class WebSocketManager private constructor() {
     var onMessagesRead: ((List<String>) -> Unit)? = null // message_ids
     var onPrivacySettingsChanged: ((String, String, PrivacySettings) -> Unit)? = null // identity_id, username, settings
     var onScreenshotNotification: ((String, String, String) -> Unit)? = null // chat_id, taker_identity_id, taker_username
+    var onUserBlocked: ((String, String) -> Unit)? = null // blocker_identity_id, blocked_identity_id
+    var onUserUnblocked: ((String, String) -> Unit)? = null // blocker_identity_id, blocked_identity_id
+    var onBlockedByUser: ((String) -> Unit)? = null // blocker_identity_id
+    var onUnblockedByUser: ((String) -> Unit)? = null // blocker_identity_id
+    var onMessageBlocked: ((String, String) -> Unit)? = null // reason, message
     
     companion object {
         @Volatile
@@ -105,6 +111,26 @@ class WebSocketManager private constructor() {
             
             socket?.on("screenshot_notification") { args ->
                 handleScreenshotNotification(args)
+            }
+            
+            socket?.on("user_blocked") { args ->
+                handleUserBlocked(args)
+            }
+            
+            socket?.on("user_unblocked") { args ->
+                handleUserUnblocked(args)
+            }
+            
+            socket?.on("blocked_by_user") { args ->
+                handleBlockedByUser(args)
+            }
+            
+            socket?.on("unblocked_by_user") { args ->
+                handleUnblockedByUser(args)
+            }
+            
+            socket?.on("message_blocked") { args ->
+                handleMessageBlocked(args)
             }
             
             socket?.connect()
@@ -387,6 +413,162 @@ class WebSocketManager private constructor() {
             Log.d(TAG, "✅ Callback invoked")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error handling messages read", e)
+            e.printStackTrace()
+        }
+    }
+    
+    private fun handlePrivacySettingsChanged(args: Array<Any>) {
+        try {
+            Log.d(TAG, "🔒 handlePrivacySettingsChanged called")
+            val data = args.firstOrNull() as? JSONObject ?: run {
+                Log.e(TAG, "❌ No data in args")
+                return
+            }
+            
+            val identityId = data.getString("identity_id")
+            val username = data.getString("username")
+            val settingsJson = data.getJSONObject("privacy_settings")
+            
+            val settings = PrivacySettings(
+                whoCanMessage = settingsJson.optString("who_can_message", "everyone"),
+                whoCanSeeProfile = settingsJson.optString("who_can_see_profile", "everyone"),
+                whoCanSeeOnline = settingsJson.optString("who_can_see_online", "everyone"),
+                whoCanSeeLastSeen = settingsJson.optString("who_can_see_last_seen", "everyone"),
+                autoDeleteMessages = settingsJson.optInt("auto_delete_messages", 0),
+                screenshotProtection = settingsJson.optBoolean("screenshot_protection", false)
+            )
+            
+            Log.d(TAG, "✅ Privacy settings changed for $username: screenshot_protection = ${settings.screenshotProtection}")
+            
+            onPrivacySettingsChanged?.invoke(identityId, username, settings)
+            Log.d(TAG, "✅ Callback invoked")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling privacy settings changed", e)
+            e.printStackTrace()
+        }
+    }
+    
+    private fun handleScreenshotNotification(args: Array<Any>) {
+        try {
+            Log.d(TAG, "📸 handleScreenshotNotification called")
+            val data = args.firstOrNull() as? JSONObject ?: run {
+                Log.e(TAG, "❌ No data in args")
+                return
+            }
+            
+            val chatId = data.getString("chat_id")
+            val takerIdentityId = data.getString("taker_identity_id")
+            val takerUsername = data.getString("taker_username")
+            
+            Log.d(TAG, "✅ Screenshot notification: $takerUsername took screenshot in chat $chatId")
+            
+            onScreenshotNotification?.invoke(chatId, takerIdentityId, takerUsername)
+            Log.d(TAG, "✅ Callback invoked")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling screenshot notification", e)
+            e.printStackTrace()
+        }
+    }
+    
+    private fun handleUserBlocked(args: Array<Any>) {
+        try {
+            Log.d(TAG, "🚫 handleUserBlocked called")
+            val data = args.firstOrNull() as? JSONObject ?: run {
+                Log.e(TAG, "❌ No data in args")
+                return
+            }
+            
+            val blockerIdentityId = data.getString("blocker_identity_id")
+            val blockedIdentityId = data.getString("blocked_identity_id")
+            
+            Log.d(TAG, "✅ User blocked: $blockerIdentityId blocked $blockedIdentityId")
+            
+            onUserBlocked?.invoke(blockerIdentityId, blockedIdentityId)
+            Log.d(TAG, "✅ Callback invoked")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling user blocked", e)
+            e.printStackTrace()
+        }
+    }
+    
+    private fun handleUserUnblocked(args: Array<Any>) {
+        try {
+            Log.d(TAG, "✅ handleUserUnblocked called")
+            val data = args.firstOrNull() as? JSONObject ?: run {
+                Log.e(TAG, "❌ No data in args")
+                return
+            }
+            
+            val blockerIdentityId = data.getString("blocker_identity_id")
+            val blockedIdentityId = data.getString("blocked_identity_id")
+            
+            Log.d(TAG, "✅ User unblocked: $blockerIdentityId unblocked $blockedIdentityId")
+            
+            onUserUnblocked?.invoke(blockerIdentityId, blockedIdentityId)
+            Log.d(TAG, "✅ Callback invoked")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling user unblocked", e)
+            e.printStackTrace()
+        }
+    }
+    
+    private fun handleBlockedByUser(args: Array<Any>) {
+        try {
+            Log.d(TAG, "🚫 handleBlockedByUser called")
+            val data = args.firstOrNull() as? JSONObject ?: run {
+                Log.e(TAG, "❌ No data in args")
+                return
+            }
+            
+            val blockerIdentityId = data.getString("blocker_identity_id")
+            
+            Log.d(TAG, "✅ Blocked by user: $blockerIdentityId")
+            
+            onBlockedByUser?.invoke(blockerIdentityId)
+            Log.d(TAG, "✅ Callback invoked")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling blocked by user", e)
+            e.printStackTrace()
+        }
+    }
+    
+    private fun handleUnblockedByUser(args: Array<Any>) {
+        try {
+            Log.d(TAG, "✅ handleUnblockedByUser called")
+            val data = args.firstOrNull() as? JSONObject ?: run {
+                Log.e(TAG, "❌ No data in args")
+                return
+            }
+            
+            val blockerIdentityId = data.getString("blocker_identity_id")
+            
+            Log.d(TAG, "✅ Unblocked by user: $blockerIdentityId")
+            
+            onUnblockedByUser?.invoke(blockerIdentityId)
+            Log.d(TAG, "✅ Callback invoked")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling unblocked by user", e)
+            e.printStackTrace()
+        }
+    }
+    
+    private fun handleMessageBlocked(args: Array<Any>) {
+        try {
+            Log.d(TAG, "🚫 handleMessageBlocked called")
+            val data = args.firstOrNull() as? JSONObject ?: run {
+                Log.e(TAG, "❌ No data in args")
+                return
+            }
+            
+            val reason = data.getString("reason")
+            val message = data.getString("message")
+            
+            Log.d(TAG, "✅ Message blocked: $reason - $message")
+            
+            onMessageBlocked?.invoke(reason, message)
+            Log.d(TAG, "✅ Callback invoked")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling message blocked", e)
             e.printStackTrace()
         }
     }

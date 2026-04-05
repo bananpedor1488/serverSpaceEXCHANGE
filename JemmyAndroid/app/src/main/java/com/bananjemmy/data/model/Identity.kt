@@ -79,3 +79,41 @@ data class UpdateIdentityRequest(
     @SerializedName("avatar")
     val avatar: String? = null
 )
+
+// Block/Unblock models
+data class BlockUserRequest(
+    @SerializedName("blocker_identity_id")
+    val blockerIdentityId: String,
+    
+    @SerializedName("blocked_identity_id")
+    val blockedIdentityId: String
+)
+
+data class BlockUserResponse(
+    @SerializedName("success")
+    val success: Boolean,
+    
+    @SerializedName("message")
+    val message: String
+)
+
+data class UnblockUserRequest(
+    @SerializedName("blocker_identity_id")
+    val blockerIdentityId: String,
+    
+    @SerializedName("blocked_identity_id")
+    val blockedIdentityId: String
+)
+
+data class UnblockUserResponse(
+    @SerializedName("success")
+    val success: Boolean,
+    
+    @SerializedName("message")
+    val message: String
+)
+
+data class BlockedUsersResponse(
+    @SerializedName("blocked_users")
+    val blockedUsers: List<Identity>
+)

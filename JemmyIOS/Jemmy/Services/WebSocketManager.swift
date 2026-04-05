@@ -18,6 +18,11 @@ class WebSocketManager: ObservableObject {
     var onMessagesRead: (([String]) -> Void)? // message_ids
     var onPrivacySettingsChanged: ((String, String, PrivacySettings) -> Void)? // identity_id, username, settings
     var onScreenshotNotification: ((String, String, String) -> Void)? // chat_id, taker_identity_id, taker_username
+    var onUserBlocked: ((String, String) -> Void)? // blocker_identity_id, blocked_identity_id
+    var onUserUnblocked: ((String, String) -> Void)? // blocker_identity_id, blocked_identity_id
+    var onBlockedByUser: ((String) -> Void)? // blocker_identity_id
+    var onUnblockedByUser: ((String) -> Void)? // blocker_identity_id
+    var onMessageBlocked: ((String, String) -> Void)? // reason, message
     
     private init() {}
     
@@ -88,6 +93,31 @@ class WebSocketManager: ObservableObject {
         socket?.on("screenshot_notification") { [weak self] data, ack in
             print("📸 Received screenshot_notification event")
             self?.handleScreenshotNotification(data: data)
+        }
+        
+        socket?.on("user_blocked") { [weak self] data, ack in
+            print("🚫 Received user_blocked event")
+            self?.handleUserBlocked(data: data)
+        }
+        
+        socket?.on("user_unblocked") { [weak self] data, ack in
+            print("✅ Received user_unblocked event")
+            self?.handleUserUnblocked(data: data)
+        }
+        
+        socket?.on("blocked_by_user") { [weak self] data, ack in
+            print("🚫 Received blocked_by_user event")
+            self?.handleBlockedByUser(data: data)
+        }
+        
+        socket?.on("unblocked_by_user") { [weak self] data, ack in
+            print("✅ Received unblocked_by_user event")
+            self?.handleUnblockedByUser(data: data)
+        }
+        
+        socket?.on("message_blocked") { [weak self] data, ack in
+            print("🚫 Received message_blocked event")
+            self?.handleMessageBlocked(data: data)
         }
         
         socket?.connect()
@@ -314,6 +344,79 @@ class WebSocketManager: ObservableObject {
         
         DispatchQueue.main.async {
             self.onScreenshotNotification?(chatId, takerIdentityId, takerUsername)
+        }
+    }
+    
+    private func handleUserBlocked(data: [Any]) {
+        guard let blockData = data.first as? [String: Any],
+              let blockerIdentityId = blockData["blocker_identity_id"] as? String,
+              let blockedIdentityId = blockData["blocked_identity_id"] as? String else { 
+            print("❌ Failed to parse user_blocked event")
+            return 
+        }
+        
+        print("✅ User blocked event parsed: \(blockerIdentityId) blocked \(blockedIdentityId)")
+        
+        DispatchQueue.main.async {
+            self.onUserBlocked?(blockerIdentityId, blockedIdentityId)
+        }
+    }
+    
+    private func handleUserUnblocked(data: [Any]) {
+        guard let unblockData = data.first as? [String: Any],
+              let blockerIdentityId = unblockData["blocker_identity_id"] as? String,
+              let blockedIdentityId = unblockData["blocked_identity_id"] as? String else { 
+            print("❌ Failed to parse user_unblocked event")
+            return 
+        }
+        
+        print("✅ User unblocked event parsed: \(blockerIdentityId) unblocked \(blockedIdentityId)")
+        
+        DispatchQueue.main.async {
+            self.onUserUnblocked?(blockerIdentityId, blockedIdentityId)
+        }
+    }
+    
+    private func handleBlockedByUser(data: [Any]) {
+        guard let blockData = data.first as? [String: Any],
+              let blockerIdentityId = blockData["blocker_identity_id"] as? String else { 
+            print("❌ Failed to parse blocked_by_user event")
+            return 
+        }
+        
+        print("✅ Blocked by user event parsed: blocked by \(blockerIdentityId)")
+        
+        DispatchQueue.main.async {
+            self.onBlockedByUser?(blockerIdentityId)
+        }
+    }
+    
+    private func handleUnblockedByUser(data: [Any]) {
+        guard let unblockData = data.first as? [String: Any],
+              let blockerIdentityId = unblockData["blocker_identity_id"] as? String else { 
+            print("❌ Failed to parse unblocked_by_user event")
+            return 
+        }
+        
+        print("✅ Unblocked by user event parsed: unblocked by \(blockerIdentityId)")
+        
+        DispatchQueue.main.async {
+            self.onUnblockedByUser?(blockerIdentityId)
+        }
+    }
+    
+    private func handleMessageBlocked(data: [Any]) {
+        guard let blockData = data.first as? [String: Any],
+              let reason = blockData["reason"] as? String,
+              let message = blockData["message"] as? String else { 
+            print("❌ Failed to parse message_blocked event")
+            return 
+        }
+        
+        print("✅ Message blocked event parsed: \(reason) - \(message)")
+        
+        DispatchQueue.main.async {
+            self.onMessageBlocked?(reason, message)
         }
     }
 }
