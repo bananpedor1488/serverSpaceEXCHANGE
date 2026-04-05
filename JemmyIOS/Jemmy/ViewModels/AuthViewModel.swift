@@ -189,7 +189,7 @@ class AuthViewModel: ObservableObject {
                 
                 if isAuthenticated, let identityId = identity?.id {
                     print("🔄 Periodic account check...")
-                    await loadProfileSilently(identityId: identityId)
+                    await checkAccountExists(identityId: identityId)
                 }
             }
         }
@@ -201,11 +201,11 @@ class AuthViewModel: ObservableObject {
         periodicCheckTask = nil
     }
     
-    private func loadProfileSilently(identityId: String) async {
+    private func checkAccountExists(identityId: String) async {
         do {
-            let updatedIdentity = try await APIService.shared.getProfile(identityId: identityId)
-            self.identity = updatedIdentity
-            saveAuth()
+            // Just check if account exists, don't update the identity
+            _ = try await APIService.shared.getProfile(identityId: identityId)
+            // Account exists - do nothing, don't update identity to avoid UI refresh
         } catch let error as NSError {
             // Check if identity not found - account was deleted
             if error.code == 404 || error.localizedDescription.lowercased().contains("identity not found") {
