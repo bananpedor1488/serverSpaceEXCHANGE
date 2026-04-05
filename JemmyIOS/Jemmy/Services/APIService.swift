@@ -764,19 +764,18 @@ class APIService {
         print("📡 Request: GET /identity/blocked-list/\(identityId)")
         
         let url = URL(string: "\(baseURL)/identity/blocked-list/\(identityId)")!
+        let (data, response) = try await URLSession.shared.data(from: url)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            print("📥 Response: \(httpResponse.statusCode)")
+        }
+        
+        // Log raw response
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("📥 Raw response: \(jsonString)")
+        }
         
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                print("📥 Response: \(httpResponse.statusCode)")
-            }
-            
-            // Log raw response
-            if let jsonString = String(data: data, encoding: .utf8) {
-                print("📥 Raw response: \(jsonString)")
-            }
-            
             // Try to decode the response
             let decoder = JSONDecoder()
             let blockedResponse = try decoder.decode(BlockedUserResponse.self, from: data)
