@@ -106,26 +106,31 @@ struct ChatView: View {
                     ScrollView {
                         LazyVStack(spacing: 8) {
                             // System message about screenshot protection
-                            if otherUserPrivacySettings?.screenshotProtection == true {
-                                HStack {
-                                    Spacer()
-                                    VStack(spacing: 8) {
-                                        Image(systemName: "eye.slash.fill")
-                                            .font(.system(size: 20))
-                                            .foregroundColor(.white.opacity(0.5))
-                                        
-                                        Text("\(otherUser.username) включил(а) защиту от скриншотов")
-                                            .font(.system(size: 13))
-                                            .foregroundColor(.white.opacity(0.5))
-                                            .multilineTextAlignment(.center)
+                            if let settings = otherUserPrivacySettings {
+                                if settings.screenshotProtection {
+                                    HStack {
+                                        Spacer()
+                                        VStack(spacing: 8) {
+                                            Image(systemName: "eye.slash.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundColor(.white.opacity(0.5))
+                                            
+                                            Text("\(otherUser.username) включил(а) защиту от скриншотов")
+                                                .font(.system(size: 13))
+                                                .foregroundColor(.white.opacity(0.5))
+                                                .multilineTextAlignment(.center)
+                                        }
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 12)
+                                        .background(Color.white.opacity(0.05))
+                                        .cornerRadius(12)
+                                        Spacer()
                                     }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .background(Color.white.opacity(0.05))
-                                    .cornerRadius(12)
-                                    Spacer()
+                                    .padding(.vertical, 8)
+                                    .onAppear {
+                                        print("🔒 Showing screenshot protection message for \(otherUser.username)")
+                                    }
                                 }
-                                .padding(.vertical, 8)
                             }
                             
                             ForEach(Array(filteredMessages.enumerated()), id: \.element.id) { index, message in
@@ -242,6 +247,9 @@ struct ChatView: View {
                 .environmentObject(authViewModel)
         }
         .screenshotProtection(enabled: otherUserPrivacySettings?.screenshotProtection ?? false)
+        .onChange(of: otherUserPrivacySettings?.screenshotProtection) { isEnabled in
+            print("🔒 Screenshot protection changed: \(isEnabled ?? false)")
+        }
         .onAppear {
             loadMessagesFromCache()
             loadMessages()

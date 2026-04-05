@@ -693,16 +693,24 @@ class APIService {
                 "who_can_see_profile": settings.whoCanSeeProfile.rawValue,
                 "who_can_see_online": settings.whoCanSeeOnline.rawValue,
                 "who_can_see_last_seen": settings.whoCanSeeLastSeen.rawValue,
-                "auto_delete_messages": settings.autoDeleteMessages
+                "auto_delete_messages": settings.autoDeleteMessages,
+                "screenshot_protection": settings.screenshotProtection
             ]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
         let (data, _) = try await URLSession.shared.data(for: request)
-        let response = try JSONDecoder().decode([String: PrivacySettings].self, from: data)
         
-        print("✅ Privacy settings updated")
-        return response["privacy_settings"] ?? settings
+        // Сервер возвращает { success: true, privacy_settings: {...} }
+        struct Response: Codable {
+            let success: Bool?
+            let privacy_settings: PrivacySettings
+        }
+        
+        let response = try JSONDecoder().decode(Response.self, from: data)
+        
+        print("✅ Privacy settings updated: screenshot_protection = \(response.privacy_settings.screenshotProtection)")
+        return response.privacy_settings
     }
     
     func getPrivacySettings(identityId: String) async throws -> PrivacySettings {

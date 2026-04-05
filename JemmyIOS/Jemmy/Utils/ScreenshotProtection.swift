@@ -5,6 +5,7 @@ import UIKit
 struct ScreenshotProtectionModifier: ViewModifier {
     let isEnabled: Bool
     @State private var isCapturing = false
+    @State private var secureField: UITextField?
     
     func body(content: Content) -> some View {
         content
@@ -33,9 +34,16 @@ struct ScreenshotProtectionModifier: ViewModifier {
                     }
                 }
             )
+            .background(
+                // Используем UITextField с secureTextEntry для дополнительной защиты
+                SecureFieldRepresentable(isEnabled: isEnabled, secureField: $secureField)
+            )
             .onAppear {
                 if isEnabled {
+                    print("🔒 Screenshot protection ENABLED")
                     startMonitoring()
+                } else {
+                    print("🔓 Screenshot protection DISABLED")
                 }
             }
             .onDisappear {
@@ -79,6 +87,27 @@ struct ScreenshotProtectionModifier: ViewModifier {
             name: UIScreen.capturedDidChangeNotification,
             object: nil
         )
+    }
+}
+
+// UITextField с secureTextEntry для дополнительной защиты
+struct SecureFieldRepresentable: UIViewRepresentable {
+    let isEnabled: Bool
+    @Binding var secureField: UITextField?
+    
+    func makeUIView(context: Context) -> UITextField {
+        let textField = UITextField()
+        textField.isSecureTextEntry = isEnabled
+        textField.isUserInteractionEnabled = false
+        textField.alpha = 0
+        return textField
+    }
+    
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        uiView.isSecureTextEntry = isEnabled
+        DispatchQueue.main.async {
+            secureField = uiView
+        }
     }
 }
 

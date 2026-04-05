@@ -273,6 +273,27 @@ struct PrivacySettings: Codable {
         case screenshotProtection = "screenshot_protection"
     }
     
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        whoCanMessage = try container.decode(PrivacyOption.self, forKey: .whoCanMessage)
+        whoCanSeeProfile = try container.decode(PrivacyOption.self, forKey: .whoCanSeeProfile)
+        whoCanSeeOnline = try container.decode(PrivacyOption.self, forKey: .whoCanSeeOnline)
+        whoCanSeeLastSeen = try container.decode(PrivacyOption.self, forKey: .whoCanSeeLastSeen)
+        autoDeleteMessages = try container.decode(Int.self, forKey: .autoDeleteMessages)
+        // Дефолтное значение false если поле отсутствует
+        screenshotProtection = (try? container.decode(Bool.self, forKey: .screenshotProtection)) ?? false
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(whoCanMessage, forKey: .whoCanMessage)
+        try container.encode(whoCanSeeProfile, forKey: .whoCanSeeProfile)
+        try container.encode(whoCanSeeOnline, forKey: .whoCanSeeOnline)
+        try container.encode(whoCanSeeLastSeen, forKey: .whoCanSeeLastSeen)
+        try container.encode(autoDeleteMessages, forKey: .autoDeleteMessages)
+        try container.encode(screenshotProtection, forKey: .screenshotProtection)
+    }
+    
     static var `default`: PrivacySettings {
         PrivacySettings(
             whoCanMessage: .everyone,
@@ -282,6 +303,15 @@ struct PrivacySettings: Codable {
             autoDeleteMessages: 0,
             screenshotProtection: false
         )
+    }
+    
+    init(whoCanMessage: PrivacyOption, whoCanSeeProfile: PrivacyOption, whoCanSeeOnline: PrivacyOption, whoCanSeeLastSeen: PrivacyOption, autoDeleteMessages: Int, screenshotProtection: Bool) {
+        self.whoCanMessage = whoCanMessage
+        self.whoCanSeeProfile = whoCanSeeProfile
+        self.whoCanSeeOnline = whoCanSeeOnline
+        self.whoCanSeeLastSeen = whoCanSeeLastSeen
+        self.autoDeleteMessages = autoDeleteMessages
+        self.screenshotProtection = screenshotProtection
     }
 }
 
