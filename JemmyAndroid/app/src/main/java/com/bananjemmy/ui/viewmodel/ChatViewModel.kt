@@ -573,6 +573,10 @@ class ChatViewModel(
         }
     }
     
+    suspend fun getPrivacySettings(identityId: String): com.bananjemmy.data.model.PrivacySettings {
+        return repository.getPrivacySettings(identityId).getOrThrow()
+    }
+    
     override fun onCleared() {
         super.onCleared()
         disconnectWebSocket()

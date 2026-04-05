@@ -497,4 +497,47 @@ class JemmyRepository {
             }
         }
     }
+    
+    // Get privacy settings
+    suspend fun getPrivacySettings(identityId: String): Result<PrivacySettings> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "📡 Request: GET /api/identity/privacy/$identityId")
+                val response = api.getPrivacySettings(identityId)
+                if (response.isSuccessful && response.body() != null) {
+                    val settings = response.body()!!.privacySettings
+                    Log.d(TAG, "✅ Privacy settings loaded: screenshot_protection=${settings.screenshotProtection}")
+                    Result.success(settings)
+                } else {
+                    Log.e(TAG, "❌ Failed to get privacy settings: ${response.code()}")
+                    Result.failure(Exception("Failed to get privacy settings"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error getting privacy settings", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    // Update privacy settings
+    suspend fun updatePrivacySettings(request: UpdatePrivacySettingsRequest): Result<UpdatePrivacySettingsResponse> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "📡 Request: PATCH /api/identity/privacy/update")
+                Log.d(TAG, "📦 Settings: screenshot_protection=${request.settings.screenshotProtection}")
+                val response = api.updatePrivacySettings(request)
+                if (response.isSuccessful && response.body() != null) {
+                    val result = response.body()!!
+                    Log.d(TAG, "✅ Privacy settings updated successfully")
+                    Result.success(result)
+                } else {
+                    Log.e(TAG, "❌ Failed to update privacy settings: ${response.code()}")
+                    Result.failure(Exception("Failed to update privacy settings"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error updating privacy settings", e)
+                Result.failure(e)
+            }
+        }
+    }
 }

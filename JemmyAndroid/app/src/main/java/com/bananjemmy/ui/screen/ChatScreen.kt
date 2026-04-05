@@ -1,6 +1,8 @@
 package com.bananjemmy.ui.screen
 
+import android.app.Activity
 import android.util.Log
+import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,11 +19,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bananjemmy.data.model.Identity
 import com.bananjemmy.data.model.Message
+import com.bananjemmy.data.model.PrivacySettings
 import com.bananjemmy.ui.viewmodel.ChatViewModel
 import com.bananjemmy.ui.viewmodel.MessagesState
 import kotlinx.coroutines.launch
@@ -59,6 +63,11 @@ fun ChatScreen(
     var showSearch by remember { mutableStateOf(false) }
     var hasMarkedAsRead by remember { mutableStateOf(false) }
     
+    // Privacy settings for screenshot protection
+    var otherUserPrivacySettings by remember { mutableStateOf<PrivacySettings?>(null) }
+    val context = LocalContext.current
+    val activity = context as? Activity
+    
     // Format last seen time
     val lastSeenText = remember(currentLastSeen, currentIsOnline) {
         when {
@@ -94,6 +103,42 @@ fun ChatScreen(
         chatViewModel.loadMessages(chatId)
         chatViewModel.joinChat(chatId)
         chatViewModel.requestUserStatus(otherUser.id)
+        
+        // Load other user's privacy settings
+        try {
+            val settings = chatViewModel.getPrivacySettings(otherUser.id)
+            otherUserPrivacySettings = settings
+            Log.d("ChatScreen", "✅ Loaded privacy settings for ${otherUser.username}: screenshot_protection = ${settings.screenshotProtection}")
+        } catch (e: Exception) {
+            Log.e("ChatScreen", "❌ Failed to load privacy settings: ${e.message}")
+        }
+    }
+    
+    // Apply screenshot protection
+    LaunchedEffect(otherUserPrivacySettings?.screenshotProtection) {
+        val isProtected = otherUserPrivacySettings?.screenshotProtection == true
+        Log.d("ChatScreen", "🔒 Screenshot protection: $isProtected")
+        
+        activity?.window?.let { window ->
+            if (isProtected) {
+                window.setFlags(
+                    WindowManager.LayoutParams.FLAG_SECURE,
+                    WindowManager.LayoutParams.FLAG_SECURE
+                )
+                Log.d("ChatScreen", "🔒 FLAG_SECURE enabled")
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                Log.d("ChatScreen", "🔓 FLAG_SECURE disabled")
+            }
+        }
+    }
+    
+    // Clear FLAG_SECURE when leaving chat
+    DisposableEffect(Unit) {
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            Log.d("ChatScreen", "🔓 FLAG_SECURE cleared on dispose")
+        }
     }
     
     // Mark messages as read AFTER they are loaded (only once)
@@ -135,6 +180,19 @@ fun ChatScreen(
         while (true) {
             kotlinx.coroutines.delay(500)
             chatViewModel.refreshMessages(chatId)
+        }
+    }
+    
+    // Polling для обновления настроек приватности каждые 3 секунды (для real-time обновления системного сообщения)
+    LaunchedEffect(otherUser.id) {
+        while (true) {
+            kotlinx.coroutines.delay(3000)
+            try {
+                val settings = chatViewModel.getPrivacySettings(otherUser.id)
+                otherUserPrivacySettings = settings
+            } catch (e: Exception) {
+                // Silently fail
+            }
         }
     }
     
@@ -269,6 +327,7 @@ fun ChatScreen(
                                 reverseLayout = true
                             ) {
                                 val reversedMessages = state.messages.reversed()
+                                
                                 items(reversedMessages.size, key = { reversedMessages[it].id }) { index ->
                                     val message = reversedMessages[index]
                                     val isFromMe = message.senderId == currentUserId
@@ -286,6 +345,43 @@ fun ChatScreen(
                                         showStatus = isLastInBlock,
                                         modifier = Modifier.animateItem()
                                     )
+                                }
+                                
+                                // System message about screenshot protection
+                                if (otherUserPrivacySettings?.screenshotProtection == true) {
+                                    item {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Column(
+                                                modifier = Modifier
+                                                    .background(
+                                                        color = Color.White.copy(alpha = 0.05f),
+                                                        shape = RoundedCornerShape(12.dp)
+                                                    )
+                                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Lock,
+                                                    contentDescription = null,
+                                                    tint = Color.White.copy(alpha = 0.5f),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                
+                                                Text(
+                                                    text = "${otherUser.username} включил(а) защиту от скриншотов",
+                                                    fontSize = 13.sp,
+                                                    color = Color.White.copy(alpha = 0.5f),
+                                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

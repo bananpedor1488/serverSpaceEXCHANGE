@@ -33,6 +33,7 @@ fun ProfileScreen(
     onNavigateToSearch: () -> Unit = {},
     onNavigateToEdit: () -> Unit = {},
     onNavigateToDataStorage: () -> Unit = {},
+    onNavigateToPrivacy: () -> Unit = {},
     cacheManager: CacheManager
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -137,7 +138,7 @@ fun ProfileScreen(
                 SettingsItem(
                     icon = Icons.Filled.Lock,
                     title = "Приватность",
-                    onClick = { /* TODO */ }
+                    onClick = onNavigateToPrivacy
                 )
                 SettingsItem(
                     icon = Icons.Filled.Info,

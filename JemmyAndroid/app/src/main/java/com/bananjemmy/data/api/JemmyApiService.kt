@@ -99,6 +99,13 @@ interface JemmyApiService {
     // User status
     @GET("api/user/status/{identity_id}")
     suspend fun getUserStatus(@Path("identity_id") identityId: String): Response<UserStatusResponse>
+    
+    // Privacy settings endpoints
+    @GET("api/identity/privacy/{identity_id}")
+    suspend fun getPrivacySettings(@Path("identity_id") identityId: String): Response<PrivacySettingsResponse>
+    
+    @PATCH("api/identity/privacy/update")
+    suspend fun updatePrivacySettings(@Body request: UpdatePrivacySettingsRequest): Response<UpdatePrivacySettingsResponse>
 }
 
 data class UserStatusResponse(

@@ -37,6 +37,7 @@ import com.bananjemmy.ui.screen.DataStorageScreen
 import com.bananjemmy.ui.screen.InviteProfileScreen
 import com.bananjemmy.ui.screen.LinkGeneratorScreen
 import com.bananjemmy.ui.screen.OnboardingScreen
+import com.bananjemmy.ui.screen.PrivacySettingsScreen
 import com.bananjemmy.ui.screen.ProfileEditScreen
 import com.bananjemmy.ui.screen.ProfileScreen
 import com.bananjemmy.ui.screen.SearchScreen
@@ -422,6 +423,7 @@ fun MainScreen(
     var showSearch by remember { mutableStateOf(false) }
     var showEditProfile by remember { mutableStateOf(false) }
     var showDataStorage by remember { mutableStateOf(false) }
+    var showPrivacySettings by remember { mutableStateOf(false) }
     var selectedChat by remember { mutableStateOf<Chat?>(null) }
     
     // Получаем pendingInvite из ViewModel
@@ -568,6 +570,7 @@ fun MainScreen(
                                     onNavigateToSearch = { showSearch = true },
                                     onNavigateToEdit = { showEditProfile = true },
                                     onNavigateToDataStorage = { showDataStorage = true },
+                                    onNavigateToPrivacy = { showPrivacySettings = true },
                                     cacheManager = cacheManager
                                 )
                             }
@@ -719,6 +722,27 @@ fun MainScreen(
                         }
                     },
                     onDismiss = { showDataStorage = false }
+                )
+            }
+        }
+    }
+    
+    // Privacy Settings Dialog
+    if (showPrivacySettings) {
+        Dialog(
+            onDismissRequest = { showPrivacySettings = false },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                PrivacySettingsScreen(
+                    identityId = identity.id,
+                    repository = com.bananjemmy.data.repository.JemmyRepository(),
+                    onBack = { showPrivacySettings = false }
                 )
             }
         }

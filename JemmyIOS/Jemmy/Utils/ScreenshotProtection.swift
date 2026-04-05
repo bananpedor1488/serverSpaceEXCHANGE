@@ -1,54 +1,67 @@
 import SwiftUI
 import UIKit
 
-// Модификатор для защиты от скриншотов
+// Модификатор для защиты от скриншотов (как в Telegram)
 struct ScreenshotProtectionModifier: ViewModifier {
     let isEnabled: Bool
-    @State private var isCapturing = false
-    @State private var secureField: UITextField?
+    @State private var showScreenshotWarning = false
     
     func body(content: Content) -> some View {
-        content
-            .blur(radius: isCapturing && isEnabled ? 20 : 0)
-            .overlay(
-                Group {
-                    if isCapturing && isEnabled {
-                        ZStack {
-                            Color.black.opacity(0.8)
+        ZStack {
+            if isEnabled {
+                // Используем SecureField трюк для защиты контента
+                SecureContentView {
+                    content
+                }
+            } else {
+                content
+            }
+        }
+        .overlay(
+            Group {
+                if showScreenshotWarning && isEnabled {
+                    ZStack {
+                        Color.black.opacity(0.8)
+                        
+                        VStack(spacing: 16) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 60))
+                                .foregroundColor(.yellow)
                             
-                            VStack(spacing: 16) {
-                                Image(systemName: "eye.slash.fill")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.white)
-                                
-                                Text("Защита от скриншотов")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundColor(.white)
-                                
-                                Text("Собеседник включил защиту")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(.white.opacity(0.7))
+                            Text("Скриншот обнаружен")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(.white)
+                            
+                            Text("Собеседник включил защиту от скриншотов")
+                                .font(.system(size: 15))
+                                .foregroundColor(.white.opacity(0.7))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                        }
+                    }
+                    .ignoresSafeArea()
+                    .onAppear {
+                        // Hide warning after 2 seconds
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            withAnimation {
+                                showScreenshotWarning = false
                             }
                         }
-                        .ignoresSafeArea()
                     }
                 }
-            )
-            .background(
-                // Используем UITextField с secureTextEntry для дополнительной защиты
-                SecureFieldRepresentable(isEnabled: isEnabled, secureField: $secureField)
-            )
-            .onAppear {
-                if isEnabled {
-                    print("🔒 Screenshot protection ENABLED")
-                    startMonitoring()
-                } else {
-                    print("🔓 Screenshot protection DISABLED")
-                }
             }
-            .onDisappear {
-                stopMonitoring()
+        )
+        .onAppear {
+            if isEnabled {
+                print("🔒 Screenshot protection ENABLED (Telegram-style)")
+                startMonitoring()
+            } else {
+                print("🔓 Screenshot protection DISABLED")
             }
+        }
+        .onDisappear {
+            stopMonitoring()
+        }
     }
     
     private func startMonitoring() {
@@ -58,22 +71,10 @@ struct ScreenshotProtectionModifier: ViewModifier {
             queue: .main
         ) { _ in
             print("📸 Screenshot detected!")
-            // Можно добавить уведомление собеседнику
-        }
-        
-        NotificationCenter.default.addObserver(
-            forName: UIScreen.capturedDidChangeNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            DispatchQueue.main.async {
-                isCapturing = UIScreen.main.isCaptured
-                print("🎥 Screen recording: \(isCapturing)")
+            withAnimation {
+                showScreenshotWarning = true
             }
         }
-        
-        // Check initial state
-        isCapturing = UIScreen.main.isCaptured
     }
     
     private func stopMonitoring() {
@@ -82,32 +83,79 @@ struct ScreenshotProtectionModifier: ViewModifier {
             name: UIApplication.userDidTakeScreenshotNotification,
             object: nil
         )
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIScreen.capturedDidChangeNotification,
-            object: nil
-        )
     }
 }
 
-// UITextField с secureTextEntry для дополнительной защиты
-struct SecureFieldRepresentable: UIViewRepresentable {
-    let isEnabled: Bool
-    @Binding var secureField: UITextField?
+// Контейнер который делает контент невидимым на скриншотах (Telegram-style)
+struct SecureContentView<Content: View>: UIViewControllerRepresentable {
+    let content: Content
     
-    func makeUIView(context: Context) -> UITextField {
-        let textField = UITextField()
-        textField.isSecureTextEntry = isEnabled
-        textField.isUserInteractionEnabled = false
-        textField.alpha = 0
-        return textField
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
     }
     
-    func updateUIView(_ uiView: UITextField, context: Context) {
-        uiView.isSecureTextEntry = isEnabled
-        DispatchQueue.main.async {
-            secureField = uiView
-        }
+    func makeUIViewController(context: Context) -> SecureViewController<Content> {
+        SecureViewController(rootView: content)
+    }
+    
+    func updateUIViewController(_ uiViewController: SecureViewController<Content>, context: Context) {
+        uiViewController.updateContent(content)
+    }
+}
+
+// ViewController который использует secure text field для защиты
+class SecureViewController<Content: View>: UIViewController {
+    private var hostingController: UIHostingController<Content>
+    private var secureTextField: UITextField?
+    
+    init(rootView: Content) {
+        self.hostingController = UIHostingController(rootView: rootView)
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        // Добавляем secure text field для защиты
+        let textField = UITextField()
+        textField.isSecureTextEntry = true
+        view.addSubview(textField)
+        
+        // Делаем его невидимым но активным
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        textField.isUserInteractionEnabled = false
+        textField.alpha = 0.005 // Минимальная видимость чтобы работало
+        textField.layer.sublayers?.first?.addSublayer(view.layer)
+        
+        // Добавляем hosting controller
+        addChild(hostingController)
+        view.addSubview(hostingController.view)
+        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
+            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            
+            textField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            textField.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+        
+        hostingController.didMove(toParent: self)
+        self.secureTextField = textField
+        
+        // Делаем secure field активным
+        textField.becomeFirstResponder()
+        textField.resignFirstResponder()
+    }
+    
+    func updateContent(_ content: Content) {
+        hostingController.rootView = content
     }
 }
 
