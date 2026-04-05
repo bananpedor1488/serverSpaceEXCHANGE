@@ -209,17 +209,10 @@ class AuthViewModel: ObservableObject {
         } catch let error as NSError {
             // Check if identity not found - account was deleted
             if error.code == 404 || error.localizedDescription.lowercased().contains("identity not found") {
-                print("🚨 ПОДОЗРЕНИЕ: Незарегистрированный аккаунт - выполняем выход")
+                print("🚨 ПОДОЗРЕНИЕ: Незарегистрированный аккаунт - показываем алерт")
                 
-                // Clear data
-                KeychainHelper.delete(key: deviceIdKey)
-                UserDefaults.standard.removeObject(forKey: userIdKey)
-                UserDefaults.standard.removeObject(forKey: identityKey)
-                
-                // Show error alert
+                // Show error alert but DON'T logout yet - wait for user to click OK
                 self.accountError = "⚠️ ПОДОЗРЕНИЕ\n\nНезарегистрированный аккаунт. Аккаунт был удален или не существует.\n\nВыполняем выход."
-                self.isAuthenticated = false
-                self.identity = nil
             }
         }
     }
@@ -242,17 +235,10 @@ class AuthViewModel: ObservableObject {
             
             // Check if identity not found - account was deleted
             if error.code == 404 || error.localizedDescription.lowercased().contains("identity not found") {
-                print("🚨 ПОДОЗРЕНИЕ: Незарегистрированный аккаунт - выполняем выход")
+                print("🚨 ПОДОЗРЕНИЕ: Незарегистрированный аккаунт - показываем алерт")
                 
-                // Clear data
-                KeychainHelper.delete(key: deviceIdKey)
-                UserDefaults.standard.removeObject(forKey: userIdKey)
-                UserDefaults.standard.removeObject(forKey: identityKey)
-                
-                // Show error alert
+                // Show error alert but DON'T logout yet - wait for user to click OK
                 self.accountError = "⚠️ ПОДОЗРЕНИЕ\n\nНезарегистрированный аккаунт. Аккаунт был удален или не существует.\n\nВыполняем выход."
-                self.isAuthenticated = false
-                self.identity = nil
             }
         }
     }
