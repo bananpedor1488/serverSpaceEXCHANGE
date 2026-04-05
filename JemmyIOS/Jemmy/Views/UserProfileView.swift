@@ -8,6 +8,7 @@ struct UserProfileView: View {
     @State private var selectedTab = 0
     @State private var isOnline = false
     @State private var lastSeen: Int64 = 0
+    @State private var showBlockAlert = false
     
     var statusText: String {
         if isOnline {
@@ -108,6 +109,18 @@ struct UserProfileView: View {
                             title: "Уведомления",
                             action: {}
                         )
+                        
+                        Divider()
+                            .background(Color.white.opacity(0.1))
+                            .padding(.leading, 60)
+                        
+                        SettingsButton(
+                            icon: "hand.raised.fill",
+                            title: "Заблокировать пользователя",
+                            action: {
+                                blockUser()
+                            }
+                        )
                     }
                     .background(Color.white.opacity(0.05))
                     .cornerRadius(12)
@@ -195,6 +208,29 @@ struct UserProfileView: View {
         }
         .onDisappear {
             WebSocketManager.shared.onUserStatus = nil
+        }
+        .alert("Заблокировать пользователя?", isPresented: $showBlockAlert) {
+            Button("Отмена", role: .cancel) {}
+            Button("Заблокировать", role: .destructive) {
+                performBlock()
+            }
+        } message: {
+            Text("Вы больше не будете получать сообщения от \(user.username)")
+        }
+    }
+    
+    private func blockUser() {
+        showBlockAlert = true
+    }
+    
+    private func performBlock() {
+        Task {
+            do {
+                try await APIService.shared.blockUser(userId: user.id)
+                dismiss()
+            } catch {
+                print("❌ Failed to block user: \(error)")
+            }
         }
     }
     

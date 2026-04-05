@@ -219,7 +219,7 @@ fun ContactProfileScreen(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             ) {
                 Column {
-                    SettingsItem(
+                    ContactSettingsItem(
                         icon = Icons.Filled.Notifications,
                         title = "Уведомления",
                         onClick = { /* TODO */ }
@@ -231,8 +231,8 @@ fun ContactProfileScreen(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                     )
                     
-                    SettingsItem(
-                        icon = if (isBlocked) Icons.Filled.Check else Icons.Filled.Block,
+                    ContactSettingsItem(
+                        icon = if (isBlocked) Icons.Filled.Check else Icons.Filled.Cancel,
                         title = if (isBlocked) "Разблокировать" else "Заблокировать",
                         onClick = {
                             if (isBlocked) {
@@ -421,7 +421,7 @@ fun ActionButton(
 }
 
 @Composable
-fun SettingsItem(
+fun ContactSettingsItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     onClick: () -> Unit,
