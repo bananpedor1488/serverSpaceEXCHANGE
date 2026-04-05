@@ -1,16 +1,16 @@
 import SwiftUI
 import UIKit
 
-// Модификатор для защиты от скриншотов (как в Telegram)
+// Модификатор для защиты от скриншотов (рабочая реализация)
 struct ScreenshotProtectionModifier: ViewModifier {
     let isEnabled: Bool
     @State private var showScreenshotWarning = false
+    @State private var hostingController: UIHostingController<AnyView>?
     
     func body(content: Content) -> some View {
-        ZStack {
+        Group {
             if isEnabled {
-                // Используем SecureField трюк для защиты контента
-                SecureContentWrapper {
+                ScreenshotPreventView {
                     content
                 }
             } else {
@@ -52,7 +52,7 @@ struct ScreenshotProtectionModifier: ViewModifier {
         )
         .onAppear {
             if isEnabled {
-                print("🔒 Screenshot protection ENABLED (Telegram-style)")
+                print("🔒 Screenshot protection ENABLED")
                 startMonitoring()
             } else {
                 print("🔓 Screenshot protection DISABLED")
@@ -85,87 +85,78 @@ struct ScreenshotProtectionModifier: ViewModifier {
     }
 }
 
-// Обертка которая делает контент невидимым на скриншотах
-struct SecureContentWrapper<Content: View>: UIViewRepresentable {
-    let content: Content
+// View который предотвращает скриншоты (как в Telegram)
+struct ScreenshotPreventView<Content: View>: View {
+    var content: Content
     
-    init(@ViewBuilder content: () -> Content) {
+    init(@ViewBuilder content: @escaping () -> Content) {
         self.content = content()
     }
     
-    func makeUIView(context: Context) -> SecureUIView {
-        let view = SecureUIView()
-        
-        let hostingController = UIHostingController(rootView: content)
-        hostingController.view.backgroundColor = .clear
-        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
-        
-        view.addSubview(hostingController.view)
-        
-        NSLayoutConstraint.activate([
-            hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor)
-        ])
-        
-        context.coordinator.hostingController = hostingController
-        
-        return view
-    }
+    @State private var hostingController: UIHostingController<Content>?
     
-    func updateUIView(_ uiView: SecureUIView, context: Context) {
-        context.coordinator.hostingController?.rootView = content
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-    
-    class Coordinator {
-        var hostingController: UIHostingController<Content>?
+    var body: some View {
+        _ScreenshotPreventHelper(hostingController: $hostingController)
+            .overlay(
+                GeometryReader { geometry in
+                    let size = geometry.size
+                    Color.clear
+                        .preference(key: SizeKey.self, value: size)
+                        .onPreferenceChange(SizeKey.self) { newValue in
+                            if hostingController == nil {
+                                hostingController = UIHostingController(rootView: content)
+                                hostingController?.view.backgroundColor = .clear
+                                hostingController?.view.frame = CGRect(origin: .zero, size: size)
+                            } else {
+                                hostingController?.view.frame = CGRect(origin: .zero, size: newValue)
+                            }
+                        }
+                }
+            )
     }
 }
 
-// UIView с защитой от скриншотов
-class SecureUIView: UIView {
-    private var secureTextField: UITextField?
+// PreferenceKey для отслеживания размера
+fileprivate struct SizeKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
     
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        setupSecureLayer()
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
+    }
+}
+
+// Helper который использует secure text field
+fileprivate struct _ScreenshotPreventHelper<Content: View>: UIViewRepresentable {
+    @Binding var hostingController: UIHostingController<Content>?
+    
+    func makeUIView(context: Context) -> UIView {
+        let secureField = UITextField()
+        secureField.isSecureTextEntry = true
+        
+        // Получаем внутренний TextLayoutView который имеет secure свойства
+        if let textLayoutView = secureField.subviews.first {
+            return textLayoutView
+        }
+        
+        return UIView()
     }
     
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        setupSecureLayer()
-    }
-    
-    private func setupSecureLayer() {
-        // Создаем невидимый secure text field
-        let textField = UITextField()
-        textField.isSecureTextEntry = true
-        textField.isUserInteractionEnabled = false
-        textField.backgroundColor = .clear
-        textField.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Добавляем его в иерархию
-        addSubview(textField)
-        sendSubviewToBack(textField)
-        
-        NSLayoutConstraint.activate([
-            textField.topAnchor.constraint(equalTo: topAnchor),
-            textField.bottomAnchor.constraint(equalTo: bottomAnchor),
-            textField.leadingAnchor.constraint(equalTo: leadingAnchor),
-            textField.trailingAnchor.constraint(equalTo: trailingAnchor)
-        ])
-        
-        self.secureTextField = textField
-        
-        // Делаем secure layer активным
-        DispatchQueue.main.async {
-            textField.becomeFirstResponder()
-            textField.resignFirstResponder()
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // Добавляем hosting view как subview к TextLayout view
+        if let hostingController, !uiView.subviews.contains(where: { $0 == hostingController.view }) {
+            // Удаляем старые subviews
+            uiView.subviews.forEach { $0.removeFromSuperview() }
+            
+            // Добавляем новый
+            hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+            uiView.addSubview(hostingController.view)
+            
+            NSLayoutConstraint.activate([
+                hostingController.view.leadingAnchor.constraint(equalTo: uiView.leadingAnchor),
+                hostingController.view.trailingAnchor.constraint(equalTo: uiView.trailingAnchor),
+                hostingController.view.topAnchor.constraint(equalTo: uiView.topAnchor),
+                hostingController.view.bottomAnchor.constraint(equalTo: uiView.bottomAnchor)
+            ])
         }
     }
 }
