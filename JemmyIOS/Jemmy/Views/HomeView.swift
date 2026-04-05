@@ -712,13 +712,6 @@ struct PrivacySettingsView: View {
                                 saveSettings()
                             }
                         }
-                                }
-                                .padding()
-                                .background(Color.white.opacity(0.05))
-                                .cornerRadius(12)
-                            }
-                            .buttonStyle(.plain)
-                        }
                         
                         // Заблокированные
                         SettingsSection(title: "Блокировка") {
