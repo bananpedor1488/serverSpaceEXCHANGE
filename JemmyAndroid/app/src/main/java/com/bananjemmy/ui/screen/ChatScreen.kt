@@ -183,19 +183,6 @@ fun ChatScreen(
         }
     }
     
-    // Polling для обновления настроек приватности каждые 3 секунды (для real-time обновления системного сообщения)
-    LaunchedEffect(otherUser.id) {
-        while (true) {
-            kotlinx.coroutines.delay(3000)
-            try {
-                val settings = chatViewModel.getPrivacySettings(otherUser.id)
-                otherUserPrivacySettings = settings
-            } catch (e: Exception) {
-                // Silently fail
-            }
-        }
-    }
-    
     // Auto-scroll to bottom when new messages arrive
     LaunchedEffect(messagesState) {
         if (messagesState is MessagesState.Success) {

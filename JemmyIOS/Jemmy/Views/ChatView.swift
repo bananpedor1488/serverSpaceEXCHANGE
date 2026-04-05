@@ -246,7 +246,10 @@ struct ChatView: View {
             UserProfileView(user: otherUser)
                 .environmentObject(authViewModel)
         }
-        .screenshotProtection(enabled: otherUserPrivacySettings?.screenshotProtection ?? false)
+        .screenshotProtection(enabled: otherUserPrivacySettings?.screenshotProtection ?? false) {
+            // Отправляем уведомление собеседнику о скриншоте
+            sendScreenshotNotification()
+        }
         .onChange(of: otherUserPrivacySettings?.screenshotProtection) { isEnabled in
             print("🔒 Screenshot protection changed: \(isEnabled ?? false)")
         }
@@ -264,6 +267,8 @@ struct ChatView: View {
             WebSocketManager.shared.onUserStatus = nil
             WebSocketManager.shared.onMessageStatusUpdate = nil
             WebSocketManager.shared.onMessagesRead = nil
+            WebSocketManager.shared.onPrivacySettingsChanged = nil
+            WebSocketManager.shared.onScreenshotNotification = nil
         }
         .onChange(of: networkMonitor.isConnected) { isConnected in
             if isConnected {
@@ -330,6 +335,23 @@ struct ChatView: View {
             if updated {
                 print("✅ Reloading messages to reflect read status")
                 self.loadMessages()
+            }
+        }
+        
+        WebSocketManager.shared.onPrivacySettingsChanged = { identityId, username, settings in
+            if identityId == self.otherUser.id {
+                print("🔒 Privacy settings changed for \(username): screenshot_protection = \(settings.screenshotProtection)")
+                self.otherUserPrivacySettings = settings
+            }
+        }
+        
+        WebSocketManager.shared.onScreenshotNotification = { chatId, takerIdentityId, takerUsername in
+            if chatId == self.chatId {
+                print("📸 Screenshot notification: \(takerUsername) took screenshot")
+                // Message is already sent via sendScreenshotNotification, just reload
+                Task {
+                    await self.refreshMessages()
+                }
             }
         }
         
@@ -500,6 +522,32 @@ struct ChatView: View {
                 }
             } catch {
                 print("❌ Failed to load privacy settings for \(otherUser.username): \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    private func sendScreenshotNotification() {
+        guard let myUsername = authViewModel.identity?.username,
+              let myIdentityId = authViewModel.identity?.id else { return }
+        
+        // Send WebSocket notification
+        WebSocketManager.shared.sendScreenshotNotification(
+            chatId: chatId,
+            takerIdentityId: myIdentityId,
+            takerUsername: myUsername
+        )
+        
+        Task {
+            do {
+                // Also send as a message for persistence
+                let _ = try await APIService.shared.sendMessage(
+                    chatId: chatId,
+                    senderIdentityId: myIdentityId,
+                    text: "🔒 \(myUsername) сделал(а) скриншот"
+                )
+                print("📸 Screenshot notification sent")
+            } catch {
+                print("❌ Failed to send screenshot notification: \(error.localizedDescription)")
             }
         }
     }

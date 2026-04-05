@@ -16,6 +16,8 @@ class WebSocketManager: ObservableObject {
     var onUserStatus: ((String, Bool, Int64) -> Void)? // identity_id, online, last_seen
     var onMessageStatusUpdate: ((String, Bool, Bool) -> Void)? // message_id, delivered, read
     var onMessagesRead: (([String]) -> Void)? // message_ids
+    var onPrivacySettingsChanged: ((String, String, PrivacySettings) -> Void)? // identity_id, username, settings
+    var onScreenshotNotification: ((String, String, String) -> Void)? // chat_id, taker_identity_id, taker_username
     
     private init() {}
     
@@ -76,6 +78,16 @@ class WebSocketManager: ObservableObject {
         socket?.on("messages_read") { [weak self] data, ack in
             print("📖 Received messages_read event")
             self?.handleMessagesRead(data: data)
+        }
+        
+        socket?.on("privacy_settings_changed") { [weak self] data, ack in
+            print("🔒 Received privacy_settings_changed event")
+            self?.handlePrivacySettingsChanged(data: data)
+        }
+        
+        socket?.on("screenshot_notification") { [weak self] data, ack in
+            print("📸 Received screenshot_notification event")
+            self?.handleScreenshotNotification(data: data)
         }
         
         socket?.connect()
@@ -140,6 +152,15 @@ class WebSocketManager: ObservableObject {
     func markMessagesRead(messageIds: [String], chatId: String) {
         socket?.emit("messages_read", ["message_ids": messageIds, "chat_id": chatId])
         print("📖 Marked \(messageIds.count) messages as read in chat \(chatId)")
+    }
+    
+    func sendScreenshotNotification(chatId: String, takerIdentityId: String, takerUsername: String) {
+        socket?.emit("screenshot_taken", [
+            "chat_id": chatId,
+            "taker_identity_id": takerIdentityId,
+            "taker_username": takerUsername
+        ])
+        print("📸 Sent screenshot notification for chat \(chatId)")
     }
     
     private func handleMessageReceived(data: [Any]) {
@@ -254,6 +275,45 @@ class WebSocketManager: ObservableObject {
         
         DispatchQueue.main.async {
             self.onMessagesRead?(messageIds)
+        }
+    }
+    
+    private func handlePrivacySettingsChanged(data: [Any]) {
+        guard let updateData = data.first as? [String: Any],
+              let identityId = updateData["identity_id"] as? String,
+              let username = updateData["username"] as? String,
+              let settingsData = updateData["privacy_settings"] as? [String: Any] else { 
+            print("❌ Failed to parse privacy_settings_changed event")
+            return 
+        }
+        
+        print("✅ Privacy settings changed event parsed for \(username)")
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: settingsData)
+            let settings = try JSONDecoder().decode(PrivacySettings.self, from: jsonData)
+            
+            DispatchQueue.main.async {
+                self.onPrivacySettingsChanged?(identityId, username, settings)
+            }
+        } catch {
+            print("❌ Error decoding privacy settings:", error)
+        }
+    }
+    
+    private func handleScreenshotNotification(data: [Any]) {
+        guard let notificationData = data.first as? [String: Any],
+              let chatId = notificationData["chat_id"] as? String,
+              let takerIdentityId = notificationData["taker_identity_id"] as? String,
+              let takerUsername = notificationData["taker_username"] as? String else { 
+            print("❌ Failed to parse screenshot_notification event")
+            return 
+        }
+        
+        print("✅ Screenshot notification parsed: \(takerUsername) took screenshot in chat \(chatId)")
+        
+        DispatchQueue.main.async {
+            self.onScreenshotNotification?(chatId, takerIdentityId, takerUsername)
         }
     }
 }

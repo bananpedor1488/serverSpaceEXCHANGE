@@ -4,6 +4,7 @@ import UIKit
 // Модификатор для защиты от скриншотов (рабочая реализация)
 struct ScreenshotProtectionModifier: ViewModifier {
     let isEnabled: Bool
+    let onScreenshotDetected: (() -> Void)?
     @State private var showScreenshotWarning = false
     @State private var hostingController: UIHostingController<AnyView>?
     
@@ -73,6 +74,8 @@ struct ScreenshotProtectionModifier: ViewModifier {
             withAnimation {
                 showScreenshotWarning = true
             }
+            // Вызываем callback для отправки уведомления
+            onScreenshotDetected?()
         }
     }
     
@@ -162,7 +165,7 @@ fileprivate struct _ScreenshotPreventHelper<Content: View>: UIViewRepresentable 
 }
 
 extension View {
-    func screenshotProtection(enabled: Bool) -> some View {
-        modifier(ScreenshotProtectionModifier(isEnabled: enabled))
+    func screenshotProtection(enabled: Bool, onScreenshotDetected: (() -> Void)? = nil) -> some View {
+        modifier(ScreenshotProtectionModifier(isEnabled: enabled, onScreenshotDetected: onScreenshotDetected))
     }
 }

@@ -22,6 +22,8 @@ class WebSocketManager private constructor() {
     var onUserStatus: ((String, Boolean, Long) -> Unit)? = null // identity_id, online, last_seen
     var onMessageStatusUpdate: ((String, Boolean, Boolean) -> Unit)? = null // message_id, delivered, read
     var onMessagesRead: ((List<String>) -> Unit)? = null // message_ids
+    var onPrivacySettingsChanged: ((String, String, PrivacySettings) -> Unit)? = null // identity_id, username, settings
+    var onScreenshotNotification: ((String, String, String) -> Unit)? = null // chat_id, taker_identity_id, taker_username
     
     companion object {
         @Volatile
@@ -95,6 +97,14 @@ class WebSocketManager private constructor() {
             
             socket?.on("messages_read") { args ->
                 handleMessagesRead(args)
+            }
+            
+            socket?.on("privacy_settings_changed") { args ->
+                handlePrivacySettingsChanged(args)
+            }
+            
+            socket?.on("screenshot_notification") { args ->
+                handleScreenshotNotification(args)
             }
             
             socket?.connect()
@@ -251,6 +261,20 @@ class WebSocketManager private constructor() {
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error marking messages as read", e)
             e.printStackTrace()
+        }
+    }
+    
+    fun sendScreenshotNotification(chatId: String, takerIdentityId: String, takerUsername: String) {
+        try {
+            val data = JSONObject().apply {
+                put("chat_id", chatId)
+                put("taker_identity_id", takerIdentityId)
+                put("taker_username", takerUsername)
+            }
+            socket?.emit("screenshot_taken", data)
+            Log.d(TAG, "📸 Sent screenshot notification for chat: $chatId")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error sending screenshot notification", e)
         }
     }
     
