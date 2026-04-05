@@ -10,7 +10,7 @@ struct ScreenshotProtectionModifier: ViewModifier {
         ZStack {
             if isEnabled {
                 // Используем SecureField трюк для защиты контента
-                SecureContentView {
+                SecureContentWrapper {
                     content
                 }
             } else {
@@ -41,7 +41,6 @@ struct ScreenshotProtectionModifier: ViewModifier {
                     }
                     .ignoresSafeArea()
                     .onAppear {
-                        // Hide warning after 2 seconds
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                             withAnimation {
                                 showScreenshotWarning = false
@@ -86,76 +85,88 @@ struct ScreenshotProtectionModifier: ViewModifier {
     }
 }
 
-// Контейнер который делает контент невидимым на скриншотах (Telegram-style)
-struct SecureContentView<Content: View>: UIViewControllerRepresentable {
+// Обертка которая делает контент невидимым на скриншотах
+struct SecureContentWrapper<Content: View>: UIViewRepresentable {
     let content: Content
     
     init(@ViewBuilder content: () -> Content) {
         self.content = content()
     }
     
-    func makeUIViewController(context: Context) -> SecureViewController<Content> {
-        SecureViewController(rootView: content)
-    }
-    
-    func updateUIViewController(_ uiViewController: SecureViewController<Content>, context: Context) {
-        uiViewController.updateContent(content)
-    }
-}
-
-// ViewController который использует secure text field для защиты
-class SecureViewController<Content: View>: UIViewController {
-    private var hostingController: UIHostingController<Content>
-    private var secureTextField: UITextField?
-    
-    init(rootView: Content) {
-        self.hostingController = UIHostingController(rootView: rootView)
-        super.init(nibName: nil, bundle: nil)
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
+    func makeUIView(context: Context) -> SecureUIView {
+        let view = SecureUIView()
         
-        // Добавляем secure text field для защиты
-        let textField = UITextField()
-        textField.isSecureTextEntry = true
-        view.addSubview(textField)
-        
-        // Делаем его невидимым но активным
-        textField.translatesAutoresizingMaskIntoConstraints = false
-        textField.isUserInteractionEnabled = false
-        textField.alpha = 0.005 // Минимальная видимость чтобы работало
-        textField.layer.sublayers?.first?.addSublayer(view.layer)
-        
-        // Добавляем hosting controller
-        addChild(hostingController)
-        view.addSubview(hostingController.view)
+        let hostingController = UIHostingController(rootView: content)
+        hostingController.view.backgroundColor = .clear
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+        
+        view.addSubview(hostingController.view)
         
         NSLayoutConstraint.activate([
             hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
             hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            
-            textField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            textField.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
         
-        hostingController.didMove(toParent: self)
-        self.secureTextField = textField
+        context.coordinator.hostingController = hostingController
         
-        // Делаем secure field активным
-        textField.becomeFirstResponder()
-        textField.resignFirstResponder()
+        return view
     }
     
-    func updateContent(_ content: Content) {
-        hostingController.rootView = content
+    func updateUIView(_ uiView: SecureUIView, context: Context) {
+        context.coordinator.hostingController?.rootView = content
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    class Coordinator {
+        var hostingController: UIHostingController<Content>?
+    }
+}
+
+// UIView с защитой от скриншотов
+class SecureUIView: UIView {
+    private var secureTextField: UITextField?
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupSecureLayer()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupSecureLayer()
+    }
+    
+    private func setupSecureLayer() {
+        // Создаем невидимый secure text field
+        let textField = UITextField()
+        textField.isSecureTextEntry = true
+        textField.isUserInteractionEnabled = false
+        textField.backgroundColor = .clear
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Добавляем его в иерархию
+        addSubview(textField)
+        sendSubviewToBack(textField)
+        
+        NSLayoutConstraint.activate([
+            textField.topAnchor.constraint(equalTo: topAnchor),
+            textField.bottomAnchor.constraint(equalTo: bottomAnchor),
+            textField.leadingAnchor.constraint(equalTo: leadingAnchor),
+            textField.trailingAnchor.constraint(equalTo: trailingAnchor)
+        ])
+        
+        self.secureTextField = textField
+        
+        // Делаем secure layer активным
+        DispatchQueue.main.async {
+            textField.becomeFirstResponder()
+            textField.resignFirstResponder()
+        }
     }
 }
 
