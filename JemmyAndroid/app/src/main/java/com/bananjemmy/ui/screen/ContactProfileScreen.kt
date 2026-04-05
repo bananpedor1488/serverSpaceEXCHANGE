@@ -42,6 +42,7 @@ fun ContactProfileScreen(
     val repository = remember { JemmyRepository() }
     var selectedMediaTab by remember { mutableIntStateOf(0) }
     var isBlocked by remember { mutableStateOf(false) }
+    var amIBlocked by remember { mutableStateOf(false) }
     var showBlockDialog by remember { mutableStateOf(false) }
     var showUnblockDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -50,6 +51,11 @@ fun ContactProfileScreen(
     LaunchedEffect(Unit) {
         repository.getBlockedUsers(currentUserId).onSuccess { blockedUsers ->
             isBlocked = blockedUsers.any { it.id == user.id }
+        }
+        
+        // Check if I am blocked by this user
+        repository.amIBlockedBy(currentUserId, user.id).onSuccess { blocked ->
+            amIBlocked = blocked
         }
     }
     
@@ -127,11 +133,29 @@ fun ContactProfileScreen(
                     .padding(vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                AvatarImage(
-                    identity = user,
-                    cacheManager = cacheManager,
-                    size = 100.dp
-                )
+                if (amIBlocked) {
+                    // Show placeholder avatar if blocked
+                    Surface(
+                        modifier = Modifier.size(100.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Filled.AccountBox,
+                                contentDescription = null,
+                                modifier = Modifier.size(50.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                } else {
+                    AvatarImage(
+                        identity = user,
+                        cacheManager = cacheManager,
+                        size = 100.dp
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
@@ -146,19 +170,28 @@ fun ContactProfileScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    if (currentIsOnline) {
-                        Surface(
-                            modifier = Modifier.size(8.dp),
-                            shape = CircleShape,
-                            color = androidx.compose.ui.graphics.Color(0xFF34C759)
-                        ) {}
-                        Spacer(modifier = Modifier.width(4.dp))
+                    if (amIBlocked) {
+                        // Show "был давно" if blocked
+                        Text(
+                            text = "был(а) давно",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    } else {
+                        if (currentIsOnline) {
+                            Surface(
+                                modifier = Modifier.size(8.dp),
+                                shape = CircleShape,
+                                color = androidx.compose.ui.graphics.Color(0xFF34C759)
+                            ) {}
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = lastSeenText,
+                            fontSize = 14.sp,
+                            color = if (currentIsOnline) androidx.compose.ui.graphics.Color(0xFF34C759) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
                     }
-                    Text(
-                        text = lastSeenText,
-                        fontSize = 14.sp,
-                        color = if (currentIsOnline) androidx.compose.ui.graphics.Color(0xFF34C759) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
                 }
                 
                 Spacer(modifier = Modifier.height(4.dp))

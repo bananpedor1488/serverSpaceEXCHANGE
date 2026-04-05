@@ -85,9 +85,9 @@ async getBlockedUsers(identity_id: string) {
     .lean(); // Convert to plain JavaScript objects
 
   const identities = blocked
-    .map(b => b.blocked_identity_id)
+    .map(b => b.blocked_identity_id as any)
     .filter(identity => identity != null)
-    .map(identity => ({
+    .map((identity: any) => ({
       _id: identity._id.toString(),
       username: identity.username,
       avatar: identity.avatar_seed || '',
@@ -99,33 +99,24 @@ async getBlockedUsers(identity_id: string) {
 }
 ```
 
-### 3. Улучшена обработка ошибок (iOS)
+### 4. Улучшена обработка ошибок (iOS)
 **Файл:** `serverSpaceEXCHANGE/JemmyIOS/Jemmy/Services/APIService.swift`
 
-Добавлено детальное логирование ошибок декодирования с правильной областью видимости переменных:
+Добавлена обработка 404 ошибки (Identity not found) - возвращает пустой массив вместо ошибки:
 ```swift
 func getBlockedUsers(identityId: String) async throws -> [Identity] {
     let url = URL(string: "\(baseURL)/identity/blocked-list/\(identityId)")!
     let (data, response) = try await URLSession.shared.data(from: url)
     
-    // Log raw response
-    if let jsonString = String(data: data, encoding: .utf8) {
-        print("📥 Raw response: \(jsonString)")
+    if let httpResponse = response as? HTTPURLResponse {
+        // Handle 404 - Identity not found
+        if httpResponse.statusCode == 404 {
+            print("⚠️ Identity not found: \(identityId)")
+            return [] // Return empty array instead of throwing
+        }
     }
     
-    do {
-        let decoder = JSONDecoder()
-        let blockedResponse = try decoder.decode(BlockedUserResponse.self, from: data)
-        return blockedResponse.blockedUsers
-    } catch let DecodingError.keyNotFound(key, context) {
-        print("❌ Key '\(key.stringValue)' not found:", context.debugDescription)
-        
-        if let json = try? JSONSerialization.jsonObject(with: data, options: []) {
-            print("📦 Actual JSON structure:", json)
-        }
-        
-        throw DecodingError.keyNotFound(key, context)
-    }
+    // Decode response...
 }
 ```
 
@@ -136,10 +127,14 @@ func getBlockedUsers(identityId: String) async throws -> [Identity] {
 ## Сравнение с Android
 
 Android версия работала корректно благодаря:
-1. Поддержке обоих полей `_id` и `id` с геттером
-2. Использованию Gson, который более гибко обрабатывает JSON
+1. Правильному использованию identity_id в запросах
+2. Поддержке обоих полей `_id` и `id` с геттером
+3. Использованию Gson, который более гибко обрабатывает JSON
 
 ```kotlin
+// Android правильно использует identity_id
+repository.getBlockedUsers(currentUserId) // currentUserId = identity_id
+
 data class Identity(
     @SerializedName("_id")
     val _id: String? = null,
@@ -152,6 +147,14 @@ data class Identity(
         get() = _id ?: idField ?: ""
 }
 ```
+
+## Ключевое различие: userId vs identityId
+
+В системе есть два типа ID:
+- `user_id` - ID пользователя (устройства), может иметь несколько идентичностей
+- `identity_id` - ID конкретной идентичности пользователя
+
+Для операций блокировки нужен `identity_id`, а не `user_id`!
 
 ## Результат
 Теперь iOS версия работает так же, как Android:

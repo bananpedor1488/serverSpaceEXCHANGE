@@ -9,6 +9,7 @@ struct UserProfileView: View {
     @State private var isOnline = false
     @State private var lastSeen: Int64 = 0
     @State private var isBlocked = false
+    @State private var amIBlocked = false
     @State private var showBlockDialog = false
     @State private var showUnblockDialog = false
     
@@ -64,17 +65,29 @@ struct UserProfileView: View {
                     // Avatar & Info
                     VStack(spacing: 12) {
                         ZStack(alignment: .bottomTrailing) {
-                            AvatarView(identity: user, size: 100)
-                            
-                            if isOnline {
+                            if amIBlocked {
+                                // Show placeholder avatar if blocked
                                 Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 20, height: 20)
+                                    .fill(Color.white.opacity(0.1))
+                                    .frame(width: 100, height: 100)
                                     .overlay(
-                                        Circle()
-                                            .stroke(Color.black, lineWidth: 3)
+                                        Image(systemName: "person.fill")
+                                            .font(.system(size: 50))
+                                            .foregroundColor(.white.opacity(0.3))
                                     )
-                                    .offset(x: -5, y: -5)
+                            } else {
+                                AvatarView(identity: user, size: 100)
+                                
+                                if isOnline {
+                                    Circle()
+                                        .fill(Color.green)
+                                        .frame(width: 20, height: 20)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.black, lineWidth: 3)
+                                        )
+                                        .offset(x: -5, y: -5)
+                                }
                             }
                         }
                         
@@ -82,9 +95,9 @@ struct UserProfileView: View {
                             .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.white)
                         
-                        Text(statusText)
+                        Text(amIBlocked ? "был(а) давно" : statusText)
                             .font(.system(size: 15))
-                            .foregroundColor(isOnline ? .green : .white.opacity(0.6))
+                            .foregroundColor(amIBlocked ? .white.opacity(0.6) : (isOnline ? .green : .white.opacity(0.6)))
                         
                         if !user.bio.isEmpty {
                             Text(user.bio)
@@ -229,6 +242,7 @@ struct UserProfileView: View {
             setupWebSocket()
             updateUserStatus()
             checkIfBlocked()
+            checkIfIAmBlocked()
         }
         .onDisappear {
             WebSocketManager.shared.onUserStatus = nil
@@ -266,6 +280,31 @@ struct UserProfileView: View {
                 // Set to not blocked on error to avoid UI issues
                 await MainActor.run {
                     isBlocked = false
+                }
+            }
+        }
+    }
+    
+    private func checkIfIAmBlocked() {
+        guard let currentIdentityId = authViewModel.identity?.id else {
+            print("❌ No current identity ID")
+            return
+        }
+        
+        print("🔍 Checking if I am blocked by \(user.username)")
+        
+        Task {
+            do {
+                let blocked = try await APIService.shared.amIBlocked(myIdentityId: currentIdentityId, otherIdentityId: user.id)
+                
+                await MainActor.run {
+                    amIBlocked = blocked
+                    print(blocked ? "🚫 I AM BLOCKED by \(user.username)" : "✅ I am NOT blocked")
+                }
+            } catch {
+                print("❌ Failed to check if I am blocked: \(error)")
+                await MainActor.run {
+                    amIBlocked = false
                 }
             }
         }

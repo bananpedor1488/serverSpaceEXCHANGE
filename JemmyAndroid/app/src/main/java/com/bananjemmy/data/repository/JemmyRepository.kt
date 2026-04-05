@@ -621,4 +621,27 @@ class JemmyRepository {
             }
         }
     }
+    
+    // Check if I am blocked by another user
+    suspend fun amIBlockedBy(myIdentityId: String, otherIdentityId: String): Result<Boolean> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "📡 Request: GET /api/identity/am-i-blocked/$myIdentityId/$otherIdentityId")
+                
+                val response = api.amIBlocked(myIdentityId, otherIdentityId)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val isBlocked = response.body()!!.isBlocked
+                    Log.d(TAG, "✅ Am I blocked: $isBlocked")
+                    Result.success(isBlocked)
+                } else {
+                    Log.e(TAG, "❌ Failed to check if blocked: ${response.code()}")
+                    Result.failure(Exception("Failed to check if blocked"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error checking if blocked", e)
+                Result.failure(e)
+            }
+        }
+    }
 }

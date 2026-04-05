@@ -116,6 +116,12 @@ interface JemmyApiService {
     
     @GET("api/identity/blocked-list/{identity_id}")
     suspend fun getBlockedUsers(@Path("identity_id") identityId: String): Response<BlockedUsersResponse>
+    
+    @GET("api/identity/am-i-blocked/{my_id}/{other_id}")
+    suspend fun amIBlocked(
+        @Path("my_id") myId: String,
+        @Path("other_id") otherId: String
+    ): Response<AmIBlockedResponse>
 }
 
 data class UserStatusResponse(

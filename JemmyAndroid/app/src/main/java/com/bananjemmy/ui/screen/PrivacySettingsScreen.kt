@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +26,8 @@ import kotlinx.coroutines.launch
 fun PrivacySettingsScreen(
     identityId: String,
     repository: com.bananjemmy.data.repository.JemmyRepository,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToBlockedUsers: () -> Unit = {}
 ) {
     var privacySettings by remember { mutableStateOf<PrivacySettings?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -128,6 +130,16 @@ fun PrivacySettingsScreen(
                         }
                     )
                 }
+                
+                // Заблокированные пользователи
+                PrivacySection(title = "Блокировка") {
+                    SettingsNavigationItem(
+                        icon = "🚫",
+                        title = "Заблокированные пользователи",
+                        description = "Управление списком",
+                        onClick = onNavigateToBlockedUsers
+                    )
+                }
             }
         } else {
             Box(
@@ -224,6 +236,63 @@ fun SettingsToggleItem(
                     checkedThumbColor = Color.White,
                     checkedTrackColor = Color(0xFF34C759)
                 )
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsNavigationItem(
+    icon: String,
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White.copy(alpha = 0.05f),
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = icon,
+                    fontSize = 24.sp
+                )
+                
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 17.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    Text(
+                        text = description,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            }
+            
+            Icon(
+                imageVector = Icons.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
             )
         }
     }

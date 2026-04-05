@@ -742,7 +742,11 @@ fun MainScreen(
                 PrivacySettingsScreen(
                     identityId = identity.id,
                     repository = com.bananjemmy.data.repository.JemmyRepository(),
-                    onBack = { showPrivacySettings = false }
+                    onBack = { showPrivacySettings = false },
+                    onNavigateToBlockedUsers = {
+                        showPrivacySettings = false
+                        showBlockedUsers = true
+                    }
                 )
             }
         }

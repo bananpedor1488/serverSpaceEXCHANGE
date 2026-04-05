@@ -117,3 +117,8 @@ data class BlockedUsersResponse(
     @SerializedName("blocked_users")
     val blockedUsers: List<Identity>
 )
+
+data class AmIBlockedResponse(
+    @SerializedName("is_blocked")
+    val isBlocked: Boolean
+)

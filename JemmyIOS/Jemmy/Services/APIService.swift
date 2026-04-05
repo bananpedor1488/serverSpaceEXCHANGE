@@ -806,4 +806,17 @@ class APIService {
             throw error
         }
     }
+    
+    func amIBlocked(myIdentityId: String, otherIdentityId: String) async throws -> Bool {
+        print("📡 Request: GET /identity/am-i-blocked/\(myIdentityId)/\(otherIdentityId)")
+        
+        let url = URL(string: "\(baseURL)/identity/am-i-blocked/\(myIdentityId)/\(otherIdentityId)")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let isBlocked = json?["is_blocked"] as? Bool ?? false
+        
+        print("✅ Am I blocked: \(isBlocked)")
+        return isBlocked
+    }
 }
