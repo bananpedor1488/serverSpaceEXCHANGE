@@ -104,7 +104,7 @@ class CacheManager {
         return totalSize
     }
     
-    func getCacheSizeByCategory() -> (photos: Int64, videos: Int64, files: Int64, messages: Int64) {
+    func getCacheSizeByCategory() -> (photos: Int64, videos: Int64, files: Int64, messages: Int64, avatars: Int64) {
         var messagesSize: Int64 = 0
         
         // Размер чатов
@@ -122,9 +122,12 @@ class CacheManager {
             }
         }
         
-        // Пока у нас только сообщения в кэше, остальное будет 0
+        // Размер аватарок
+        let avatarsSize = getAvatarCacheSize()
+        
+        // Пока у нас только сообщения и аватарки в кэше, остальное будет 0
         // В будущем можно добавить кэширование медиа
-        return (photos: 0, videos: 0, files: 0, messages: messagesSize)
+        return (photos: 0, videos: 0, files: 0, messages: messagesSize, avatars: avatarsSize)
     }
     
     // MARK: - Avatar Cache

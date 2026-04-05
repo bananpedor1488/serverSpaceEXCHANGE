@@ -506,7 +506,7 @@ struct StorageBreakdownSheet: View {
     let cacheSize: Int64
     let maxCacheSize: Int64
     
-    var categoryData: (photos: Int64, videos: Int64, files: Int64, messages: Int64) {
+    var categoryData: (photos: Int64, videos: Int64, files: Int64, messages: Int64, avatars: Int64) {
         CacheManager.shared.getCacheSizeByCategory()
     }
     
@@ -573,6 +573,16 @@ struct StorageBreakdownSheet: View {
                 
                 ScrollView {
                     VStack(spacing: 12) {
+                        if categoryData.avatars > 0 {
+                            StorageItem(
+                                icon: "person.crop.circle.fill",
+                                title: "Аватарки",
+                                size: categoryData.avatars,
+                                color: .cyan,
+                                totalSize: cacheSize
+                            )
+                        }
+                        
                         if categoryData.photos > 0 {
                             StorageItem(
                                 icon: "photo.fill",
