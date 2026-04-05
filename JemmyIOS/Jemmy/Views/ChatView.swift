@@ -16,6 +16,7 @@ struct ChatView: View {
     @State private var searchText = ""
     @State private var isOnline = false
     @State private var lastSeen: Int64 = 0
+    @State private var otherUserPrivacySettings: PrivacySettings?
     
     var statusText: String {
         if isOnline {
@@ -104,6 +105,29 @@ struct ChatView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 8) {
+                            // System message about screenshot protection
+                            if otherUserPrivacySettings?.screenshotProtection == true {
+                                HStack {
+                                    Spacer()
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "eye.slash.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(.white.opacity(0.5))
+                                        
+                                        Text("\(otherUser.username) включил(а) защиту от скриншотов")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(.white.opacity(0.5))
+                                            .multilineTextAlignment(.center)
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(Color.white.opacity(0.05))
+                                    .cornerRadius(12)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 8)
+                            }
+                            
                             ForEach(Array(filteredMessages.enumerated()), id: \.element.id) { index, message in
                                 let isFromMe = message.senderIdentityId == authViewModel.identity?.id
                                 
@@ -217,6 +241,7 @@ struct ChatView: View {
             UserProfileView(user: otherUser)
                 .environmentObject(authViewModel)
         }
+        .screenshotProtection(enabled: otherUserPrivacySettings?.screenshotProtection ?? false)
         .onAppear {
             loadMessagesFromCache()
             loadMessages()
@@ -224,6 +249,7 @@ struct ChatView: View {
             setupWebSocket()
             updateUserStatus()
             markMessagesAsRead()
+            loadOtherUserPrivacySettings()
         }
         .onDisappear {
             stopPolling()
@@ -506,3 +532,17 @@ struct MessageBubble: View {
         return formatter.string(from: date)
     }
 }
+
+    private func loadOtherUserPrivacySettings() {
+        Task {
+            do {
+                let settings = try await APIService.shared.getPrivacySettings(identityId: otherUser.id)
+                await MainActor.run {
+                    otherUserPrivacySettings = settings
+                    print("✅ Loaded privacy settings for \(otherUser.username): screenshot_protection = \(settings.screenshotProtection)")
+                }
+            } catch {
+                print("❌ Failed to load privacy settings for \(otherUser.username): \(error.localizedDescription)")
+            }
+        }
+    }

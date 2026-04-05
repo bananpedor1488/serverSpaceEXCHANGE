@@ -684,6 +684,40 @@ struct PrivacySettingsView: View {
                                 .cornerRadius(12)
                             }
                             .buttonStyle(.plain)
+                            
+                            // Защита от скриншотов (серверная настройка)
+                            Toggle(isOn: $privacySettings.screenshotProtection) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "eye.slash.fill")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.white)
+                                        .frame(width: 24)
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Защита от скриншотов")
+                                            .font(.system(size: 17))
+                                            .foregroundColor(.white)
+                                        
+                                        Text("Собеседники увидят уведомление")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(.white.opacity(0.5))
+                                    }
+                                }
+                            }
+                            .tint(.green)
+                            .padding()
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(12)
+                            .onChange(of: privacySettings.screenshotProtection) { _ in
+                                saveSettings()
+                            }
+                        }
+                                }
+                                .padding()
+                                .background(Color.white.opacity(0.05))
+                                .cornerRadius(12)
+                            }
+                            .buttonStyle(.plain)
                         }
                         
                         // Заблокированные

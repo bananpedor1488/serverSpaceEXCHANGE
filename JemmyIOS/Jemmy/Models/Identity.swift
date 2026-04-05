@@ -262,6 +262,7 @@ struct PrivacySettings: Codable {
     var whoCanSeeOnline: PrivacyOption
     var whoCanSeeLastSeen: PrivacyOption
     var autoDeleteMessages: Int // hours: 0, 24, 168, 720
+    var screenshotProtection: Bool
     
     enum CodingKeys: String, CodingKey {
         case whoCanMessage = "who_can_message"
@@ -269,6 +270,7 @@ struct PrivacySettings: Codable {
         case whoCanSeeOnline = "who_can_see_online"
         case whoCanSeeLastSeen = "who_can_see_last_seen"
         case autoDeleteMessages = "auto_delete_messages"
+        case screenshotProtection = "screenshot_protection"
     }
     
     static var `default`: PrivacySettings {
@@ -277,7 +279,8 @@ struct PrivacySettings: Codable {
             whoCanSeeProfile: .everyone,
             whoCanSeeOnline: .everyone,
             whoCanSeeLastSeen: .everyone,
-            autoDeleteMessages: 0
+            autoDeleteMessages: 0,
+            screenshotProtection: false
         )
     }
 }
