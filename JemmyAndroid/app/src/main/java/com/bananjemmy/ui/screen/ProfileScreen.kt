@@ -185,6 +185,36 @@ fun ProfileScreen(
             }
             
             Spacer(modifier = Modifier.height(32.dp))
+            
+            // Version info
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                val versionName = packageInfo.versionName
+                val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    packageInfo.longVersionCode
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageInfo.versionCode.toLong()
+                }
+                val androidVersion = android.os.Build.VERSION.RELEASE
+                
+                Text(
+                    text = "v$versionName ($versionCode) Beta",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Android $androidVersion",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                )
+            }
         }
     }
     

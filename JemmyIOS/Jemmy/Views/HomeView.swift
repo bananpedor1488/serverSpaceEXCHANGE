@@ -328,6 +328,21 @@ struct ProfileView: View {
                             SettingsSection(title: "Разработка") {
                                 ExportIPAButton()
                             }
+                            
+                            // Version info
+                            VStack(spacing: 4) {
+                                if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
+                                   let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
+                                    Text("v\(version) (\(build)) Beta")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.white.opacity(0.5))
+                                }
+                                
+                                Text("iOS \(UIDevice.current.systemVersion)")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                            .padding(.top, 16)
                         }
                         .padding(.horizontal, 16)
                         .padding(.bottom, 32)
