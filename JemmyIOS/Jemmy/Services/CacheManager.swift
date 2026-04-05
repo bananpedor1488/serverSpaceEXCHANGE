@@ -77,7 +77,10 @@ class CacheManager {
             }
         }
         
-        print("🗑️ Cache cleared")
+        // Удаляем аватарки
+        clearAvatarCache()
+        
+        print("🗑️ Cache cleared (including avatars)")
     }
     
     // MARK: - Cache Size
@@ -99,6 +102,9 @@ class CacheManager {
                 }
             }
         }
+        
+        // Размер аватарок
+        totalSize += getAvatarCacheSize()
         
         print("📊 Total cache size: \(totalSize) bytes")
         return totalSize
