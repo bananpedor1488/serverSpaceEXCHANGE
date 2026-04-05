@@ -181,7 +181,9 @@ struct ChatsListView: View {
                     if privacyManager.hasPinCode || privacyManager.isBiometricEnabled {
                         Button(action: {
                             print("🔒 Manual lock triggered")
-                            privacyManager.lockApp()
+                            Task { @MainActor in
+                                privacyManager.lockApp()
+                            }
                         }) {
                             Image(systemName: "lock.fill")
                                 .foregroundColor(.white)

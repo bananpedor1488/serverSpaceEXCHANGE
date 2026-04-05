@@ -58,17 +58,6 @@ struct HomeView: View {
                 // Stop periodic check when view disappears
                 authViewModel.stopPeriodicAccountCheck()
             }
-            .onChange(of: selectedTab) { _ in
-                // Reset auto-lock timer on user activity
-                privacyManager.resetAutoLockTimer()
-            }
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        // Reset auto-lock timer on any touch
-                        privacyManager.resetAutoLockTimer()
-                    }
-            )
             
             // Beautiful error alert overlay
             if let errorMessage = authViewModel.accountError {

@@ -130,8 +130,10 @@ struct UnlockView: View {
     private func verifyPin() {
         if privacyManager.verifyPinCode(enteredPin) {
             print("✅ PIN correct - unlocking app")
-            withAnimation {
-                privacyManager.unlockApp()
+            Task { @MainActor in
+                withAnimation {
+                    privacyManager.unlockApp()
+                }
             }
         } else {
             print("❌ PIN incorrect")
@@ -158,8 +160,10 @@ struct UnlockView: View {
                 
                 if success {
                     print("✅ Biometric authentication successful")
-                    withAnimation {
-                        privacyManager.unlockApp()
+                    Task { @MainActor in
+                        withAnimation {
+                            privacyManager.unlockApp()
+                        }
                     }
                 } else {
                     print("❌ Biometric authentication failed")

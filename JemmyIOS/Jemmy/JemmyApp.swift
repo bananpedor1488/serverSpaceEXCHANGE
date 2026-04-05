@@ -81,18 +81,13 @@ struct JemmyApp: App {
         switch newPhase {
         case .background:
             print("📱 App went to background")
-            // Lock app when going to background if PIN is set
-            if privacyManager.hasPinCode || privacyManager.isBiometricEnabled {
-                privacyManager.lockApp()
-            }
+            // Record the time when app goes to background
+            privacyManager.recordBackgroundTime()
             
         case .active:
             print("📱 App became active")
-            // App is now active, unlock screen will show if needed
-            // Start auto-lock timer when app becomes active (after unlock)
-            if !privacyManager.isAppLocked {
-                privacyManager.startAutoLockTimer()
-            }
+            // Check if we need to lock based on time elapsed since background
+            privacyManager.checkAutoLockOnReturn()
             
         case .inactive:
             print("📱 App became inactive")

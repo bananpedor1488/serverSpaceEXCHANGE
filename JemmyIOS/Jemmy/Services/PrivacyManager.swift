@@ -152,66 +152,56 @@ class PrivacyManager: ObservableObject {
     
     // MARK: - App Lock State
     
+    @MainActor
     func lockApp() {
         isAppLocked = true
         requiresAuthentication = true
-        stopAutoLockTimer()
     }
     
+    @MainActor
     func unlockApp() {
         isAppLocked = false
         requiresAuthentication = false
-        startAutoLockTimer()
     }
     
     func checkShouldLock() {
         if hasPinCode || isBiometricEnabled {
-            lockApp()
+            Task { @MainActor in
+                lockApp()
+            }
         }
     }
     
     // MARK: - Auto Lock Timer
     
-    func startAutoLockTimer() {
-        guard hasPinCode || isBiometricEnabled else { return }
-        
+    func recordBackgroundTime() {
         lastActiveTime = Date()
-        autoLockTimer?.invalidate()
-        
-        print("🔒 Starting auto-lock timer (\(autoLockMinutes) minutes)")
-        
-        // Check every 30 seconds
-        autoLockTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            self?.checkAutoLock()
+        print("📱 Recorded background time: \(lastActiveTime!)")
+    }
+    
+    func checkAutoLockOnReturn() {
+        guard let backgroundTime = lastActiveTime else {
+            print("⚠️ No background time recorded")
+            return
         }
-    }
-    
-    func stopAutoLockTimer() {
-        autoLockTimer?.invalidate()
-        autoLockTimer = nil
-        lastActiveTime = nil
-        print("🔓 Stopped auto-lock timer")
-    }
-    
-    func resetAutoLockTimer() {
-        lastActiveTime = Date()
-    }
-    
-    private func checkAutoLock() {
-        guard let lastActive = lastActiveTime else { return }
         guard hasPinCode || isBiometricEnabled else { return }
         
-        let elapsed = Date().timeIntervalSince(lastActive)
+        let elapsed = Date().timeIntervalSince(backgroundTime)
         let lockInterval = TimeInterval(autoLockMinutes * 60)
         
-        print("⏱️ Auto-lock check: \(Int(elapsed))s elapsed, \(Int(lockInterval))s required")
+        print("⏱️ Auto-lock check: \(Int(elapsed))s elapsed since background, \(Int(lockInterval))s required")
         
         if elapsed >= lockInterval {
-            print("🔒 Auto-locking app")
-            DispatchQueue.main.async {
-                self.lockApp()
+            print("🔒 Auto-locking app (time exceeded)")
+            Task { @MainActor in
+                lockApp()
             }
+        } else {
+            print("✅ No auto-lock needed (time not exceeded)")
         }
+        
+        // Clear the background time
+        lastActiveTime = nil
     }
     
     private func loadSettings() {
