@@ -481,6 +481,20 @@ struct ChatView: View {
             }
         }
     }
+    
+    private func loadOtherUserPrivacySettings() {
+        Task {
+            do {
+                let settings = try await APIService.shared.getPrivacySettings(identityId: otherUser.id)
+                await MainActor.run {
+                    otherUserPrivacySettings = settings
+                    print("✅ Loaded privacy settings for \(otherUser.username): screenshot_protection = \(settings.screenshotProtection)")
+                }
+            } catch {
+                print("❌ Failed to load privacy settings for \(otherUser.username): \(error.localizedDescription)")
+            }
+        }
+    }
 }
 
 struct MessageBubble: View {
@@ -533,16 +547,3 @@ struct MessageBubble: View {
     }
 }
 
-    private func loadOtherUserPrivacySettings() {
-        Task {
-            do {
-                let settings = try await APIService.shared.getPrivacySettings(identityId: otherUser.id)
-                await MainActor.run {
-                    otherUserPrivacySettings = settings
-                    print("✅ Loaded privacy settings for \(otherUser.username): screenshot_protection = \(settings.screenshotProtection)")
-                }
-            } catch {
-                print("❌ Failed to load privacy settings for \(otherUser.username): \(error.localizedDescription)")
-            }
-        }
-    }
