@@ -248,18 +248,41 @@ struct UserProfileView: View {
                 let blockedUsers = try await APIService.shared.getBlockedUsers(identityId: currentUserId)
                 print("📋 Got \(blockedUsers.count) blocked users")
                 
-                let wasBlocked = isBlocked
-                isBlocked = blockedUsers.contains { $0.id == user.id }
-                
-                print("✅ User \(user.username) blocked status: \(isBlocked) (was: \(wasBlocked))")
-                
-                if isBlocked {
-                    print("🚫 User IS BLOCKED")
-                } else {
-                    print("✅ User IS NOT BLOCKED")
+                await MainActor.run {
+                    let wasBlocked = isBlocked
+                    isBlocked = blockedUsers.contains { $0.id == user.id }
+                    
+                    print("✅ User \(user.username) blocked status: \(isBlocked) (was: \(wasBlocked))")
+                    
+                    if isBlocked {
+                        print("🚫 User IS BLOCKED")
+                    } else {
+                        print("✅ User IS NOT BLOCKED")
+                    }
                 }
             } catch {
                 print("❌ Failed to check blocked status: \(error)")
+                
+                // More detailed error logging
+                if let decodingError = error as? DecodingError {
+                    switch decodingError {
+                    case .keyNotFound(let key, let context):
+                        print("❌ Missing key: \(key.stringValue)")
+                        print("   Context: \(context.debugDescription)")
+                        print("   CodingPath: \(context.codingPath)")
+                    case .typeMismatch(let type, let context):
+                        print("❌ Type mismatch: expected \(type)")
+                        print("   Context: \(context.debugDescription)")
+                    case .valueNotFound(let type, let context):
+                        print("❌ Value not found: \(type)")
+                        print("   Context: \(context.debugDescription)")
+                    case .dataCorrupted(let context):
+                        print("❌ Data corrupted")
+                        print("   Context: \(context.debugDescription)")
+                    @unknown default:
+                        print("❌ Unknown decoding error")
+                    }
+                }
             }
         }
     }

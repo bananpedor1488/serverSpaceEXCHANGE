@@ -11,7 +11,8 @@ struct Identity: Codable, Identifiable {
     let lastSeen: String?
     
     enum CodingKeys: String, CodingKey {
-        case id = "_id"
+        case _id = "_id"
+        case id
         case username
         case avatar
         case avatarUpdatedAt = "avatar_updated_at"
@@ -23,7 +24,22 @@ struct Identity: Codable, Identifiable {
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
+        
+        // Try _id first, then id
+        if let _id = try? container.decode(String.self, forKey: ._id) {
+            id = _id
+        } else if let idValue = try? container.decode(String.self, forKey: .id) {
+            id = idValue
+        } else {
+            throw DecodingError.keyNotFound(
+                CodingKeys._id,
+                DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Neither '_id' nor 'id' found"
+                )
+            )
+        }
+        
         username = try container.decode(String.self, forKey: .username)
         avatar = (try? container.decode(String.self, forKey: .avatar)) ?? ""
         bio = (try? container.decode(String.self, forKey: .bio)) ?? ""
@@ -50,7 +66,7 @@ struct Identity: Codable, Identifiable {
     
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
+        try container.encode(id, forKey: ._id)
         try container.encode(username, forKey: .username)
         try container.encode(avatar, forKey: .avatar)
         try container.encodeIfPresent(avatarUpdatedAt, forKey: .avatarUpdatedAt)

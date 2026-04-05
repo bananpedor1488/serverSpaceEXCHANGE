@@ -764,10 +764,37 @@ class APIService {
         print("📡 Request: GET /identity/blocked-list/\(identityId)")
         
         let url = URL(string: "\(baseURL)/identity/blocked-list/\(identityId)")!
-        let (data, _) = try await URLSession.shared.data(from: url)
         
-        let response = try JSONDecoder().decode(BlockedUserResponse.self, from: data)
-        print("✅ Blocked users loaded: \(response.blockedUsers.count)")
-        return response.blockedUsers
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("📥 Response: \(httpResponse.statusCode)")
+            }
+            
+            // Log raw response
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("📥 Raw response: \(jsonString)")
+            }
+            
+            // Try to decode the response
+            let decoder = JSONDecoder()
+            let blockedResponse = try decoder.decode(BlockedUserResponse.self, from: data)
+            print("✅ Blocked users loaded: \(blockedResponse.blockedUsers.count)")
+            return blockedResponse.blockedUsers
+        } catch let DecodingError.keyNotFound(key, context) {
+            print("❌ Key '\(key.stringValue)' not found:", context.debugDescription)
+            print("codingPath:", context.codingPath)
+            
+            // Try to parse as raw JSON to see what we got
+            if let json = try? JSONSerialization.jsonObject(with: data, options: []) {
+                print("📦 Actual JSON structure:", json)
+            }
+            
+            throw DecodingError.keyNotFound(key, context)
+        } catch {
+            print("❌ Failed to decode blocked users: \(error)")
+            throw error
+        }
     }
 }
