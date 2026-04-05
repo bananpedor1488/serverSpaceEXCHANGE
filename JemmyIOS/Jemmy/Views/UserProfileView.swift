@@ -8,7 +8,9 @@ struct UserProfileView: View {
     @State private var selectedTab = 0
     @State private var isOnline = false
     @State private var lastSeen: Int64 = 0
-    @State private var showBlockAlert = false
+    @State private var isBlocked = false
+    @State private var showBlockDialog = false
+    @State private var showUnblockDialog = false
     
     var statusText: String {
         if isOnline {
@@ -82,7 +84,7 @@ struct UserProfileView: View {
                         
                         Text(statusText)
                             .font(.system(size: 15))
-                            .foregroundColor(.white.opacity(0.6))
+                            .foregroundColor(isOnline ? .green : .white.opacity(0.6))
                         
                         if !user.bio.isEmpty {
                             Text(user.bio)
@@ -115,11 +117,16 @@ struct UserProfileView: View {
                             .padding(.leading, 60)
                         
                         SettingsButton(
-                            icon: "hand.raised.fill",
-                            title: "Заблокировать пользователя",
+                            icon: isBlocked ? "checkmark" : "hand.raised.fill",
+                            title: isBlocked ? "Разблокировать" : "Заблокировать",
                             action: {
-                                showBlockAlert = true
-                            }
+                                if isBlocked {
+                                    showUnblockDialog = true
+                                } else {
+                                    showBlockDialog = true
+                                }
+                            },
+                            textColor: isBlocked ? .blue : .red
                         )
                     }
                     .background(Color.white.opacity(0.05))
@@ -186,13 +193,21 @@ struct UserProfileView: View {
                 }
             }
         }
-        .alert("Заблокировать пользователя?", isPresented: $showBlockAlert) {
+        .alert("Заблокировать пользователя?", isPresented: $showBlockDialog) {
             Button("Отмена", role: .cancel) {}
             Button("Заблокировать", role: .destructive) {
                 performBlock()
             }
         } message: {
-            Text("Вы больше не будете получать сообщения от \(user.username)")
+            Text("Вы не сможете получать сообщения от @\(user.username)")
+        }
+        .alert("Разблокировать пользователя?", isPresented: $showUnblockDialog) {
+            Button("Отмена", role: .cancel) {}
+            Button("Разблокировать") {
+                performUnblock()
+            }
+        } message: {
+            Text("Вы сможете снова получать сообщения от @\(user.username)")
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -213,20 +228,50 @@ struct UserProfileView: View {
         .onAppear {
             setupWebSocket()
             updateUserStatus()
+            checkIfBlocked()
         }
         .onDisappear {
             WebSocketManager.shared.onUserStatus = nil
         }
     }
     
-    private func performBlock() {
+    private func checkIfBlocked() {
+        guard let currentUserId = authViewModel.userId else { return }
+        
         Task {
             do {
-                guard let currentUserId = authViewModel.userId else { return }
+                let blockedUsers = try await APIService.shared.getBlockedUsers(identityId: currentUserId)
+                isBlocked = blockedUsers.contains { $0.id == user.id }
+            } catch {
+                print("❌ Failed to check blocked status: \(error)")
+            }
+        }
+    }
+    
+    private func performBlock() {
+        guard let currentUserId = authViewModel.userId else { return }
+        
+        Task {
+            do {
                 try await APIService.shared.blockUser(blockerIdentityId: currentUserId, blockedIdentityId: user.id)
-                dismiss()
+                isBlocked = true
+                showBlockDialog = false
             } catch {
                 print("❌ Failed to block user: \(error)")
+            }
+        }
+    }
+    
+    private func performUnblock() {
+        guard let currentUserId = authViewModel.userId else { return }
+        
+        Task {
+            do {
+                try await APIService.shared.unblockUser(blockerIdentityId: currentUserId, blockedIdentityId: user.id)
+                isBlocked = false
+                showUnblockDialog = false
+            } catch {
+                print("❌ Failed to unblock user: \(error)")
             }
         }
     }
@@ -305,18 +350,19 @@ struct SettingsButton: View {
     let icon: String
     let title: String
     let action: () -> Void
+    var textColor: Color = .white
     
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.system(size: 20))
-                    .foregroundColor(.blue)
+                    .foregroundColor(textColor == .red ? .red : .blue)
                     .frame(width: 28)
                 
                 Text(title)
                     .font(.system(size: 17))
-                    .foregroundColor(.white)
+                    .foregroundColor(textColor)
                 
                 Spacer()
                 
