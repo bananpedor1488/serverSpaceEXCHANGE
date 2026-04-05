@@ -232,7 +232,7 @@ fun ContactProfileScreen(
                     )
                     
                     ContactSettingsItem(
-                        icon = if (isBlocked) Icons.Filled.Check else Icons.Filled.Cancel,
+                        icon = if (isBlocked) Icons.Filled.Check else Icons.Filled.Close,
                         title = if (isBlocked) "Разблокировать" else "Заблокировать",
                         onClick = {
                             if (isBlocked) {

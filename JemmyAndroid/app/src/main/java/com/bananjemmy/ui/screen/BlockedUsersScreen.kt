@@ -6,7 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -76,7 +76,7 @@ fun BlockedUsersScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Cancel,
+                            imageVector = Icons.Filled.Close,
                             contentDescription = null,
                             modifier = Modifier.size(60.dp),
                             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
