@@ -1,9 +1,10 @@
 package com.bananjemmy.ui.screen
 
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -12,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bananjemmy.data.model.Identity
@@ -23,16 +23,16 @@ import com.bananjemmy.data.cache.CacheManager
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    onSearch: suspend (String) -> Result<Identity>,
+    onSearch: suspend (String) -> Result<List<Identity>>,
     onStartChat: suspend (Identity) -> Result<String>,
     onDismiss: () -> Unit,
     onChatCreated: (String) -> Unit,
     cacheManager: CacheManager
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var foundIdentity by remember { mutableStateOf<Identity?>(null) }
+    var foundIdentities by remember { mutableStateOf<List<Identity>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
-    var isCreatingChat by remember { mutableStateOf(false) }
+    var creatingChatForId by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     val coroutineScope = rememberCoroutineScope()
@@ -71,10 +71,10 @@ fun SearchScreen(
                 onValueChange = { 
                     searchQuery = it
                     errorMessage = null
-                    if (it.isEmpty()) foundIdentity = null
+                    if (it.isEmpty()) foundIdentities = emptyList()
                 },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Введите username") },
+                placeholder = { Text("Введите username (с @ или без)") },
                 leadingIcon = {
                     Icon(Icons.Filled.Search, null)
                 },
@@ -82,7 +82,7 @@ fun SearchScreen(
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { 
                             searchQuery = ""
-                            foundIdentity = null
+                            foundIdentities = emptyList()
                             errorMessage = null
                         }) {
                             Icon(Icons.Filled.Clear, "Очистить")
@@ -101,13 +101,17 @@ fun SearchScreen(
                     if (searchQuery.isNotBlank()) {
                         isSearching = true
                         errorMessage = null
-                        foundIdentity = null
+                        foundIdentities = emptyList()
                         coroutineScope.launch {
                             val result = onSearch(searchQuery.trim())
-                            result.onSuccess { identity ->
-                                foundIdentity = identity
+                            result.onSuccess { identities ->
+                                if (identities.isEmpty()) {
+                                    errorMessage = "Пользователи не найдены"
+                                } else {
+                                    foundIdentities = identities
+                                }
                             }.onFailure {
-                                errorMessage = "Пользователь не найден"
+                                errorMessage = "Ошибка поиска"
                             }
                             isSearching = false
                         }
@@ -165,92 +169,102 @@ fun SearchScreen(
                 }
             }
             
-            // Found user card
+            // Found users list
             AnimatedVisibility(
-                visible = foundIdentity != null,
+                visible = foundIdentities.isNotEmpty(),
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
-                foundIdentity?.let { identity ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            // Avatar
-                            AvatarImage(
-                                identity = identity,
-                                cacheManager = cacheManager,
-                                size = 72.dp
-                            )
-                            
-                            // Username
-                            Text(
-                                text = "@${identity.username}",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            
-                            // Bio
-                            if (identity.bio.isNotEmpty()) {
-                                Text(
-                                    text = identity.bio,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                    lineHeight = 20.sp
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.height(4.dp))
-                            
-                            // Start chat button
-                            Button(
-                                onClick = {
-                                    isCreatingChat = true
-                                    coroutineScope.launch {
-                                        val result = onStartChat(identity)
-                                        result.onSuccess { chatId ->
-                                            onChatCreated(chatId)
-                                            onDismiss()
-                                        }.onFailure {
-                                            errorMessage = "Не удалось создать чат"
-                                        }
-                                        isCreatingChat = false
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(foundIdentities) { identity ->
+                        UserSearchResultCard(
+                            identity = identity,
+                            cacheManager = cacheManager,
+                            isCreatingChat = creatingChatForId == identity.id,
+                            onClick = {
+                                creatingChatForId = identity.id
+                                coroutineScope.launch {
+                                    val result = onStartChat(identity)
+                                    result.onSuccess { chatId ->
+                                        onChatCreated(chatId)
+                                        onDismiss()
+                                    }.onFailure {
+                                        errorMessage = "Не удалось создать чат"
+                                        creatingChatForId = null
                                     }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                enabled = !isCreatingChat,
-                                shape = RoundedCornerShape(24.dp)
-                            ) {
-                                if (isCreatingChat) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                } else {
-                                    Icon(
-                                        Icons.Filled.Send,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Начать чат", fontSize = 16.sp)
                                 }
                             }
-                        }
+                        )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun UserSearchResultCard(
+    identity: Identity,
+    cacheManager: CacheManager,
+    isCreatingChat: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !isCreatingChat, onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar
+            AvatarImage(
+                identity = identity,
+                cacheManager = cacheManager,
+                size = 48.dp
+            )
+            
+            // Username and bio
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "@${identity.username}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                if (identity.bio.isNotEmpty()) {
+                    Text(
+                        text = identity.bio,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
+            }
+            
+            if (isCreatingChat) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

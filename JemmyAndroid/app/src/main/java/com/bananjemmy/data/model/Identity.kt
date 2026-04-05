@@ -122,3 +122,8 @@ data class AmIBlockedResponse(
     @SerializedName("is_blocked")
     val isBlocked: Boolean
 )
+
+data class SearchResponse(
+    @SerializedName("results")
+    val results: List<Identity>
+)

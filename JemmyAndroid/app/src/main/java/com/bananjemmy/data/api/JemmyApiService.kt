@@ -68,7 +68,10 @@ interface JemmyApiService {
     
     // Search endpoints
     @GET("api/identity/search/{username}")
-    suspend fun searchByUsername(@Path("username") username: String): Response<Identity>
+    suspend fun searchByUsername(
+        @Path("username") username: String,
+        @Query("current_identity_id") currentIdentityId: String? = null
+    ): Response<SearchResponse>
     
     // Direct chat
     @POST("api/chat/direct")

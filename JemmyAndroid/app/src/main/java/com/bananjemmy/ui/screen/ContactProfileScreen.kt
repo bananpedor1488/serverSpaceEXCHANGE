@@ -1,5 +1,6 @@
 package com.bananjemmy.ui.screen
 
+import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -49,13 +50,20 @@ fun ContactProfileScreen(
     
     // Check if user is blocked
     LaunchedEffect(Unit) {
+        Log.d("ContactProfile", "🔍 Checking block status for user ${user.username} (${user.id})")
+        Log.d("ContactProfile", "📋 Current user ID: $currentUserId")
+        
         repository.getBlockedUsers(currentUserId).onSuccess { blockedUsers ->
             isBlocked = blockedUsers.any { it.id == user.id }
+            Log.d("ContactProfile", "✅ isBlocked = $isBlocked")
         }
         
         // Check if I am blocked by this user
         repository.amIBlockedBy(currentUserId, user.id).onSuccess { blocked ->
             amIBlocked = blocked
+            Log.d("ContactProfile", "✅ amIBlocked = $amIBlocked")
+        }.onFailure { error ->
+            Log.e("ContactProfile", "❌ Failed to check amIBlocked: ${error.message}")
         }
     }
     

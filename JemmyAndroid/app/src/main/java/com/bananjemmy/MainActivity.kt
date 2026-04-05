@@ -31,6 +31,7 @@ import kotlinx.coroutines.runBlocking
 import com.bananjemmy.data.model.Chat
 import com.bananjemmy.data.model.Identity
 import com.bananjemmy.data.repository.JemmyRepository
+import com.bananjemmy.ui.screen.BlockedUsersScreen
 import com.bananjemmy.ui.screen.ChatListScreen
 import com.bananjemmy.ui.screen.ChatScreen
 import com.bananjemmy.ui.screen.DataStorageScreen
@@ -113,6 +114,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+    
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        // Блокируем кнопку "Назад" - ничего не делаем
+        // Пользователь не может выйти из приложения кнопкой назад
     }
     
     override fun onNewIntent(intent: Intent) {
@@ -424,6 +431,7 @@ fun MainScreen(
     var showEditProfile by remember { mutableStateOf(false) }
     var showDataStorage by remember { mutableStateOf(false) }
     var showPrivacySettings by remember { mutableStateOf(false) }
+    var showBlockedUsers by remember { mutableStateOf(false) }
     var selectedChat by remember { mutableStateOf<Chat?>(null) }
     
     // Получаем pendingInvite из ViewModel
@@ -486,7 +494,7 @@ fun MainScreen(
             SearchScreen(
                 onSearch = { username ->
                     val repository = com.bananjemmy.data.repository.JemmyRepository()
-                    repository.searchByUsername(username)
+                    repository.searchByUsername(username, identity.id)
                 },
                 onStartChat = { foundIdentity ->
                     val repository = com.bananjemmy.data.repository.JemmyRepository()
@@ -747,6 +755,27 @@ fun MainScreen(
                         showPrivacySettings = false
                         showBlockedUsers = true
                     }
+                )
+            }
+        }
+    }
+    
+    // Blocked Users Dialog
+    if (showBlockedUsers) {
+        Dialog(
+            onDismissRequest = { showBlockedUsers = false },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                BlockedUsersScreen(
+                    currentUserId = identity.id,
+                    onBack = { showBlockedUsers = false },
+                    cacheManager = cacheManager
                 )
             }
         }

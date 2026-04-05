@@ -1,12 +1,17 @@
 import SwiftUI
 
+struct SearchResponse: Codable {
+    let results: [Identity]
+}
+
 struct SearchView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var searchUsername = ""
-    @State private var foundIdentity: Identity?
+    @State private var foundIdentities: [Identity] = []
     @State private var isSearching = false
-    @State private var isCreatingChat = false
+    @State private var creatingChatForId: String?
     @State private var showError = false
+    @State private var errorMessage = ""
     @Binding var createdChat: CreatedChat?
     @Environment(\.dismiss) var dismiss
     
@@ -47,14 +52,17 @@ struct SearchView: View {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(.white.opacity(0.5))
                             
-                            TextField("Введи username", text: $searchUsername)
+                            TextField("Введи username (с @ или без)", text: $searchUsername)
                                 .font(.system(size: 17))
                                 .foregroundColor(.white)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
                             
                             if !searchUsername.isEmpty {
-                                Button(action: { searchUsername = "" }) {
+                                Button(action: { 
+                                    searchUsername = ""
+                                    foundIdentities = []
+                                }) {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(.white.opacity(0.5))
                                 }
@@ -85,46 +93,19 @@ struct SearchView: View {
                         .padding(.horizontal, 20)
                         .disabled(searchUsername.isEmpty || isSearching)
                         
-                        if let identity = foundIdentity {
-                            VStack(spacing: 20) {
-                                AvatarView(identity: identity, size: 80)
-                                
-                                VStack(spacing: 8) {
-                                    Text(identity.username)
-                                        .font(.system(size: 22, weight: .semibold))
-                                        .foregroundColor(.white)
-                                }
-                                
-                                if !identity.bio.isEmpty {
-                                    Text(identity.bio)
-                                        .font(.system(size: 15))
-                                        .foregroundColor(.white.opacity(0.7))
-                                        .multilineTextAlignment(.center)
-                                        .padding(.horizontal, 20)
-                                }
-                                
-                                Button(action: startDirectChat) {
-                                    HStack(spacing: 8) {
-                                        if isCreatingChat {
-                                            ProgressView()
-                                                .tint(.white)
-                                        } else {
-                                            Text("Начать чат")
-                                                .font(.system(size: 17, weight: .semibold))
+                        // Results list
+                        if !foundIdentities.isEmpty {
+                            VStack(spacing: 12) {
+                                ForEach(foundIdentities) { identity in
+                                    UserSearchResultRow(
+                                        identity: identity,
+                                        isCreatingChat: creatingChatForId == identity.id,
+                                        onClick: {
+                                            startDirectChat(with: identity)
                                         }
-                                    }
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(Color.blue)
-                                    .cornerRadius(12)
+                                    )
                                 }
-                                .padding(.horizontal, 20)
-                                .disabled(isCreatingChat)
                             }
-                            .padding(.vertical, 24)
-                            .background(Color.white.opacity(0.05))
-                            .cornerRadius(16)
                             .padding(.horizontal, 20)
                             .transition(.scale.combined(with: .opacity))
                         }
@@ -134,30 +115,51 @@ struct SearchView: View {
                 }
             }
         }
-        .alert("Не найдено", isPresented: $showError) {
+        .alert("Ошибка", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("Пользователь \(searchUsername) не найден")
+            Text(errorMessage)
         }
     }
     
     private func searchByUsername() {
+        guard let myIdentityId = authViewModel.identity?.id else {
+            errorMessage = "Не удалось получить ваш ID"
+            showError = true
+            return
+        }
+        
         isSearching = true
+        foundIdentities = []
+        
         Task {
             do {
-                let url = URL(string: "https://weeky-six.vercel.app/api/identity/search/\(searchUsername)")!
-                let (data, _) = try await URLSession.shared.data(from: url)
-                let identity = try JSONDecoder().decode(Identity.self, from: data)
+                // Убираем @ если есть
+                let cleanUsername = searchUsername.hasPrefix("@") ? String(searchUsername.dropFirst()) : searchUsername
+                
+                var urlComponents = URLComponents(string: "https://weeky-six.vercel.app/api/identity/search/\(cleanUsername)")!
+                urlComponents.queryItems = [
+                    URLQueryItem(name: "current_identity_id", value: myIdentityId)
+                ]
+                
+                let (data, _) = try await URLSession.shared.data(from: urlComponents.url!)
+                let response = try JSONDecoder().decode(SearchResponse.self, from: data)
                 
                 await MainActor.run {
                     withAnimation(.easeInOut(duration: 0.3)) {
-                        foundIdentity = identity
+                        if response.results.isEmpty {
+                            errorMessage = "Пользователи не найдены"
+                            showError = true
+                        } else {
+                            foundIdentities = response.results
+                        }
                     }
                 }
             } catch {
                 await MainActor.run {
+                    errorMessage = "Ошибка поиска: \(error.localizedDescription)"
                     showError = true
-                    foundIdentity = nil
+                    foundIdentities = []
                 }
             }
             await MainActor.run {
@@ -166,35 +168,78 @@ struct SearchView: View {
         }
     }
     
-    private func startDirectChat() {
-        guard let myIdentityId = authViewModel.identity?.id,
-              let otherIdentity = foundIdentity else {
+    private func startDirectChat(with identity: Identity) {
+        guard let myIdentityId = authViewModel.identity?.id else {
             print("❌ Missing identity")
             return
         }
         
-        isCreatingChat = true
-        print("📡 Creating direct chat with:", otherIdentity.username)
+        creatingChatForId = identity.id
+        print("📡 Creating direct chat with:", identity.username)
         
         Task {
             do {
                 let response = try await APIService.shared.startDirectChat(
                     myIdentityId: myIdentityId,
-                    otherIdentityId: otherIdentity.id
+                    otherIdentityId: identity.id
                 )
                 
                 await MainActor.run {
                     print("✅ чат создан:", response.chatId)
                     createdChat = CreatedChat(chatId: response.chatId, otherUser: response.otherUser)
-                    isCreatingChat = false
+                    creatingChatForId = nil
                     dismiss()
                 }
             } catch {
                 await MainActor.run {
                     print("❌ error:", error.localizedDescription)
-                    isCreatingChat = false
+                    errorMessage = "Не удалось создать чат"
+                    showError = true
+                    creatingChatForId = nil
                 }
             }
         }
+    }
+}
+
+struct UserSearchResultRow: View {
+    let identity: Identity
+    let isCreatingChat: Bool
+    let onClick: () -> Void
+    
+    var body: some View {
+        Button(action: onClick) {
+            HStack(spacing: 12) {
+                AvatarView(identity: identity, size: 48)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("@\(identity.username)")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                    
+                    if !identity.bio.isEmpty {
+                        Text(identity.bio)
+                            .font(.system(size: 14))
+                            .foregroundColor(.white.opacity(0.6))
+                            .lineLimit(1)
+                    }
+                }
+                
+                Spacer()
+                
+                if isCreatingChat {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.white.opacity(0.3))
+                }
+            }
+            .padding()
+            .background(Color.white.opacity(0.05))
+            .cornerRadius(12)
+        }
+        .disabled(isCreatingChat)
     }
 }

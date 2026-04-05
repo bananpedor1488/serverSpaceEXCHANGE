@@ -328,15 +328,24 @@ class JemmyRepository {
     }
     
     // Search operations
-    suspend fun searchByUsername(username: String): Result<Identity> {
+    suspend fun searchByUsername(username: String, currentUserId: String): Result<List<Identity>> {
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Searching for username: $username")
-                val response = api.searchByUsername(username)
+                // Убираем @ если есть
+                val cleanUsername = if (username.startsWith("@")) username.substring(1) else username
+                
+                Log.d(TAG, "Searching for username: $cleanUsername, excluding: $currentUserId")
+                val response = api.searchByUsername(cleanUsername, currentUserId)
                 if (response.isSuccessful && response.body() != null) {
-                    Log.d(TAG, "User found: ${response.body()?.username}")
-                    Result.success(response.body()!!)
+                    val results = response.body()?.results ?: emptyList()
+                    Log.d(TAG, "Found ${results.size} users")
+                    if (results.isEmpty()) {
+                        Result.failure(Exception("User not found"))
+                    } else {
+                        Result.success(results)
+                    }
                 } else {
+                    Log.e(TAG, "Search failed: ${response.code()} ${response.message()}")
                     Result.failure(Exception("User not found"))
                 }
             } catch (e: Exception) {
