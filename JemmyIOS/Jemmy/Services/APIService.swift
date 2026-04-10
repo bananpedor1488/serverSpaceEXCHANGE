@@ -827,7 +827,7 @@ class APIService {
         print("📡 Request: POST /api/devices/register")
         print("📦 Device: \(deviceName) (\(deviceModel))")
         
-        let url = URL(string: "\(baseURL)/api/devices/register")!
+        let url = URL(string: "\(baseURL)/devices/register")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
