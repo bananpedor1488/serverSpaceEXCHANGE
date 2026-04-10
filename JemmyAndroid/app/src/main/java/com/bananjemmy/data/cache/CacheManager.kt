@@ -143,7 +143,11 @@ class CacheManager(context: Context) {
             }
         }
         
-        Log.d("CACHE", "📊 Total database size: $totalSize bytes (${totalSize / 1024.0} KB)")
+        // Добавляем размер аватарок
+        val avatarSize = getAvatarCacheSize()
+        totalSize += avatarSize
+        
+        Log.d("CACHE", "📊 Total database size: $totalSize bytes (${totalSize / 1024.0} KB) including avatars")
         
         return totalSize
     }
@@ -170,7 +174,10 @@ class CacheManager(context: Context) {
             messageDao.deleteAllMessages()
             identityDao.deleteAllIdentities()
             
-            Log.d("CACHE", "Cleared all cache data")
+            // Очищаем аватарки
+            clearAvatarCache()
+            
+            Log.d("CACHE", "Cleared all cache data (including avatars)")
             
             // Пытаемся сжать базу данных (может не сработать если база активна)
             try {

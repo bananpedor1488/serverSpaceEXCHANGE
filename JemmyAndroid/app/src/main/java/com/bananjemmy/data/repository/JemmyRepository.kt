@@ -653,4 +653,79 @@ class JemmyRepository {
             }
         }
     }
+    
+    // Get devices for identity
+    suspend fun getDevices(identityId: String): Result<DevicesResponse> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "📡 Request: GET /api/devices/$identityId")
+                val response = api.getDevices(identityId)
+                if (response.isSuccessful && response.body() != null) {
+                    Log.d(TAG, "✅ Devices loaded: ${response.body()!!.devices.size}")
+                    Result.success(response.body()!!)
+                } else {
+                    Log.e(TAG, "❌ Failed to load devices: ${response.code()}")
+                    Result.failure(Exception("Failed to load devices"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error loading devices", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    // Register device
+    suspend fun registerDevice(
+        identityId: String,
+        deviceName: String,
+        deviceModel: String,
+        platform: String,
+        osVersion: String,
+        appVersion: String
+    ): Result<Device> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "📡 Request: POST /api/devices/register")
+                Log.d(TAG, "📦 Device: $deviceName ($deviceModel)")
+                
+                val request = RegisterDeviceRequest(
+                    identityId, deviceName, deviceModel, platform, osVersion, appVersion
+                )
+                val response = api.registerDevice(request)
+                if (response.isSuccessful && response.body() != null) {
+                    Log.d(TAG, "✅ Device registered")
+                    Result.success(response.body()!!)
+                } else {
+                    Log.e(TAG, "❌ Failed to register device: ${response.code()}")
+                    Result.failure(Exception("Failed to register device"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error registering device", e)
+                Result.failure(e)
+            }
+        }
+    }
+    
+    // Logout device
+    suspend fun logoutDevice(identityId: String, deviceId: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "📡 Request: POST /api/devices/logout")
+                Log.d(TAG, "📦 Device ID: $deviceId")
+                
+                val request = LogoutDeviceRequest(identityId, deviceId)
+                val response = api.logoutDevice(request)
+                if (response.isSuccessful) {
+                    Log.d(TAG, "✅ Device logged out")
+                    Result.success(Unit)
+                } else {
+                    Log.e(TAG, "❌ Failed to logout device: ${response.code()}")
+                    Result.failure(Exception("Failed to logout device"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error logging out device", e)
+                Result.failure(e)
+            }
+        }
+    }
 }

@@ -433,6 +433,7 @@ fun MainScreen(
     var showDataStorage by remember { mutableStateOf(false) }
     var showPrivacySettings by remember { mutableStateOf(false) }
     var showBlockedUsers by remember { mutableStateOf(false) }
+    var showDevices by remember { mutableStateOf(false) }
     var selectedChat by remember { mutableStateOf<Chat?>(null) }
     
     // Получаем pendingInvite из ViewModel
@@ -599,6 +600,7 @@ fun MainScreen(
                                     onNavigateToEdit = { showEditProfile = true },
                                     onNavigateToDataStorage = { showDataStorage = true },
                                     onNavigateToPrivacy = { showPrivacySettings = true },
+                                    onNavigateToDevices = { showDevices = true },
                                     cacheManager = cacheManager
                                 )
                             }
@@ -772,7 +774,6 @@ fun MainScreen(
                     repository = com.bananjemmy.data.repository.JemmyRepository(),
                     onBack = { showPrivacySettings = false },
                     onNavigateToBlockedUsers = {
-                        showPrivacySettings = false
                         showBlockedUsers = true
                     }
                 )
@@ -783,7 +784,10 @@ fun MainScreen(
     // Blocked Users Dialog
     if (showBlockedUsers) {
         Dialog(
-            onDismissRequest = { showBlockedUsers = false },
+            onDismissRequest = { 
+                showBlockedUsers = false
+                showPrivacySettings = true
+            },
             properties = androidx.compose.ui.window.DialogProperties(
                 usePlatformDefaultWidth = false
             )
@@ -794,8 +798,31 @@ fun MainScreen(
             ) {
                 BlockedUsersScreen(
                     currentUserId = identity.id,
-                    onBack = { showBlockedUsers = false },
+                    onBack = { 
+                        showBlockedUsers = false
+                        showPrivacySettings = true
+                    },
                     cacheManager = cacheManager
+                )
+            }
+        }
+    }
+    
+    // Devices Dialog
+    if (showDevices) {
+        Dialog(
+            onDismissRequest = { showDevices = false },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                com.bananjemmy.ui.screen.DevicesScreen(
+                    identityId = identity.id,
+                    onBack = { showDevices = false }
                 )
             }
         }

@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../../.."
+		},
+		{
+			"path": "../../../../../../../../JEMMY-SERVER"
+		},
+		{
+			"path": "../../../../../../../../../../AndroidStudioProjects/Jemmy"
+		}
+	],
+	"settings": {
+		"git.ignoreLimitWarning": true,
+		"typescript.autoClosingTags": false
+	}
+}

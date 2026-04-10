@@ -71,18 +71,18 @@ fun AvatarImage(
 private suspend fun loadAvatar(identity: Identity, cacheManager: CacheManager): Bitmap? {
     return withContext(Dispatchers.IO) {
         try {
-            // Check if we have avatar data
-            if (identity.avatar.isNullOrEmpty()) {
-                Log.d("AVATAR", "❌ No avatar data for ${identity.username}")
-                return@withContext null
-            }
-            
             val serverUpdatedAt = identity.avatarUpdatedAtLong ?: 0L
             
-            // Check cache first
+            // Check cache first - ALWAYS check cache even if server data is missing
             val cached = cacheManager.getAvatar(identity.id)
             if (cached != null) {
                 val (cachedBase64, cachedUpdatedAt) = cached
+                
+                // If we have no server data, use cache
+                if (identity.avatar.isNullOrEmpty()) {
+                    Log.d("AVATAR", "✅ Using cached avatar (no server data) for ${identity.username}")
+                    return@withContext base64ToBitmap(cachedBase64)
+                }
                 
                 // If cache is up to date, use it
                 if (cachedUpdatedAt >= serverUpdatedAt) {
@@ -91,6 +91,12 @@ private suspend fun loadAvatar(identity: Identity, cacheManager: CacheManager): 
                 } else {
                     Log.d("AVATAR", "⚠️ Cache outdated for ${identity.username} (cached: $cachedUpdatedAt, server: $serverUpdatedAt)")
                 }
+            }
+            
+            // Check if we have avatar data from server
+            if (identity.avatar.isNullOrEmpty()) {
+                Log.d("AVATAR", "❌ No avatar data for ${identity.username} (neither cache nor server)")
+                return@withContext null
             }
             
             // Decode from server data

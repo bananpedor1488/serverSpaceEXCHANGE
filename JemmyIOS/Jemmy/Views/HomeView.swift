@@ -379,8 +379,10 @@ struct ProfileView: View {
                     NavigationLink(destination: DataSettingsView(), isActive: $showDataSettings) {
                         EmptyView()
                     }
-                    NavigationLink(destination: DevicesSettingsView(), isActive: $showDevicesSettings) {
-                        EmptyView()
+                    if let identity = authViewModel.identity {
+                        NavigationLink(destination: DevicesView(identityId: identity.id), isActive: $showDevicesSettings) {
+                            EmptyView()
+                        }
                     }
                 }
             )

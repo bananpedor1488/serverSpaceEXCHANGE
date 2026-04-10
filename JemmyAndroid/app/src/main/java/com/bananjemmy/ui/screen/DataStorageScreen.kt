@@ -30,11 +30,9 @@ fun DataStorageScreen(
     onDismiss: () -> Unit
 ) {
     var showClearDialog by remember { mutableStateOf(false) }
-    var showClearAvatarDialog by remember { mutableStateOf(false) }
     
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Данные и память") },
@@ -45,16 +43,15 @@ fun DataStorageScreen(
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                ),
-                windowInsets = WindowInsets(0.dp)
+                )
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .verticalScroll(rememberScrollState())
+                .padding(padding)
                 .padding(16.dp)
         ) {
             // Cache Info Section
@@ -105,6 +102,14 @@ fun DataStorageScreen(
                     
                     // Stats
                     CacheStatItem(
+                        icon = Icons.Filled.AccountCircle,
+                        label = "Аватарки",
+                        value = "$avatarCount шт."
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    CacheStatItem(
                         icon = Icons.Filled.Email,
                         label = "Чаты",
                         value = "${cacheStats.chatsCount}"
@@ -151,84 +156,11 @@ fun DataStorageScreen(
             
             // Info Text
             Text(
-                text = "Кэш помогает приложению работать быстрее и без интернета. При очистке все сохранённые данные будут удалены.",
+                text = "Кэш помогает приложению работать быстрее и без интернета. При очистке все сохранённые данные (включая аватарки) будут удалены.",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 lineHeight = 20.sp
             )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Photos Section
-            Text(
-                text = "ФОТО",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-            )
-            
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "Аватары",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "$avatarCount шт. • ${String.format("%.2f", avatarCacheSize / 1024.0)} КБ",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
-                        
-                        Icon(
-                            imageVector = Icons.Filled.AccountCircle,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                        )
-                    }
-                    
-                    if (avatarCount > 0) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        Button(
-                            onClick = { showClearAvatarDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Очистить аватары",
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                }
-            }
             
             Spacer(modifier = Modifier.height(24.dp))
             
@@ -280,7 +212,7 @@ fun DataStorageScreen(
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
             title = { Text("Очистить кэш?") },
-            text = { Text("Все сохранённые чаты и сообщения будут удалены. Это действие нельзя отменить.") },
+            text = { Text("Все сохранённые чаты, сообщения и аватарки будут удалены. Это действие нельзя отменить.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -293,30 +225,6 @@ fun DataStorageScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("Отмена")
-                }
-            }
-        )
-    }
-    
-    // Clear Avatar Cache Confirmation Dialog
-    if (showClearAvatarDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearAvatarDialog = false },
-            title = { Text("Очистить аватары?") },
-            text = { Text("Все сохранённые аватары будут удалены. Они загрузятся заново при следующем просмотре профилей.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showClearAvatarDialog = false
-                        onClearAvatarCache()
-                    }
-                ) {
-                    Text("Очистить", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearAvatarDialog = false }) {
                     Text("Отмена")
                 }
             }

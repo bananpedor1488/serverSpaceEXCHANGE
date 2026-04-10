@@ -34,6 +34,7 @@ fun ProfileScreen(
     onNavigateToEdit: () -> Unit = {},
     onNavigateToDataStorage: () -> Unit = {},
     onNavigateToPrivacy: () -> Unit = {},
+    onNavigateToDevices: () -> Unit = {},
     cacheManager: CacheManager
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -148,7 +149,7 @@ fun ProfileScreen(
                 SettingsItem(
                     icon = Icons.Filled.Settings,
                     title = "Устройства",
-                    onClick = { /* TODO */ }
+                    onClick = onNavigateToDevices
                 )
                 SettingsItem(
                     icon = Icons.Filled.Notifications,

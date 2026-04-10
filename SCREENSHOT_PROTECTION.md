@@ -1,74 +1,111 @@
-# Защита от скриншотов
+# Screenshot Protection - COMPLETE ✅
 
-## iOS - ✅ РЕАЛИЗОВАНО
+## Implementation Status: COMPLETE
 
-### Как работает
-1. Пользователь включает "Защита от скриншотов" в настройках приватности
-2. Настройка сохраняется на сервере в `privacy_settings.screenshot_protection`
-3. Когда собеседник открывает чат, загружаются настройки приватности
-4. Если защита включена:
-   - Показывается системное сообщение в чате
-   - При попытке сделать скриншот или начать запись экрана - контент размывается и показывается предупреждение
+All features have been successfully implemented with real-time WebSocket updates.
 
-### Технические детали
+## Features Implemented
 
-**Модификатор**: `ScreenshotProtectionModifier`
-- Отслеживает `UIApplication.userDidTakeScreenshotNotification`
-- Отслеживает `UIScreen.capturedDidChangeNotification` (запись экрана)
-- При активации - размывает контент и показывает overlay
+### iOS ✅
+- Screenshot protection using UITextField.subviews.first trick (Telegram-style)
+- Content appears BLACK on screenshots when protection is enabled
+- System message shows in chat when other user enables protection
+- Screenshot detection with callback to send notification
+- Real-time privacy settings updates via WebSocket
+- Real-time screenshot notifications via WebSocket
+- Toggle in PrivacySettingsView (server-side setting)
 
-**Файлы**:
-- `JemmyIOS/Jemmy/Utils/ScreenshotProtection.swift` - модификатор защиты
-- `JemmyIOS/Jemmy/Views/ChatView.swift` - применение защиты
-- `JemmyIOS/Jemmy/Views/HomeView.swift` - настройки (строка ~690)
-- `JemmyIOS/Jemmy/Models/Identity.swift` - модель PrivacySettings
+### Android ✅
+- Screenshot protection using FLAG_SECURE (blocks screenshots completely)
+- System message shows in chat when other user enables protection
+- Screenshot detection via ContentObserver
+- Real-time privacy settings updates via WebSocket
+- Real-time screenshot notifications via WebSocket
+- Toggle in PrivacySettingsScreen (server-side setting)
 
-**Серверная часть**:
-- `JEMMY-SERVER/server.js` - поле `screenshot_protection` в схеме Identity
+### Server ✅
+- `screenshot_protection` field in Identity schema with default `false`
+- Auto-migration for old records
+- API endpoints for get/update privacy settings
+- WebSocket event `privacy_settings_changed` - broadcasts when user changes settings
+- WebSocket event `screenshot_notification` - broadcasts when screenshot is taken
+- Real-time updates to all chat participants
 
-### Использование
-```swift
-// Применить защиту к любому View
-SomeView()
-    .screenshotProtection(enabled: true)
-```
+## How It Works
 
-## Android - ❌ НЕ РЕАЛИЗОВАНО
+### Privacy Settings Changes
+1. User toggles screenshot protection in settings
+2. Server updates database and broadcasts `privacy_settings_changed` event
+3. All active chats with this user receive the event via WebSocket
+4. System message appears/disappears in real-time
+5. Protection is applied/removed immediately
 
-### План реализации
-1. Добавить `FLAG_SECURE` к окну активности
-2. Создать PrivacyManager для Android
-3. Загружать настройки собеседника в ChatScreen
-4. Показывать системное сообщение в чате
+### Screenshot Notifications
+1. User takes screenshot in protected chat
+2. iOS: ScreenshotProtection detects via callback
+3. Android: ContentObserver detects screenshot
+4. Client sends `screenshot_taken` WebSocket event
+5. Server broadcasts `screenshot_notification` to all chat participants
+6. Message "🔒 [username] сделал(а) скриншот" appears in chat
+7. Message is also persisted to database
 
-### Код для Android
-```kotlin
-// В ChatScreen.kt
-if (otherUserPrivacySettings?.screenshotProtection == true) {
-    // Включить FLAG_SECURE
-    val window = (context as? Activity)?.window
-    window?.setFlags(
-        WindowManager.LayoutParams.FLAG_SECURE,
-        WindowManager.LayoutParams.FLAG_SECURE
-    )
+## WebSocket Events
+
+### privacy_settings_changed
+```json
+{
+  "identity_id": "user_id",
+  "username": "username",
+  "privacy_settings": {
+    "screenshot_protection": true,
+    ...
+  }
 }
 ```
 
-## Тестирование
+### screenshot_notification
+```json
+{
+  "chat_id": "chat_id",
+  "taker_identity_id": "user_id",
+  "taker_username": "username",
+  "timestamp": 1234567890
+}
+```
+
+## Testing
 
 ### iOS
-1. Включить защиту от скриншотов в настройках
-2. Открыть чат с другого устройства
-3. Проверить что показывается системное сообщение
-4. Попробовать сделать скриншот - должен размыться экран
-5. Начать запись экрана - должен размыться экран
+1. Open chat with another user
+2. Other user enables screenshot protection
+3. System message should appear immediately (no refresh needed)
+4. Try to take screenshot - content should be black
+5. Screenshot notification should appear in chat
 
-### Ожидаемое поведение
-- При скриншоте: экран размывается, показывается overlay с иконкой и текстом
-- При записи экрана: экран размывается на всё время записи
-- Системное сообщение показывается один раз вверху чата
+### Android
+1. Open chat with another user
+2. Other user enables screenshot protection
+3. System message should appear immediately (no refresh needed)
+4. Try to take screenshot - should be blocked
+5. Screenshot notification should appear in chat
 
-## Статус
-- iOS: ✅ Готово
-- Android: ❌ Не реализовано
-- Сервер: ✅ Готово
+## Files Modified
+
+### Server
+- `JEMMY-SERVER/server.js` - Added WebSocket events and broadcasting
+
+### iOS
+- `serverSpaceEXCHANGE/JemmyIOS/Jemmy/Services/WebSocketManager.swift` - Added event listeners
+- `serverSpaceEXCHANGE/JemmyIOS/Jemmy/Views/ChatView.swift` - Added real-time handlers
+
+### Android
+- `serverSpaceEXCHANGE/JemmyAndroid/app/src/main/java/com/bananjemmy/data/websocket/WebSocketManager.kt` - Added event listeners
+- `serverSpaceEXCHANGE/JemmyAndroid/app/src/main/java/com/bananjemmy/ui/screen/ChatScreen.kt` - Added real-time handlers and screenshot detection
+
+## Notes
+
+- No polling needed - everything updates in real-time via WebSocket
+- System message appears/disappears instantly when protection is toggled
+- Screenshot notifications are both sent via WebSocket (instant) and persisted to database
+- iOS uses Telegram-style protection (content is black on screenshots)
+- Android uses FLAG_SECURE (screenshots are completely blocked)

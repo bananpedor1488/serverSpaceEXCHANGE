@@ -125,6 +125,19 @@ interface JemmyApiService {
         @Path("my_id") myId: String,
         @Path("other_id") otherId: String
     ): Response<AmIBlockedResponse>
+    
+    // Device endpoints
+    @GET("api/devices/{identityId}")
+    suspend fun getDevices(@Path("identityId") identityId: String): Response<DevicesResponse>
+    
+    @POST("api/devices/register")
+    suspend fun registerDevice(@Body request: RegisterDeviceRequest): Response<Device>
+    
+    @POST("api/devices/logout")
+    suspend fun logoutDevice(@Body request: LogoutDeviceRequest): Response<Unit>
+    
+    @PUT("api/devices/{deviceId}/activity")
+    suspend fun updateDeviceActivity(@Path("deviceId") deviceId: String): Response<Unit>
 }
 
 data class UserStatusResponse(
