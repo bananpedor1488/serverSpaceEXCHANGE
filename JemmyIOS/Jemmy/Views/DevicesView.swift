@@ -90,7 +90,7 @@ struct DevicesView: View {
     func loadDevices() {
         isLoading = true
         
-        guard let url = URL(string: "\(APIService.baseURL)/api/devices/\(identityId)") else {
+        guard let url = URL(string: "\(APIService.shared.baseURL)/devices/\(identityId)") else {
             isLoading = false
             return
         }
@@ -122,7 +122,7 @@ struct DevicesView: View {
     }
     
     func logoutDevice(_ device: DeviceInfo) {
-        guard let url = URL(string: "\(APIService.baseURL)/api/devices/logout") else { return }
+        guard let url = URL(string: "\(APIService.shared.baseURL)/devices/logout") else { return }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
