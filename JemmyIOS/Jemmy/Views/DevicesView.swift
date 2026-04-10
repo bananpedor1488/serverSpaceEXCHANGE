@@ -1,5 +1,5 @@
 import SwiftUI
-
+//
 struct DevicesView: View {
     @Environment(\.dismiss) var dismiss
     let identityId: String
