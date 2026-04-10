@@ -13,81 +13,53 @@ struct DevicesView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             
-            VStack(spacing: 0) {
-                // Custom header
-                HStack {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-                    
-                    Spacer()
-                    
-                    Text("Устройства")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    // Invisible button for centering
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.clear)
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
-                .padding(.bottom, 8)
-                .background(Color.black)
-                
-                if isLoading {
-                    Spacer()
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    Spacer()
-                } else {
-                    ScrollView {
-                        VStack(spacing: 8) {
-                            // Info card
-                            HStack(spacing: 10) {
-                                Image(systemName: "info.circle.fill")
-                                    .foregroundColor(.blue)
-                                    .font(.system(size: 18))
-                                
-                                Text("Список всех устройств, на которых выполнен вход в ваш аккаунт")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(.white.opacity(0.7))
-                                    .lineSpacing(3)
-                            }
-                            .padding(12)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(12)
-                            .padding(.horizontal)
-                            .padding(.top, 8)
+            if isLoading {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+            } else {
+                ScrollView {
+                    VStack(spacing: 8) {
+                        // Info card
+                        HStack(spacing: 10) {
+                            Image(systemName: "info.circle.fill")
+                                .foregroundColor(.blue)
+                                .font(.system(size: 18))
                             
-                            // Devices list
-                            ForEach(devices) { device in
-                                DeviceItemView(
-                                    device: device,
-                                    onLogout: {
-                                        deviceToLogout = device
-                                        showLogoutAlert = true
-                                    }
-                                )
-                                .padding(.horizontal)
-                            }
-                            
-                            if devices.isEmpty {
-                                Text("Нет активных устройств")
-                                    .foregroundColor(.white.opacity(0.5))
-                                    .padding(.top, 32)
-                            }
+                            Text("Список всех устройств, на которых выполнен вход в ваш аккаунт")
+                                .font(.system(size: 13))
+                                .foregroundColor(.white.opacity(0.7))
+                                .lineSpacing(3)
                         }
-                        .padding(.bottom, 16)
+                        .padding(12)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        
+                        // Devices list
+                        ForEach(devices) { device in
+                            DeviceItemView(
+                                device: device,
+                                onLogout: {
+                                    deviceToLogout = device
+                                    showLogoutAlert = true
+                                }
+                            )
+                            .padding(.horizontal)
+                        }
+                        
+                        if devices.isEmpty {
+                            Text("Нет активных устройств")
+                                .foregroundColor(.white.opacity(0.5))
+                                .padding(.top, 32)
+                        }
                     }
+                    .padding(.bottom, 16)
                 }
             }
         }
+        .navigationTitle("Устройства")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             loadDevices()
         }
