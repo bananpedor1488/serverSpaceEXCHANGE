@@ -61,14 +61,6 @@ struct DevicesView: View {
             }
             .navigationTitle("Устройства")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .foregroundColor(.white)
-                    }
-                }
-            }
         }
         .onAppear {
             loadDevices()
