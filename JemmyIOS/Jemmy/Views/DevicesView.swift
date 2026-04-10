@@ -4,9 +4,9 @@ struct DevicesView: View {
     @Environment(\.dismiss) var dismiss
     let identityId: String
     
-    @State private var devices: [Device] = []
+    @State private var devices: [DeviceInfo] = []
     @State private var isLoading = true
-    @State private var deviceToLogout: Device?
+    @State private var deviceToLogout: DeviceInfo?
     @State private var showLogoutAlert = false
     
     var body: some View {
@@ -121,7 +121,7 @@ struct DevicesView: View {
         }.resume()
     }
     
-    func logoutDevice(_ device: Device) {
+    func logoutDevice(_ device: DeviceInfo) {
         guard let url = URL(string: "\(APIService.baseURL)/api/devices/logout") else { return }
         
         var request = URLRequest(url: url)
@@ -150,7 +150,7 @@ struct DevicesView: View {
 }
 
 struct DeviceItemView: View {
-    let device: Device
+    let device: DeviceInfo
     let onLogout: () -> Void
     
     var platformColor: Color {
@@ -281,7 +281,7 @@ struct DeviceItemView: View {
 }
 
 // Device model
-struct Device: Identifiable, Codable {
+struct DeviceInfo: Identifiable, Codable {
     let id: String
     let identityId: String
     let deviceName: String
@@ -294,5 +294,5 @@ struct Device: Identifiable, Codable {
 }
 
 struct DevicesResponse: Codable {
-    let devices: [Device]
+    let devices: [DeviceInfo]
 }

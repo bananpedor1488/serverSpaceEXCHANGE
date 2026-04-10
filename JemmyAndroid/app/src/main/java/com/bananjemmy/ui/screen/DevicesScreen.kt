@@ -191,12 +191,7 @@ fun DeviceItem(
         else -> MaterialTheme.colorScheme.primary
     }
     
-    val platformIcon = when (device.platform.lowercase()) {
-        "ios" -> Icons.Filled.Phone
-        "android" -> Icons.Filled.Phone
-        "macos" -> Icons.Filled.Laptop
-        else -> Icons.Filled.Phone
-    }
+    val platformIcon = Icons.Filled.Phone
     
     Surface(
         modifier = Modifier.fillMaxWidth(),
