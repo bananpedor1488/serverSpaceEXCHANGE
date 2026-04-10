@@ -1,6 +1,8 @@
 package com.bananjemmy.data.api
 
+import android.content.Context
 import android.util.Log
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -11,13 +13,31 @@ object RetrofitClient {
     private const val BASE_URL = "https://weeky-six.vercel.app/"
     private const val TAG = "API"
     
+    private var deviceId: String? = null
+    
+    fun init(context: Context) {
+        deviceId = android.provider.Settings.Secure.getString(
+            context.contentResolver,
+            android.provider.Settings.Secure.ANDROID_ID
+        )
+    }
+    
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
         Log.d(TAG, message)
     }.apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
     
+    private val deviceIdInterceptor = Interceptor { chain ->
+        val request = chain.request().newBuilder()
+        deviceId?.let {
+            request.addHeader("x-device-id", it)
+        }
+        chain.proceed(request.build())
+    }
+    
     private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor(deviceIdInterceptor)
         .addInterceptor(loggingInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)

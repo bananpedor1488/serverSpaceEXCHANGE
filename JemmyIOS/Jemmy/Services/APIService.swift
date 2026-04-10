@@ -819,4 +819,36 @@ class APIService {
         print("✅ Am I blocked: \(isBlocked)")
         return isBlocked
     }
+    
+    // MARK: - Devices
+    
+    func registerDevice(identityId: String, deviceName: String, deviceModel: String, platform: String, osVersion: String, appVersion: String) async throws {
+        print("📡 Request: POST /api/devices/register")
+        print("📦 Device: \(deviceName) (\(deviceModel))")
+        
+        let url = URL(string: "\(baseURL)/api/devices/register")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(UIDevice.current.identifierForVendor?.uuidString ?? "", forHTTPHeaderField: "x-device-id")
+        
+        let body: [String: String] = [
+            "identityId": identityId,
+            "deviceName": deviceName,
+            "deviceModel": deviceModel,
+            "platform": platform,
+            "osVersion": osVersion,
+            "appVersion": appVersion
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            print("📥 Response: \(httpResponse.statusCode)")
+            if httpResponse.statusCode == 200 {
+                print("✅ Device registered")
+            }
+        }
+    }
 }

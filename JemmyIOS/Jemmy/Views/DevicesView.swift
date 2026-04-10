@@ -19,21 +19,21 @@ struct DevicesView: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                 } else {
                     ScrollView {
-                        VStack(spacing: 16) {
+                        VStack(spacing: 8) {
                             // Info card
-                            HStack(spacing: 12) {
+                            HStack(spacing: 10) {
                                 Image(systemName: "info.circle.fill")
                                     .foregroundColor(.blue)
-                                    .font(.system(size: 20))
+                                    .font(.system(size: 18))
                                 
                                 Text("Список всех устройств, на которых выполнен вход в ваш аккаунт")
-                                    .font(.system(size: 14))
+                                    .font(.system(size: 13))
                                     .foregroundColor(.white.opacity(0.7))
-                                    .lineSpacing(4)
+                                    .lineSpacing(3)
                             }
-                            .padding()
+                            .padding(12)
                             .background(Color.blue.opacity(0.1))
-                            .cornerRadius(16)
+                            .cornerRadius(12)
                             .padding(.horizontal)
                             .padding(.top, 8)
                             
@@ -90,7 +90,7 @@ struct DevicesView: View {
     func loadDevices() {
         isLoading = true
         
-        guard let url = URL(string: "\(APIService.shared.baseURL)/devices/\(identityId)") else {
+        guard let url = URL(string: "\(APIService.shared.baseURL)/api/devices/\(identityId)") else {
             isLoading = false
             return
         }
@@ -173,29 +173,30 @@ struct DeviceItemView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 // Platform icon
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 10)
                         .fill(platformColor.opacity(0.1))
-                        .frame(width: 48, height: 48)
+                        .frame(width: 40, height: 40)
                     
                     Image(systemName: platformIcon)
-                        .font(.system(size: 24))
+                        .font(.system(size: 20))
                         .foregroundColor(platformColor)
                 }
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
                         Text(device.deviceName)
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.white)
+                            .lineLimit(1)
                         
                         if device.isCurrent {
                             Text("Текущее")
-                                .font(.system(size: 11, weight: .medium))
+                                .font(.system(size: 10, weight: .medium))
                                 .foregroundColor(.blue)
-                                .padding(.horizontal, 6)
+                                .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
                                 .background(Color.blue.opacity(0.1))
                                 .cornerRadius(4)
@@ -203,8 +204,9 @@ struct DeviceItemView: View {
                     }
                     
                     Text(device.deviceModel)
-                        .font(.system(size: 14))
+                        .font(.system(size: 13))
                         .foregroundColor(.white.opacity(0.6))
+                        .lineLimit(1)
                 }
                 
                 Spacer()
@@ -213,50 +215,50 @@ struct DeviceItemView: View {
                     Button(action: onLogout) {
                         Image(systemName: "xmark")
                             .foregroundColor(.red)
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                     }
                 }
             }
-            .padding()
+            .padding(12)
             
             Divider()
                 .background(Color.white.opacity(0.1))
                 .padding(.horizontal)
             
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("Платформа")
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.5))
                     
                     Text("\(device.platform.uppercased()) \(device.osVersion)")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.white)
                 }
                 
                 Spacer()
                 
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: 3) {
                     Text("Версия приложения")
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.5))
                     
                     Text(device.appVersion)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.white)
                 }
             }
-            .padding()
+            .padding(12)
             
             Text("Последняя активность: \(formatLastActive(device.lastActive))")
-                .font(.system(size: 12))
+                .font(.system(size: 11))
                 .foregroundColor(.white.opacity(0.5))
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
-                .padding(.bottom)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
         }
         .background(Color.white.opacity(0.05))
-        .cornerRadius(16)
+        .cornerRadius(12)
     }
     
     func formatLastActive(_ timestamp: Int64) -> String {

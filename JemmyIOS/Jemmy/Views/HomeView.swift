@@ -51,6 +51,26 @@ struct HomeView: View {
             }
             .accentColor(.white)
             .onAppear {
+                // Register device
+                Task {
+                    let deviceName = UIDevice.current.name
+                    let deviceModel = UIDevice.current.model
+                    let platform = "ios"
+                    let osVersion = UIDevice.current.systemVersion
+                    let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+                    
+                    if let identity = authViewModel.identity {
+                        try? await APIService.shared.registerDevice(
+                            identityId: identity.id,
+                            deviceName: deviceName,
+                            deviceModel: deviceModel,
+                            platform: platform,
+                            osVersion: osVersion,
+                            appVersion: appVersion
+                        )
+                    }
+                }
+                
                 // Start periodic account check when authenticated
                 authViewModel.startPeriodicAccountCheck()
             }
