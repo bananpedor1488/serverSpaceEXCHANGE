@@ -35,7 +35,6 @@ struct DevicesView: View {
                             .background(Color.blue.opacity(0.1))
                             .cornerRadius(12)
                             .padding(.horizontal)
-                            .padding(.top, 8)
                             
                             // Devices list
                             ForEach(devices) { device in
