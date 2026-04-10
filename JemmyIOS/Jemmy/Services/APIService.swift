@@ -17,7 +17,7 @@ class APIService {
     func register(deviceId: String, publicKey: String) async throws -> AuthResponse {
         print("📡 Request: POST /auth/register")
         print("📦 Body: device_id=\(deviceId)")
-        
+	        
         let url = URL(string: "\(baseURL)/auth/register")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
