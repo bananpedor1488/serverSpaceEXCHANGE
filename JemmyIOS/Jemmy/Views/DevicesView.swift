@@ -10,13 +10,41 @@ struct DevicesView: View {
     @State private var showLogoutAlert = false
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color.black.ignoresSafeArea()
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Custom header
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                    
+                    Spacer()
+                    
+                    Text("Устройства")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    // Invisible button for centering
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.clear)
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
+                .background(Color.black)
                 
                 if isLoading {
+                    Spacer()
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    Spacer()
                 } else {
                     ScrollView {
                         VStack(spacing: 8) {
@@ -35,6 +63,7 @@ struct DevicesView: View {
                             .background(Color.blue.opacity(0.1))
                             .cornerRadius(12)
                             .padding(.horizontal)
+                            .padding(.top, 8)
                             
                             // Devices list
                             ForEach(devices) { device in
@@ -58,8 +87,6 @@ struct DevicesView: View {
                     }
                 }
             }
-            .navigationTitle("Устройства")
-            .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
             loadDevices()
