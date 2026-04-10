@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E58C63902F81A1F400379786 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = E58C638F2F81A1F400379786 /* SocketIO */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		E5B951562F7E6174003F2121 /* Jemmy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Jemmy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E58C63902F81A1F400379786 /* SocketIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 			);
 			name = Jemmy;
 			packageProductDependencies = (
+				E58C638F2F81A1F400379786 /* SocketIO */,
 			);
 			productName = Jemmy;
 			productReference = E5B951562F7E6174003F2121 /* Jemmy.app */;
@@ -107,6 +113,9 @@
 			);
 			mainGroup = E5B9514D2F7E6174003F2121;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E58C638E2F81A1F400379786 /* XCRemoteSwiftPackageReference "socket" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E5B951572F7E6174003F2121 /* Products */;
 			projectDirPath = "";
@@ -345,6 +354,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E58C638E2F81A1F400379786 /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E58C638F2F81A1F400379786 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E58C638E2F81A1F400379786 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E5B9514E2F7E6174003F2121 /* Project object */;
 }

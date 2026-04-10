@@ -18,7 +18,7 @@ class APIService {
     func register(deviceId: String, publicKey: String) async throws -> AuthResponse {
         print("📡 Request: POST /auth/register")
         print("📦 Body: device_id=\(deviceId)")
-        
+	        
         let url = URL(string: "\(baseURL)/auth/register")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -788,7 +788,7 @@ class APIService {
         
         do {
             // Try to decode the response
-            let decoder = JSONDecoder()
+            let decoder = JSONDecoder()	
             let blockedResponse = try decoder.decode(BlockedUserResponse.self, from: data)
             print("✅ Blocked users loaded: \(blockedResponse.blockedUsers.count)")
             return blockedResponse.blockedUsers
