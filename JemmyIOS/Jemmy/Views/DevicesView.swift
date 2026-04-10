@@ -90,7 +90,7 @@ struct DevicesView: View {
     func loadDevices() {
         isLoading = true
         
-        guard let url = URL(string: "\(APIService.shared.baseURL)/devices/\(identityId)") else {
+        guard let url = URL(string: "\(APIService.shared.baseURL)/api/devices/\(identityId)") else {
             isLoading = false
             return
         }
