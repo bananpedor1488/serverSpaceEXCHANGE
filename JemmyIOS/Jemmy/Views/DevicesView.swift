@@ -210,14 +210,6 @@ struct DeviceItemView: View {
                 }
                 
                 Spacer()
-                
-                if !device.isCurrent {
-                    Button(action: onLogout) {
-                        Image(systemName: "xmark")
-                            .foregroundColor(.red)
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                }
             }
             .padding(12)
             

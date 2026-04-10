@@ -268,16 +268,6 @@ fun DeviceItem(
                         )
                     }
                 }
-                
-                if (!device.isCurrent) {
-                    IconButton(onClick = onLogout) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = "Завершить сеанс",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
             }
             
             Spacer(modifier = Modifier.height(8.dp))
