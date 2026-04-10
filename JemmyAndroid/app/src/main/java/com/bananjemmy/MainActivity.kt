@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.bananjemmy.data.api.RetrofitClient
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,6 +59,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         Log.d("MainActivity", "🚀 onCreate started")
+        
+        // Initialize RetrofitClient with device ID
+        RetrofitClient.init(this)
         
         // Initialize cache manager
         cacheManager = com.bananjemmy.data.cache.CacheManager(this)
@@ -357,10 +361,35 @@ fun JemmyApp(
         
         is AuthState.Authenticated -> {
             val identity = state.identity
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val appVersion = remember {
+                try {
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
+                } catch (e: Exception) {
+                    "1.0"
+                }
+            }
             
             // Load chats when authenticated
             LaunchedEffect(identity.id) {
                 Log.d("MainActivity", "📡 Loading chats for identity: ${identity.id}")
+                
+                // Register device
+                val repository = JemmyRepository()
+                val deviceName = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"
+                val deviceModel = android.os.Build.MODEL
+                val platform = "android"
+                val osVersion = android.os.Build.VERSION.RELEASE
+                
+                repository.registerDevice(
+                    identityId = identity.id,
+                    deviceName = deviceName,
+                    deviceModel = deviceModel,
+                    platform = platform,
+                    osVersion = osVersion,
+                    appVersion = appVersion
+                )
+                
                 chatViewModel.loadChats(identity.id)
                 chatViewModel.connectWebSocket(identity.id, identity.id)
                 
